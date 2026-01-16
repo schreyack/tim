@@ -1,0 +1,310 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
+## STOP AND READ: Critical Rules
+
+**Before doing ANYTHING, read and understand these rules. They are not optional.**
+
+### Rule 1: Never Prioritize Speed Over Process
+
+This is the most critical rule. No matter what:
+- Follow the rules in this document exactly
+- If uncertain about the correct approach, **ASK the user** rather than guessing
+- Never take shortcuts that could cause problems later
+
+### Rule 2: Ask Before Assuming
+
+When encountering complicated problems:
+- Investigate root causes thoroughly before implementing fixes
+- If in doubt about the approach, **pause and ask for instructions**
+- Avoid quick workarounds that mask underlying issues
+
+---
+
+## Execution Environment
+
+<!-- CUSTOMIZE: Choose one of these sections based on your project -->
+
+### Option A: Local/Remote Split Architecture
+
+**This project has a split local/remote architecture. You MUST follow these rules:**
+
+1. **Local machine (macOS)**: ONLY for editing files. Do NOT run pytest, docker, or application commands locally.
+2. **Remote server**: ALL execution happens here via `./ops.sh`. This includes deployment, logs, database operations, and container management.
+3. **Before running any command**: Ask yourself "Does this execute code?" If yes, use `./ops.sh`.
+
+### Option B: Local Development
+
+**This project runs locally. Commands execute on your machine.**
+
+- Server: `npm start` or `python -m uvicorn app.main:app`
+- Tests: `npm test` or `pytest`
+- See project-specific commands below.
+
+---
+
+## Mandatory: Use ops.sh for Remote Operations
+
+<!-- CUSTOMIZE: Remove this section if not using ops.sh -->
+
+**All interaction with the remote server MUST go through `./ops.sh`.** This script provides safety controls.
+
+```bash
+./ops.sh help                    # Show all available commands
+./ops.sh deploy                  # Deploy to remote server
+./ops.sh logs backend            # View backend logs
+./ops.sh status                  # Show container status
+./ops.sh health                  # Health check all services
+./ops.sh db backup               # Create database backup
+```
+
+### Safety Tiers
+
+| Tier | Operations | Behavior |
+|------|------------|----------|
+| **SAFE** | logs, status, health, backup | Execute immediately |
+| **MODERATE** | deploy, restart, migrate | Requires confirmation |
+| **HUMAN_REQUIRED** | rollback, restore, stop | Human must approve |
+| **BLOCKED** | DROP, TRUNCATE, DELETE (raw) | Refused with error |
+
+### Never Do These
+
+| DO NOT | WHY |
+|--------|-----|
+| Run `ssh` commands directly | Bypasses safety controls |
+| Run `docker exec` directly | Can execute destructive operations |
+| Run SQL directly on database | No validation, no audit trail |
+
+**If you need to interact with the remote server, use `./ops.sh`. No exceptions.**
+
+---
+
+## Mandatory: Plans Go in Project plans/ Folder
+
+All plan files MUST be written to this project's `plans/` folder, NOT any global or user-level folder.
+
+**Naming convention:** `YYYY-MM-DD-description.md`
+
+```
+plans/
+├── 2025-01-15-feature-implementation.md
+├── 2025-01-16-bug-fix-plan.md
+└── ...
+```
+
+**IMPORTANT:** If Claude Code's plan mode suggests a different location (e.g., `~/.claude/plans/`), ignore it and use the project's `plans/` folder.
+
+### Plan Requirements
+
+Every plan MUST include:
+1. **Problem/Goal** - What needs to be done
+2. **Implementation Steps** - Technical approach
+3. **Testing Strategy** - How to verify changes
+4. **Completion Criteria** - What "done" looks like
+
+---
+
+## Mandatory: Code Quality Rules
+
+### No TODOs or Placeholders
+
+- **NO `TODO`, `FIXME`, `XXX`, `HACK` comments** - Implement fully or don't add it
+- **NO placeholder code** - No `raise NotImplementedError`, no `pass`, no `...`
+- **NO print debugging** - Use logging module (`structlog`, `logging`)
+- **NO bare except clauses** - Catch specific exceptions
+
+### Type Safety
+
+- **ALL functions must have type hints** (parameters and return types)
+- **Use `mypy --strict`** (Python) or **`tsc --strict`** (TypeScript)
+- **No `any` types** in TypeScript
+
+### Error Handling
+
+- Catch specific exceptions, not `Exception` or bare `except:`
+- Include context in error messages (user ID, relevant IDs)
+- Log errors server-side with context for debugging
+- Never expose internal details to clients
+
+### Security
+
+- Validate all user input server-side
+- Use parameterized queries (never string interpolation for SQL)
+- Validate authorization for all operations
+- Never commit secrets, credentials, or .env files
+
+---
+
+## Mandatory: Single Source of Truth
+
+Every piece of data, configuration, or definition must have exactly one authoritative source.
+
+### Why This Matters
+- Prevents inconsistency when values change
+- Eliminates "which one is correct?" ambiguity
+- Makes updates atomic - change once, apply everywhere
+
+### Applying the Principle
+1. **Identify the source of truth** - Where should this value be defined?
+2. **Define it once** - Add to the authoritative source
+3. **Import, don't duplicate** - All consumers reference the source
+4. **Update the source** - When changes are needed, change only the source
+
+### Anti-patterns to Avoid
+- Hardcoding the same value in multiple files
+- Creating "local" versions of shared constants
+- Copying test data between test files instead of importing
+- Duplicating validation logic instead of sharing utilities
+
+---
+
+## Mandatory: Test Requirements
+
+**No changes are complete without testing.**
+
+### Test Naming Convention
+
+Use `test_<what>_<when>_<expected>` format:
+
+```python
+def test_login_with_valid_credentials_returns_token():
+def test_upload_with_invalid_format_returns_400():
+def test_create_user_when_email_exists_raises_error():
+```
+
+### Test Coverage
+
+- **Minimum 90% coverage** - All new code must meet this bar
+- **Both unit and integration tests** - Test in isolation AND with real dependencies
+- **E2E tests for critical paths** - Test full user workflows
+
+### Bug Fix Protocol
+
+When a bug is reported:
+1. **Write a test that reproduces the bug FIRST**
+2. **Run the test - verify it FAILS**
+3. **Fix the bug**
+4. **Run the test - verify it PASSES**
+5. **Run all tests to ensure no regressions**
+
+### Completion Checklist
+
+A task is NOT complete until:
+- [ ] All implementation steps are done (no TODOs, no placeholders)
+- [ ] Tests exist and pass (unit, integration, E2E as appropriate)
+- [ ] Code is deployed (if applicable)
+- [ ] Manual verification confirms the fix/feature works
+- [ ] No errors in logs
+
+---
+
+## Mandatory: Commit Standards
+
+### Commit Message Format
+
+Use Conventional Commits:
+```
+feat: add user authentication
+fix: resolve token expiration bug
+refactor: simplify database queries
+test: add coverage for billing service
+docs: update API documentation
+```
+
+### Co-Author Line
+
+ALL commits must include:
+```
+Co-Authored-By: Claude <model>/<version> <noreply@anthropic.com>
+```
+
+### What NOT to Commit
+
+- `.env` files
+- Credentials or secrets
+- Debug code or print statements
+- Incomplete implementations
+
+---
+
+## Project-Specific Information
+
+<!-- CUSTOMIZE: Fill in the sections below for your project -->
+
+### Project Overview
+
+<!-- Brief description of what this project does -->
+
+### Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| Backend | <!-- e.g., FastAPI, Express --> |
+| Frontend | <!-- e.g., Next.js, React --> |
+| Database | <!-- e.g., PostgreSQL --> |
+| Queue | <!-- e.g., Celery, Redis --> |
+
+### Key Commands
+
+```bash
+# Start development server
+<!-- your command -->
+
+# Run tests
+<!-- your command -->
+
+# Deploy
+<!-- your command -->
+```
+
+### Project Structure
+
+```
+your-project/
+├── src/              # Source code
+├── tests/            # Test files
+├── plans/            # Planning documents
+└── ...
+```
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | Database connection string | Yes |
+| <!-- add more --> | | |
+
+### Common Issues
+
+<!-- Document project-specific gotchas here -->
+
+---
+
+## TIM Design Standards Reference
+
+This project follows TIM Design Standards. Key requirements:
+
+| Requirement | Threshold |
+|-------------|-----------|
+| Type safety | 100% (mypy --strict / tsc --strict) |
+| Test coverage | 90% minimum |
+| File size | 400 lines maximum |
+| Function size | 50 lines maximum |
+| Complexity | 10 maximum (cyclomatic) |
+
+For complete standards, see: [TIM Design Standards Repository](<!-- link to design_standards -->)
+
+---
+
+## AI Developer Acknowledgment
+
+Before making any changes, confirm you understand:
+1. All rules in this CLAUDE.md file
+2. The test naming convention (test_what_when_then)
+3. The file size limits (400 lines max)
+4. The requirement to complete features fully (no TODOs)
+
+**If you are uncertain about any rule, ASK before proceeding.**

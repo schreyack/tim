@@ -1,0 +1,48 @@
+# TIM Shared Python Library
+# Install: pip install -e /path/to/design_standards/libs/python
+
+[tool.poetry]
+name = "tim-lib"
+version = "1.0.0"
+description = "TIM Design Standards shared Python library"
+authors = ["TIM Team"]
+readme = "README.md"
+packages = [{include = "tim_lib"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic = "^2.10.0"
+pydantic-settings = "^2.6.0"
+structlog = "^24.4.0"
+passlib = { extras = ["bcrypt"], version = "^1.7.4" }
+python-jose = { extras = ["cryptography"], version = "^3.3.0" }
+sqlalchemy = { extras = ["asyncio"], version = "^2.0.0" }
+fastapi = "^0.115.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^6.0.0"
+mypy = "^1.13.0"
+ruff = "^0.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "S", "T20", "SIM", "ARG", "PTH", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = ["--cov=tim_lib", "--cov-fail-under=90"]

@@ -81,6 +81,18 @@ export default tseslint.config(
       "security/detect-buffer-noassert": "error",
 
       // =======================================================================
+      // COMPLEXITY LIMITS - Critical for AI development
+      // =======================================================================
+      "complexity": ["error", 10],                    // Cyclomatic complexity
+      "max-depth": ["error", 4],                      // Max nesting depth
+      "max-lines-per-function": [
+        "error",
+        { max: 50, skipBlankLines: true, skipComments: true },
+      ],
+      "max-params": ["error", 5],                     // Max function parameters
+      "max-nested-callbacks": ["error", 3],           // Max callback nesting
+
+      // =======================================================================
       // CODE QUALITY
       // =======================================================================
       "no-console": "error",

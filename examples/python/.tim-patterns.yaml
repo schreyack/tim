@@ -1,0 +1,101 @@
+# TIM Pattern Definitions for Python Example Project
+# AI developers reference this file to understand project patterns
+
+project:
+  name: tim-example-api
+  stack: python-fastapi
+  version: "0.1.0"
+
+patterns:
+  # File organization
+  structure:
+    src_layout: true
+    max_file_lines: 400
+    max_function_lines: 50
+
+  # API patterns
+  api:
+    versioning: url  # /api/v1/...
+    router_pattern: APIRouter per domain
+    dependency_injection: true
+
+  # Service layer patterns
+  services:
+    location: app/services/
+    naming: "{domain}_service.py"
+    pattern: |
+      class {Domain}Service:
+          def __init__(self, dependencies: ...):
+              ...
+
+          async def method(self, db: AsyncSession, ...) -> Result:
+              ...
+
+  # Model patterns
+  models:
+    location: app/models/
+    base_class: app.models.base.Base
+    required_fields:
+      - id (UUID, primary key)
+      - created_at (datetime, auto)
+      - updated_at (datetime, auto on update)
+
+  # Schema patterns
+  schemas:
+    location: app/schemas/
+    naming: "{domain}.py"
+    variants:
+      - "{Domain}Create" - input for creation
+      - "{Domain}Update" - input for updates (all optional)
+      - "{Domain}Response" - output to client
+
+  # Test patterns
+  testing:
+    naming: "test_{what}_{when}_{then}"
+    fixtures: conftest.py at each level
+    structure:
+      unit: tests/unit/
+      integration: tests/integration/
+    async_tests: true
+
+  # Error handling
+  errors:
+    custom_exceptions: true
+    location: "in service files or app/exceptions/"
+    pattern: |
+      class {Domain}Error(Exception):
+          """Base error for {domain} operations."""
+          pass
+
+      class {Domain}NotFoundError({Domain}Error):
+          """Raised when {domain} is not found."""
+          pass
+
+conventions:
+  # Import ordering (handled by ruff)
+  imports:
+    - standard library
+    - third party
+    - local
+
+  # Type hints
+  typing:
+    required: true
+    return_types: true
+    strict_mode: true
+
+  # Docstrings
+  docstrings:
+    style: google
+    required_for: public functions, classes, modules
+
+enforcement:
+  pre_commit:
+    - ruff check
+    - ruff format --check
+    - mypy --strict
+
+  ci:
+    - all pre-commit checks
+    - pytest with 90% coverage
+    - file size check (max 400 lines)

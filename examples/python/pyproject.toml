@@ -1,0 +1,90 @@
+# TIM Design Standards - Python Example Project
+# A minimal but complete FastAPI application demonstrating all TIM standards
+
+[tool.poetry]
+name = "tim-example-api"
+version = "0.1.0"
+description = "TIM Standards Example - FastAPI with SQLAlchemy"
+authors = ["TIM Team"]
+readme = "README.md"
+packages = [{include = "app", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = { extras = ["standard"], version = "^0.32.0" }
+sqlalchemy = { extras = ["asyncio"], version = "^2.0.0" }
+asyncpg = "^0.30.0"
+alembic = "^1.14.0"
+pydantic = "^2.10.0"
+pydantic-settings = "^2.6.0"
+python-jose = { extras = ["cryptography"], version = "^3.3.0" }
+passlib = { extras = ["bcrypt"], version = "^1.7.4" }
+structlog = "^24.4.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^6.0.0"
+mypy = "^1.13.0"
+ruff = "^0.8.0"
+pre-commit = "^4.0.0"
+types-passlib = "^1.7.7"
+httpx = "^0.28.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# =============================================================================
+# MYPY - STRICT MODE
+# =============================================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# =============================================================================
+# RUFF - LINTING WITH COMPLEXITY CHECKS
+# =============================================================================
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "C901", "UP", "S", "T20", "SIM", "ARG", "PTH", "ERA", "PL", "RUF", "ASYNC", "G"]
+ignore = []
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ARG001"]
+"alembic/*" = ["ERA001"]
+
+# =============================================================================
+# PYTEST - 90% COVERAGE REQUIRED
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = ["-v", "--tb=short", "--strict-markers", "--cov=src", "--cov-report=term-missing", "--cov-fail-under=90"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true

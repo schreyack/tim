@@ -57,6 +57,48 @@ repos:
       - id: check-case-conflict
       - id: detect-private-key
 
+  # CLAUDE.md Enforcement - Catch AI instruction violations
+  - repo: local
+    hooks:
+      # Block TODO/FIXME comments
+      - id: no-todos
+        name: No TODO/FIXME comments
+        entry: bash -c 'if grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.ts" --include="*.tsx" src/ 2>/dev/null; then echo "ERROR: Remove TODO/FIXME comments - implement fully or do not add"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block console.log (must use logger)
+      - id: no-console
+        name: No console.log
+        entry: bash -c 'if grep -rn "console\.log\|console\.debug\|console\.info" --include="*.ts" --include="*.tsx" src/ 2>/dev/null | grep -v "// noqa"; then echo "ERROR: Use logger instead of console.log"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block any type
+      - id: no-any
+        name: No any type
+        entry: bash -c 'if grep -rn ": any\|as any\|<any>" --include="*.ts" --include="*.tsx" src/ 2>/dev/null | grep -v "// noqa"; then echo "ERROR: Use proper types instead of any"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block placeholder implementations
+      - id: no-placeholders
+        name: No placeholder implementations
+        entry: bash -c 'if grep -rn "throw new Error.*not implemented\|// TODO\|// FIXME" --include="*.ts" --include="*.tsx" src/ 2>/dev/null; then echo "ERROR: Implement fully - no placeholders"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Enforce co-author line in commits
+      - id: require-coauthor
+        name: Require Co-Authored-By line
+        entry: bash -c 'if ! grep -q "Co-Authored-By:" "$1" 2>/dev/null; then echo "ERROR: Commit must include Co-Authored-By line"; exit 1; fi'
+        language: system
+        stages: [commit-msg]
+
 # CI runs these same checks
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit issues"

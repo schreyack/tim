@@ -61,6 +61,48 @@ repos:
         args: [-r, src/, -ll]  # Low severity and above
         exclude: tests/
 
+  # CLAUDE.md Enforcement - Catch AI instruction violations
+  - repo: local
+    hooks:
+      # Block TODO/FIXME comments
+      - id: no-todos
+        name: No TODO/FIXME comments
+        entry: bash -c 'if grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.py" src/ 2>/dev/null; then echo "ERROR: Remove TODO/FIXME comments - implement fully or do not add"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block print statements (must use logging)
+      - id: no-print
+        name: No print statements
+        entry: bash -c 'if grep -rn "^\s*print(" --include="*.py" src/ 2>/dev/null | grep -v "# noqa"; then echo "ERROR: Use logging instead of print()"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block bare except clauses
+      - id: no-bare-except
+        name: No bare except clauses
+        entry: bash -c 'if grep -rn "except:" --include="*.py" src/ 2>/dev/null | grep -v "# noqa"; then echo "ERROR: Catch specific exceptions, not bare except:"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block placeholder implementations
+      - id: no-placeholders
+        name: No placeholder implementations
+        entry: bash -c 'if grep -rn "raise NotImplementedError" --include="*.py" src/ 2>/dev/null; then echo "ERROR: Implement fully - no NotImplementedError allowed"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Enforce co-author line in commits
+      - id: require-coauthor
+        name: Require Co-Authored-By line
+        entry: bash -c 'if ! grep -q "Co-Authored-By:" "$1" 2>/dev/null; then echo "ERROR: Commit must include Co-Authored-By line"; exit 1; fi'
+        language: system
+        stages: [commit-msg]
+
 # CI runs these same checks
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit issues"

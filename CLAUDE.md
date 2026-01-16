@@ -6,9 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is the **TIM Design Standards** repository - the authoritative source for coding, testing, security, and deployment standards used across all TIM projects.
 
-**Philosophy**: Defense in depth. Never trust. Always verify. Build systems that ENFORCE rules, not just document them.
+**Philosophy**: Defense in depth. Never trust. Always verify. Build systems that ENFORCE rules, not just document them. If a rule can be bypassed, an AI will bypass it.
 
 **Stakes**: $20K+/minute downtime costs, millions in data breach liability. These aren't guidelines - they're requirements.
+
+## Critical: AI Development Context
+
+TIM develops exclusively with AI developers. This context informs EVERYTHING:
+
+- **Strict rules are appropriate** - AI doesn't fatigue from strict enforcement
+- **Hard gates catch AI mistakes** - Plausible-sounding bugs need verification
+- **NO bypass flags anywhere** - If AI can bypass, AI will bypass
+- **Human approval is the escape hatch** - For undefined or blocked operations
+- **Fast iteration is expected** - Quick failure, quick fix, quick retry
+- **Human review is critical** - See `standards/enforcement/ai-review-checklist.md`
 
 ## Approved Technology Stacks
 
@@ -17,6 +28,7 @@ This is the **TIM Design Standards** repository - the authoritative source for c
 - **Frontend**: Next.js 16+ with TypeScript
 - **Database**: PostgreSQL
 - **Queue**: Celery + Redis
+- **Shared Library**: tim-lib (REQUIRED)
 - **Deployment**: Docker Compose / Kubernetes
 
 ### Stack 2: Node.js (TypeScript-First)
@@ -24,6 +36,7 @@ This is the **TIM Design Standards** repository - the authoritative source for c
 - **Frontend**: React 18+ with TypeScript
 - **ORM**: Prisma (recommended) or Sequelize with CLI migrations
 - **Database**: PostgreSQL
+- **Shared Library**: @tim/lib (REQUIRED)
 - **Deployment**: Docker Compose / Kubernetes
 
 **Non-Negotiable**: Both stacks require strict type checking. No vanilla JavaScript. No `any` types.
@@ -35,22 +48,34 @@ design_standards/
 ├── CLAUDE.md                    # This file - copy to new TIM projects
 ├── README.md                    # Quick reference guide
 ├── standards/
-│   ├── enforcement/             # Gate definitions, AI review checklist
+│   ├── enforcement/             # Gate definitions, compliance, AI review
+│   │   ├── gates.md             # Three-gate model
+│   │   ├── ai-review-checklist.md
+│   │   └── strict-compliance.md # Pattern registry enforcement
+│   ├── architecture/
+│   │   └── shared-libraries.md  # Required library usage
 │   ├── coding/                  # Language-specific standards
 │   ├── testing/                 # Test requirements and patterns
-│   ├── security/                # Security requirements
+│   ├── security/                # Security requirements + secrets.md
 │   ├── database/                # Migration and backup requirements
-│   ├── deployment/              # Containers, feature flags, canary, observability
-│   └── incident/                # Incident response procedures
+│   └── deployment/              # CI/CD, ops, feature flags, canary, observability
+├── libs/                        # Shared libraries (REQUIRED in all projects)
+│   ├── python/                  # tim-lib Python package
+│   └── node/                    # @tim/lib Node.js package
 ├── templates/                   # Ready-to-copy configuration files
 │   ├── python/                  # Python project templates
-│   └── node/                    # Node.js project templates
-└── examples/                    # Working reference implementations
+│   ├── node/                    # Node.js project templates
+│   ├── ci/                      # CI pipeline templates
+│   ├── ops/                     # ops.sh templates
+│   └── tim-patterns.yaml.template
+└── tools/                       # Enforcement tools
+    ├── tim-compliance-check.sh  # Compliance verification
+    └── tim-ops-approve          # Human approval for ops
 ```
 
-## Three-Gate Enforcement Model
+## Four-Gate Enforcement Model
 
-All TIM projects must implement three enforcement gates:
+All TIM projects must implement four enforcement gates:
 
 ### Gate 1: Local (Pre-commit)
 Runs on every commit attempt. Blocks commit on failure.
@@ -77,14 +102,79 @@ Runs before production deployment. Blocks deploy on failure.
 - Canary deployment (10% traffic)
 - Manual approval with AI-specific checklist
 
-## AI Development Context
+### Gate 4: Pattern Compliance
+Runs at deploy time. Blocks deploy if non-compliant.
+- All patterns registered in `.tim-patterns.yaml`
+- CUSTOM patterns have human approval
+- Shared library is installed
+- No secrets in code
 
-TIM develops exclusively with AI developers. This context informs all standards:
+## Shared Libraries (REQUIRED)
 
-- **Strict rules are appropriate** - AI doesn't fatigue from strict enforcement
-- **Hard gates catch AI mistakes** - Plausible-sounding bugs need verification
-- **Fast iteration is expected** - Quick failure, quick fix, quick retry
-- **Human review is critical** - See `standards/enforcement/ai-review-checklist.md`
+Every TIM project MUST use the shared libraries:
+
+### Python
+```python
+from tim_lib import (
+    BaseAppSettings,           # Pydantic settings with validation
+    configure_logging, get_logger,
+    hash_password, verify_password,
+    create_access_token, verify_token,
+    AppError, NotFoundError, ValidationError,
+    setup_exception_handlers,
+    create_async_engine_with_pool, get_session_factory,
+)
+```
+
+### Node.js
+```typescript
+import {
+  createConfig, baseEnvSchema,
+  createLogger, LogContextMiddleware,
+  hashPassword, verifyPassword,
+  createAccessToken, verifyToken,
+  AppError, NotFoundError, ValidationError,
+  setupErrorHandlers, securityHeadersMiddleware,
+} from "@tim/lib";
+```
+
+## Pattern Registry
+
+Every project MUST have `.tim-patterns.yaml` in the root:
+
+```yaml
+patterns:
+  authentication:
+    standard: "jwt-bearer"
+    reference: "standards/security/authentication.md"
+    implemented: true
+
+  # For patterns without TIM standards:
+  custom_audio_processing:
+    standard: "CUSTOM"
+    justification: "No TIM standard exists for audio DSP"
+    approved_by: "human@example.com"  # REQUIRED
+    approved_date: "2025-01-15"
+    ticket: "STANDARDS-42"            # REQUIRED
+```
+
+If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
+
+## ops.sh Safety Tiers (NO BYPASS FLAGS)
+
+| Tier | Behavior | Examples |
+|------|----------|----------|
+| **SAFE** | Always allowed | status, health, logs, backup |
+| **MODERATE** | Allowed with logging | deploy, restart, migrate |
+| **HUMAN_REQUIRED** | Requires human approval | rollback, stop, db:rollback |
+| **BLOCKED** | Never allowed in ops.sh | destroy, db:restore |
+
+For HUMAN_REQUIRED operations:
+1. AI attempts operation → creates approval request
+2. Human reviews and runs `tim-ops-approve <request_id>`
+3. AI retries operation → succeeds with valid approval
+
+BLOCKED operations MUST be performed manually via SSH.
 
 ## Hard Rules (No Exceptions)
 
@@ -92,6 +182,7 @@ TIM develops exclusively with AI developers. This context informs all standards:
 - **Python**: `mypy --strict` must pass. `ruff` with security rules enabled.
 - **TypeScript**: `strict: true` in tsconfig. `eslint --max-warnings 0`.
 - **Coverage**: 90% minimum (line, branch, function). New code requires 95%.
+- **Shared Library**: tim-lib/@tim/lib MUST be used for common patterns.
 
 ### Security
 - **Secrets**: NEVER committed. Pre-commit hook blocks. No default values.
@@ -107,20 +198,29 @@ TIM develops exclusively with AI developers. This context informs all standards:
 - **Naming**: `test_<what>_<when>_<then>` format required.
 - **TDD**: Red-green-refactor workflow for new features.
 
+### Patterns
+- **Registry required**: Every design pattern must be in `.tim-patterns.yaml`
+- **CUSTOM requires approval**: Human must approve with ticket reference
+- **Standards first**: Check for existing standard before creating CUSTOM
+
 ## Using This Repository
 
 ### For New TIM Projects
 1. Copy this `CLAUDE.md` to the new project root
 2. Copy templates from `templates/python/` or `templates/node/`
-3. Configure CI pipeline using templates
-4. Reference `standards/` documents for detailed requirements
+3. Install shared library: `pip install ./lib/design_standards/libs/python` or `npm install ./lib/design_standards/libs/node`
+4. Copy `.tim-patterns.yaml` template and register patterns
+5. Configure CI pipeline from `templates/ci/`
+6. Run `tools/tim-compliance-check.sh` to verify setup
 
 ### For Existing Projects
-1. Run compliance check against current standards
+1. Run `tools/tim-compliance-check.sh` to identify gaps
 2. Create remediation plan for gaps
-3. Implement pre-commit hooks first (Gate 1)
-4. Add CI pipeline checks (Gate 2)
-5. Implement deploy gates (Gate 3)
+3. Install shared library
+4. Create `.tim-patterns.yaml` and register all patterns
+5. Implement pre-commit hooks (Gate 1)
+6. Add CI pipeline (Gate 2)
+7. Implement deploy gates (Gate 3 + 4)
 
 ## Quick Reference
 
@@ -136,6 +236,7 @@ TIM develops exclusively with AI developers. This context informs all standards:
 | Secrets scan | detect-secrets | gitleaks |
 | Security scan | bandit + safety | npm audit + Snyk |
 | Container scan | trivy | trivy |
+| Shared lib | tim-lib | @tim/lib |
 
 ## Commit Message Format
 

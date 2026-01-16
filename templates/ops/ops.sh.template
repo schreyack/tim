@@ -29,7 +29,7 @@ PROJECT_ROOT="$SCRIPT_DIR"
 
 # Method 3: Auto-download (default)
 TIM_OPS_LIB="${TIM_OPS_LIB:-$PROJECT_ROOT/.tim-ops/tim-ops-lib.sh}"
-TIM_OPS_VERSION="1.0.0"
+TIM_OPS_VERSION="2.0.0"
 TIM_OPS_URL="https://raw.githubusercontent.com/your-org/design_standards/main/templates/ops/tim-ops-lib.sh"
 
 # =============================================================================

@@ -2,8 +2,13 @@
 # tim-ops-lib.sh - TIM Operations Library
 # Shared deployment operations for all TIM projects
 #
-# VERSION: 1.0.0
+# VERSION: 2.0.0
 # SOURCE: https://github.com/your-org/design_standards/templates/ops/tim-ops-lib.sh
+#
+# PHILOSOPHY: Operations are either ALLOWED or require HUMAN APPROVAL.
+# There are NO bypass flags. AI developers cannot override safety checks.
+# If an operation needs to happen and is blocked, a human must approve it
+# through the approval workflow.
 #
 # Usage: Source this file from your project's ops.sh wrapper
 #   source "/path/to/tim-ops-lib.sh"
@@ -16,9 +21,10 @@ set -euo pipefail
 # CONFIGURATION
 # =============================================================================
 
-TIM_OPS_VERSION="1.0.0"
+TIM_OPS_VERSION="2.0.0"
 TIM_OPS_AUDIT_LOG="${TIM_OPS_AUDIT_LOG:-$HOME/.tim-ops/audit.log}"
 TIM_OPS_STATE_DIR="${TIM_OPS_STATE_DIR:-$HOME/.tim-ops/state}"
+TIM_OPS_APPROVAL_DIR="${TIM_OPS_APPROVAL_DIR:-$HOME/.tim-ops/approvals}"
 
 # Colors (disabled if not a terminal)
 if [[ -t 1 ]]; then
@@ -32,11 +38,15 @@ else
     RED='' GREEN='' YELLOW='' BLUE='' BOLD='' NC=''
 fi
 
-# Safety tiers
+# Safety tiers - NO BYPASS OPTIONS
+# SAFE: Always allowed
+# MODERATE: Allowed with warning logged
+# HUMAN_REQUIRED: Requires pre-approved human authorization
+# BLOCKED: Never allowed through ops.sh (manual intervention only)
 declare -A SAFETY_TIERS=(
     [SAFE]=0
     [MODERATE]=1
-    [PROTECTED]=2
+    [HUMAN_REQUIRED]=2
     [BLOCKED]=3
 )
 
@@ -102,8 +112,6 @@ load_config() {
     fi
 
     # Parse YAML (basic parser - for complex configs, consider yq)
-    # This handles simple key: value and nested structures
-
     local current_section=""
 
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -153,14 +161,114 @@ load_config() {
 }
 
 # =============================================================================
-# SAFETY CHECKS
+# HUMAN APPROVAL SYSTEM
+# =============================================================================
+#
+# HUMAN_REQUIRED operations cannot be executed directly by AI developers.
+# Instead, they must:
+# 1. Request approval (creates a ticket file)
+# 2. A human reviews the request and creates an approval token
+# 3. The operation can then execute with the valid approval token
+#
+# Approval tokens are one-time use and expire after 1 hour.
+
+request_human_approval() {
+    local command="$1"
+    local reason="$2"
+    local project="${CONFIG[project_name]:-unknown}"
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local request_id=$(date +%s)-$$-$RANDOM
+
+    mkdir -p "$TIM_OPS_APPROVAL_DIR/pending"
+
+    local request_file="$TIM_OPS_APPROVAL_DIR/pending/${project}_${command//:/--}_${request_id}.request"
+
+    cat > "$request_file" << EOF
+# Human Approval Request
+# Generated: $timestamp
+# Project: $project
+# Command: $command
+# Request ID: $request_id
+
+reason: |
+  $reason
+
+requested_by: ${USER:-unknown}
+requested_at: $timestamp
+expires_at: $(date -u -d '+1 hour' +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -v+1H +"%Y-%m-%dT%H:%M:%SZ")
+
+# To approve this request, a human must:
+# 1. Review the reason and verify it's appropriate
+# 2. Run: tim-ops-approve $request_id
+# OR
+# 3. Create file: $TIM_OPS_APPROVAL_DIR/approved/${request_id}.approval
+#    with content: APPROVED_BY=<your_email>
+EOF
+
+    echo "$request_id"
+    log_info "Approval request created: $request_file"
+    log_info "Request ID: $request_id"
+}
+
+check_human_approval() {
+    local command="$1"
+    local request_id="${2:-}"
+
+    # If no request ID provided, check for any valid approval for this command
+    if [[ -z "$request_id" ]]; then
+        local project="${CONFIG[project_name]:-unknown}"
+        local approval_pattern="$TIM_OPS_APPROVAL_DIR/approved/${project}_${command//:/--}_*.approval"
+
+        # Find most recent valid approval
+        local approval_file=$(ls -t $approval_pattern 2>/dev/null | head -1)
+        if [[ -z "$approval_file" ]]; then
+            return 1
+        fi
+        request_id=$(basename "$approval_file" .approval | sed "s/${project}_${command//:/--}_//")
+    fi
+
+    local approval_file="$TIM_OPS_APPROVAL_DIR/approved/${request_id}.approval"
+
+    if [[ ! -f "$approval_file" ]]; then
+        return 1
+    fi
+
+    # Check expiration
+    local expires_at=$(grep "^expires_at:" "$approval_file" 2>/dev/null | cut -d: -f2- | tr -d ' ')
+    if [[ -n "$expires_at" ]]; then
+        local expires_epoch=$(date -d "$expires_at" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$expires_at" +%s 2>/dev/null || echo 0)
+        local now_epoch=$(date +%s)
+        if [[ $now_epoch -gt $expires_epoch ]]; then
+            log_warn "Approval token expired"
+            rm -f "$approval_file"
+            return 1
+        fi
+    fi
+
+    # Check if already used
+    if grep -q "^used: true" "$approval_file" 2>/dev/null; then
+        log_warn "Approval token already used"
+        return 1
+    fi
+
+    # Mark as used
+    echo "used: true" >> "$approval_file"
+    echo "used_at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$approval_file"
+
+    local approved_by=$(grep "^APPROVED_BY=" "$approval_file" | cut -d= -f2)
+    log_info "Using approval from: $approved_by"
+    audit_log "$command" "HUMAN_APPROVED_BY:$approved_by" "0"
+
+    return 0
+}
+
+# =============================================================================
+# SAFETY CHECKS - NO BYPASS FLAGS
 # =============================================================================
 
 check_safety() {
     local tier="$1"
     local command="$2"
-    local confirm="${3:-false}"
-    local dangerous="${4:-false}"
 
     case "$tier" in
         SAFE)
@@ -168,27 +276,63 @@ check_safety() {
             ;;
         MODERATE)
             log_warn "This operation will make changes"
+            audit_log "$command" "MODERATE_EXECUTED" "0"
             return 0
             ;;
-        PROTECTED)
-            if [[ "$confirm" != "true" ]]; then
-                log_error "This operation requires confirmation"
-                log_error "Run with --confirm to proceed"
-                return 2
+        HUMAN_REQUIRED)
+            # Check for valid human approval
+            if check_human_approval "$command"; then
+                log_info "Human approval verified"
+                return 0
             fi
-            log_warn "PROTECTED operation confirmed"
-            return 0
+
+            # No bypass - request approval and block
+            log_error "============================================================"
+            log_error "HUMAN APPROVAL REQUIRED"
+            log_error "============================================================"
+            log_error ""
+            log_error "This operation ($command) requires human approval."
+            log_error "AI developers cannot execute this operation directly."
+            log_error ""
+            log_error "To proceed:"
+            log_error "  1. A human must review why this operation is needed"
+            log_error "  2. The human runs: tim-ops-approve <request_id>"
+            log_error "  3. Then retry this command"
+            log_error ""
+
+            # Create approval request
+            local request_id=$(request_human_approval "$command" "Requested via ops.sh")
+
+            log_error "Approval request created: $request_id"
+            log_error ""
+            log_error "============================================================"
+
+            audit_log "$command" "BLOCKED_NEEDS_APPROVAL:$request_id" "0"
+            notify_alert "Human approval requested: $command (request: $request_id)"
+            return 2
             ;;
         BLOCKED)
-            if [[ "$confirm" != "true" ]] || [[ "$dangerous" != "true" ]]; then
-                log_error "This operation is BLOCKED"
-                log_error "Run with --confirm --i-understand-this-is-dangerous to proceed"
-                notify_alert "BLOCKED operation attempted: $command"
-                return 3
-            fi
-            log_warn "BLOCKED operation confirmed - proceeding with caution"
-            notify_alert "BLOCKED operation executed: $command"
-            return 0
+            # These operations are NEVER allowed through ops.sh
+            # They require manual intervention outside the ops.sh system
+            log_error "============================================================"
+            log_error "OPERATION BLOCKED"
+            log_error "============================================================"
+            log_error ""
+            log_error "This operation ($command) is blocked in ops.sh."
+            log_error ""
+            log_error "These operations are too dangerous for automated execution."
+            log_error "They must be performed manually by a human with direct access."
+            log_error ""
+            log_error "If you need to perform this operation:"
+            log_error "  1. SSH directly to the server"
+            log_error "  2. Execute the commands manually"
+            log_error "  3. Document why it was necessary"
+            log_error ""
+            log_error "============================================================"
+
+            audit_log "$command" "BLOCKED_NEVER_ALLOWED" "0"
+            notify_alert "BLOCKED operation attempted: $command"
+            return 3
             ;;
     esac
 }
@@ -271,11 +415,6 @@ files_changed_since_deploy() {
     local service="$1"
     local last_deploy=$(get_last_deploy_time)
 
-    # Get watch paths for service from config
-    # This is simplified - real implementation would parse YAML arrays
-    local watch_key="services_${service}_watch_paths"
-
-    # For now, check if any files in service directory changed
     local service_dir="${service}"
     [[ "$service" == "backend" ]] && service_dir="backend"
     [[ "$service" == "frontend" ]] && service_dir="frontend"
@@ -389,26 +528,32 @@ register_command() {
     COMMANDS["$name"]="${tier}|${description}"
 }
 
-# Register default commands
+# Register default commands with appropriate safety tiers
+# SAFE: Read-only or low-risk operations
+# MODERATE: Operations that make changes (deploys, restarts)
+# HUMAN_REQUIRED: Destructive operations that need human approval
+# BLOCKED: Never allowed through ops.sh
+
 register_command "deploy" "MODERATE" "Deploy application (smart rebuild)"
-register_command "deploy:force" "PROTECTED" "Force full rebuild and deploy"
+register_command "deploy:force" "MODERATE" "Force full rebuild and deploy"
 register_command "deploy:sync" "SAFE" "Sync files only (no rebuild)"
-register_command "rollback" "PROTECTED" "Rollback to previous deployment"
+register_command "rollback" "HUMAN_REQUIRED" "Rollback to previous deployment"
 register_command "status" "SAFE" "Show deployment status"
 register_command "health" "SAFE" "Check service health"
 register_command "logs" "SAFE" "View application logs"
 register_command "db:migrate" "MODERATE" "Run database migrations"
 register_command "db:migrate:dry" "SAFE" "Preview database migrations"
-register_command "db:rollback" "PROTECTED" "Rollback last migration"
+register_command "db:rollback" "HUMAN_REQUIRED" "Rollback last migration"
 register_command "db:backup" "SAFE" "Backup database"
 register_command "db:restore" "BLOCKED" "Restore database from backup"
 register_command "shell" "MODERATE" "Open shell in container"
 register_command "restart" "MODERATE" "Restart services"
-register_command "stop" "PROTECTED" "Stop all services"
+register_command "stop" "HUMAN_REQUIRED" "Stop all services"
 register_command "destroy" "BLOCKED" "Remove all containers and data"
 register_command "test" "SAFE" "Run ops.sh self-test"
 register_command "help" "SAFE" "Show this help message"
 register_command "version" "SAFE" "Show version information"
+register_command "approval:list" "SAFE" "List pending approval requests"
 
 # -----------------------------------------------------------------------------
 # Command implementations
@@ -456,11 +601,20 @@ cmd_deploy() {
 
     # Health check
     if ! wait_for_healthy; then
+        # Note: Automatic rollback still happens, but the ROLLBACK command
+        # itself requires human approval if done manually later
         if [[ "${CONFIG[deploy_rollback_on_failure]:-true}" == "true" ]]; then
-            log_error "Deployment failed, rolling back..."
-            cmd_rollback "$(get_deployed_commit)"
-            notify_failure "Deployment failed, rolled back"
-            audit_log "deploy" "FAILED_ROLLBACK" "$(($(date +%s) - start_time))"
+            log_error "Deployment failed - attempting automatic rollback..."
+            # This is an automatic safety mechanism, not a manual rollback
+            local prev_commit=$(get_deployed_commit)
+            if [[ -n "$prev_commit" ]]; then
+                git checkout "$prev_commit" 2>/dev/null || true
+                rsync_files "$PROJECT_ROOT/" "$REMOTE_PATH/"
+                docker_compose "build"
+                docker_compose "up -d"
+            fi
+            notify_failure "Deployment failed, automatic rollback attempted"
+            audit_log "deploy" "FAILED_AUTO_ROLLBACK" "$(($(date +%s) - start_time))"
             return 5
         fi
         notify_failure "Deployment failed, health check timeout"
@@ -610,19 +764,11 @@ cmd_db_backup() {
 }
 
 cmd_db_restore() {
-    local backup_file="$1"
-
-    if [[ -z "$backup_file" ]]; then
-        log_error "Usage: ops.sh db:restore <backup_file>"
-        return 1
-    fi
-
-    log_warn "This will OVERWRITE the current database!"
-    log_info "Restoring from: $backup_file"
-
-    ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec -T db psql -U postgres < ${backup_file}"
-    audit_log "db:restore" "SUCCESS" "0"
-    log_success "Database restored"
+    # This is BLOCKED - will never execute through ops.sh
+    # Kept here for documentation purposes
+    log_error "Database restore is BLOCKED in ops.sh"
+    log_error "This operation must be performed manually"
+    return 3
 }
 
 cmd_shell() {
@@ -654,10 +800,35 @@ cmd_stop() {
 }
 
 cmd_destroy() {
-    log_warn "DESTROYING all containers and data..."
-    docker_compose "down -v --remove-orphans"
-    audit_log "destroy" "SUCCESS" "0"
-    log_success "Destroyed"
+    # This is BLOCKED - will never execute through ops.sh
+    log_error "Destroy is BLOCKED in ops.sh"
+    log_error "This operation must be performed manually"
+    return 3
+}
+
+cmd_approval_list() {
+    echo -e "${BOLD}Pending Approval Requests${NC}"
+    echo "----------------------------------------"
+
+    local pending_dir="$TIM_OPS_APPROVAL_DIR/pending"
+
+    if [[ ! -d "$pending_dir" ]] || [[ -z "$(ls -A "$pending_dir" 2>/dev/null)" ]]; then
+        echo "No pending requests"
+        return 0
+    fi
+
+    for request_file in "$pending_dir"/*.request; do
+        [[ -f "$request_file" ]] || continue
+        local filename=$(basename "$request_file")
+        local request_id=$(echo "$filename" | grep -oE '[0-9]+-[0-9]+-[0-9]+')
+
+        echo ""
+        echo -e "${YELLOW}Request: $request_id${NC}"
+        grep -E "^(reason:|requested_by:|requested_at:|expires_at:)" "$request_file" | head -5
+    done
+
+    echo ""
+    echo "To approve: tim-ops-approve <request_id>"
 }
 
 cmd_test() {
@@ -701,23 +872,37 @@ cmd_help() {
     echo -e "${BOLD}TIM Ops - ${PROJECT_NAME:-Project}${NC}"
     echo "Usage: ops.sh <command> [options]"
     echo ""
+    echo -e "${BOLD}Safety Tiers:${NC}"
+    echo "  SAFE          - Always allowed"
+    echo "  MODERATE      - Allowed (changes logged)"
+    echo "  HUMAN_REQUIRED - Requires human approval (no bypass)"
+    echo "  BLOCKED       - Never allowed in ops.sh (manual only)"
+    echo ""
     echo -e "${BOLD}Commands:${NC}"
 
     for cmd in $(echo "${!COMMANDS[@]}" | tr ' ' '\n' | sort); do
         local info="${COMMANDS[$cmd]}"
         local tier="${info%%|*}"
         local desc="${info#*|}"
-        printf "  %-20s [%-9s] %s\n" "$cmd" "$tier" "$desc"
+        local tier_color="$NC"
+        case "$tier" in
+            SAFE) tier_color="$GREEN" ;;
+            MODERATE) tier_color="$YELLOW" ;;
+            HUMAN_REQUIRED) tier_color="$RED" ;;
+            BLOCKED) tier_color="$RED${BOLD}" ;;
+        esac
+        printf "  %-20s [${tier_color}%-14s${NC}] %s\n" "$cmd" "$tier" "$desc"
     done
 
     echo ""
     echo -e "${BOLD}Options:${NC}"
-    echo "  --confirm              Confirm protected operations"
-    echo "  --i-understand-this-is-dangerous"
-    echo "                         Confirm blocked operations"
     echo "  --dry-run              Preview changes without executing"
     echo "  -v, --verbose          Verbose output"
     echo "  -h, --help             Show this help"
+    echo ""
+    echo -e "${BOLD}NOTE:${NC} There are NO bypass flags. HUMAN_REQUIRED operations"
+    echo "require pre-approval from a human. BLOCKED operations must"
+    echo "be performed manually outside of ops.sh."
     echo ""
     echo "Version: $TIM_OPS_VERSION"
 }
@@ -733,23 +918,13 @@ cmd_version() {
 
 tim_ops_main() {
     local command=""
-    local confirm=false
-    local dangerous=false
     local dry_run=false
     local verbose=false
     local args=()
 
-    # Parse arguments
+    # Parse arguments - NOTE: No --confirm or dangerous bypass flags
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --confirm)
-                confirm=true
-                shift
-                ;;
-            --i-understand-this-is-dangerous)
-                dangerous=true
-                shift
-                ;;
             --dry-run)
                 dry_run=true
                 shift
@@ -765,6 +940,7 @@ tim_ops_main() {
                 ;;
             -*)
                 log_error "Unknown option: $1"
+                log_error "NOTE: There are no bypass flags. See 'ops.sh help'"
                 return 1
                 ;;
             *)
@@ -809,8 +985,8 @@ tim_ops_main() {
     local info="${COMMANDS[$command]}"
     local tier="${info%%|*}"
 
-    # Check safety tier
-    if ! check_safety "$tier" "$command" "$confirm" "$dangerous"; then
+    # Check safety tier - NO bypass flags passed
+    if ! check_safety "$tier" "$command"; then
         return $?
     fi
 
@@ -866,6 +1042,9 @@ tim_ops_main() {
             ;;
         test)
             cmd_test
+            ;;
+        approval:list)
+            cmd_approval_list
             ;;
         help)
             cmd_help

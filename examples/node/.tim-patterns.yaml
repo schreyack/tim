@@ -1,0 +1,90 @@
+# TIM Pattern Definitions for Node.js Example Project
+# AI developers reference this file to understand project patterns
+
+project:
+  name: tim-example-api
+  stack: node-express
+  version: "0.1.0"
+
+patterns:
+  # File organization
+  structure:
+    max_file_lines: 400
+    max_function_lines: 50
+
+  # API patterns
+  api:
+    versioning: url  # /api/v1/...
+    router_pattern: Express Router per domain
+    validation: Zod middleware
+
+  # Service layer patterns
+  services:
+    location: src/services/
+    naming: "{domain}.ts"
+    pattern: |
+      export async function operation(
+        prisma: PrismaClient,
+        data: Input
+      ): Promise<Output> {
+        ...
+      }
+
+  # Schema patterns
+  schemas:
+    location: src/schemas/
+    library: Zod
+    naming: "{domain}.ts"
+    variants:
+      - "{domain}CreateSchema" - input for creation
+      - "{domain}UpdateSchema" - input for updates
+      - "{Domain}Response" - output interface
+
+  # Test patterns
+  testing:
+    framework: Vitest
+    naming: "should_{what}_{when}_{then}"
+    structure:
+      unit: tests/unit/
+      integration: tests/integration/
+
+  # Error handling
+  errors:
+    custom_classes: true
+    location: src/services/errors.ts
+    pattern: |
+      export class {Domain}Error extends AppError {
+        constructor(message: string) {
+          super(message, statusCode);
+          this.name = "{Domain}Error";
+        }
+      }
+
+conventions:
+  # TypeScript
+  typescript:
+    strict: true
+    explicit_return_types: true
+    no_any: true
+
+  # Imports
+  imports:
+    type_imports: "import type { ... }"
+    extensions: ".js"  # ESM requires extensions
+
+  # Error handling
+  errors:
+    use_try_catch: true
+    pass_to_next: true
+    central_handler: true
+
+enforcement:
+  pre_commit:
+    - eslint --max-warnings 0
+    - prettier --check
+    - tsc --noEmit
+
+  ci:
+    - all pre-commit checks
+    - vitest with 90% coverage
+    - file size check (max 400 lines)

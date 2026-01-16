@@ -78,6 +78,7 @@ select = [
     "I",      # isort
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
+    "C901",   # McCabe complexity
     "UP",     # pyupgrade
     "S",      # flake8-bandit (security)
     "T20",    # flake8-print (no print statements)
@@ -85,14 +86,30 @@ select = [
     "ARG",    # flake8-unused-arguments
     "PTH",    # flake8-use-pathlib
     "ERA",    # eradicate (commented-out code)
-    "PL",     # pylint
+    "PL",     # pylint (includes complexity checks)
     "RUF",    # ruff-specific rules
     "ASYNC",  # flake8-async
     "G",      # flake8-logging-format
+    "FIX",    # flake8-fixme (blocks TODO/FIXME comments)
+    "TD",     # flake8-todos (blocks TODO comments)
 ]
-ignore = [
-    "PLR0913",  # Too many arguments (sometimes necessary)
-]
+ignore = []
+
+# CLAUDE.md Enforcement: Block TODO/FIXME comments
+[tool.ruff.lint.flake8-fixme]
+check = ["FIXME", "TODO", "XXX", "HACK", "BUG"]
+
+# =============================================================================
+# COMPLEXITY LIMITS - Critical for AI development
+# =============================================================================
+[tool.ruff.lint.mccabe]
+max-complexity = 10  # Cyclomatic complexity limit
+
+[tool.ruff.lint.pylint]
+max-args = 5         # Maximum function arguments
+max-branches = 12    # Maximum branches in a function
+max-returns = 6      # Maximum return statements
+max-statements = 50  # Maximum statements in a function (enforces ~50 line limit)
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "ARG001"]  # Allow assert and unused args in tests

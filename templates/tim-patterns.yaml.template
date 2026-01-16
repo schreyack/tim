@@ -1,0 +1,121 @@
+# .tim-patterns.yaml - TIM Pattern Registry
+# This file MUST exist in every TIM project root.
+# It tracks which design patterns are used and ensures compliance.
+#
+# Copy to your project root and customize.
+# The compliance checker validates all patterns are registered.
+
+# =============================================================================
+# PATTERN REGISTRY
+# =============================================================================
+# Register every significant design pattern used in this project.
+# If code uses an unregistered pattern, deployment is blocked.
+
+patterns:
+  # -------------------------------------------------------------------------
+  # AUTHENTICATION (Required for any auth)
+  # -------------------------------------------------------------------------
+  authentication:
+    standard: "jwt-bearer"  # Options: jwt-bearer, session, oauth2, api-key
+    reference: "standards/security/authentication.md"
+    implemented: true
+    notes: "Using python-jose for JWT encoding"
+
+  # -------------------------------------------------------------------------
+  # DATABASE ACCESS (Required if using database)
+  # -------------------------------------------------------------------------
+  database_access:
+    standard: "sqlalchemy-async"  # Options: sqlalchemy-async, prisma, raw-sql
+    reference: "standards/coding/python.md#sqlalchemy-patterns"
+    implemented: true
+    notes: "PostgreSQL with async driver"
+
+  # -------------------------------------------------------------------------
+  # ERROR HANDLING (Required)
+  # -------------------------------------------------------------------------
+  error_handling:
+    standard: "app-error-hierarchy"
+    reference: "standards/coding/python.md#error-handling"
+    implemented: true
+
+  # -------------------------------------------------------------------------
+  # LOGGING (Required)
+  # -------------------------------------------------------------------------
+  logging:
+    standard: "structured-json"
+    reference: "standards/deployment/observability.md#logging"
+    implemented: true
+    notes: "Using structlog with JSON output"
+
+  # -------------------------------------------------------------------------
+  # INPUT VALIDATION (Required for any API)
+  # -------------------------------------------------------------------------
+  input_validation:
+    standard: "pydantic-strict"  # Options: pydantic-strict, zod-strict
+    reference: "standards/coding/python.md#request-response-models"
+    implemented: true
+
+  # -------------------------------------------------------------------------
+  # API VERSIONING (Required if API will evolve)
+  # -------------------------------------------------------------------------
+  api_versioning:
+    standard: "url-prefix"  # Options: url-prefix, header, none
+    reference: "standards/coding/api-design.md#versioning"
+    implemented: true
+    notes: "/api/v1/ prefix"
+
+  # =========================================================================
+  # OPTIONAL PATTERNS (Add as needed)
+  # =========================================================================
+
+  # Caching (if used)
+  # caching:
+  #   standard: "redis"  # Options: redis, in-memory, none
+  #   reference: "standards/deployment/caching.md"
+  #   implemented: false
+
+  # Background Jobs (if used)
+  # background_jobs:
+  #   standard: "celery-redis"  # Options: celery-redis, bull, none
+  #   reference: "standards/deployment/background-jobs.md"
+  #   implemented: false
+
+  # File Storage (if used)
+  # file_storage:
+  #   standard: "s3-compatible"  # Options: s3-compatible, local, none
+  #   reference: "standards/deployment/file-storage.md"
+  #   implemented: false
+
+  # Real-time (if used)
+  # realtime:
+  #   standard: "websocket"  # Options: websocket, sse, polling, none
+  #   reference: "standards/deployment/realtime.md"
+  #   implemented: false
+
+  # =========================================================================
+  # CUSTOM PATTERNS
+  # =========================================================================
+  # Use for patterns where no TIM standard exists.
+  # CUSTOM patterns require human approval before deployment.
+  #
+  # Example:
+  #
+  # audio_processing:
+  #   standard: "CUSTOM"
+  #   justification: |
+  #     No TIM standard exists for audio DSP processing.
+  #     Using Demucs library for stem separation.
+  #     Following library conventions and documentation.
+  #   approved_by: "tim@example.com"
+  #   approved_date: "2025-01-15"
+  #   ticket: "STANDARDS-42"  # Link to standards extension request
+  #   standardize_by: "2025-03-01"  # When formal standard should be created
+
+# =============================================================================
+# METADATA
+# =============================================================================
+metadata:
+  project: "your-project-name"
+  created: "2025-01-15"
+  last_reviewed: "2025-01-15"
+  reviewed_by: "your-email@example.com"

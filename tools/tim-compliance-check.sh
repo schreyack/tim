@@ -1,0 +1,393 @@
+#!/usr/bin/env bash
+# tim-compliance-check.sh
+# TIM Design Standards Compliance Checker
+#
+# Verifies a project meets TIM standards before deployment.
+# Exits non-zero if compliance fails (blocks deploy).
+#
+# Usage:
+#   ./tim-compliance-check.sh [project_root]
+#
+# Exit codes:
+#   0  - All checks passed
+#   1  - Structure/config issues
+#   2  - Dependency issues
+#   3  - Security issues
+#   10 - Pattern compliance issues (BLOCKING)
+
+set -euo pipefail
+
+PROJECT_ROOT="${1:-.}"
+cd "$PROJECT_ROOT"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# Counters
+PASSED=0
+WARNED=0
+FAILED=0
+BLOCKING=0
+
+# Results storage
+declare -a FAILURES=()
+declare -a WARNINGS=()
+declare -a BLOCKING_ISSUES=()
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+log_pass() {
+    echo -e "  ${GREEN}✓${NC} $1"
+    ((PASSED++))
+}
+
+log_warn() {
+    echo -e "  ${YELLOW}⚠${NC} $1"
+    WARNINGS+=("$1")
+    ((WARNED++))
+}
+
+log_fail() {
+    echo -e "  ${RED}✗${NC} $1"
+    FAILURES+=("$1")
+    ((FAILED++))
+}
+
+log_block() {
+    echo -e "  ${RED}✗${NC} ${BOLD}BLOCKING:${NC} $1"
+    BLOCKING_ISSUES+=("$1")
+    ((BLOCKING++))
+}
+
+log_section() {
+    echo ""
+    echo -e "${BOLD}$1${NC}"
+}
+
+# =============================================================================
+# STRUCTURE CHECKS
+# =============================================================================
+
+check_structure() {
+    log_section "Structure:"
+
+    # CLAUDE.md
+    if [[ -f "CLAUDE.md" ]]; then
+        log_pass "CLAUDE.md exists"
+    else
+        log_fail "CLAUDE.md missing - copy from design_standards"
+    fi
+
+    # Pattern registry
+    if [[ -f ".tim-patterns.yaml" ]]; then
+        log_pass ".tim-patterns.yaml exists"
+    else
+        log_block ".tim-patterns.yaml missing - required for pattern compliance"
+    fi
+
+    # Environment example
+    if [[ -f ".env.example" ]]; then
+        log_pass ".env.example exists"
+    else
+        log_warn ".env.example missing - should document required env vars"
+    fi
+
+    # Pre-commit config
+    if [[ -f ".pre-commit-config.yaml" ]]; then
+        log_pass ".pre-commit-config.yaml exists"
+    else
+        log_fail ".pre-commit-config.yaml missing - Gate 1 not configured"
+    fi
+
+    # Dockerfile
+    if [[ -f "Dockerfile" ]] || [[ -f "docker/Dockerfile" ]]; then
+        log_pass "Dockerfile exists"
+    else
+        log_warn "Dockerfile not found"
+    fi
+}
+
+# =============================================================================
+# DEPENDENCY CHECKS
+# =============================================================================
+
+check_dependencies() {
+    log_section "Dependencies:"
+
+    # Detect project type
+    local is_python=false
+    local is_node=false
+
+    [[ -f "pyproject.toml" ]] || [[ -f "requirements.txt" ]] && is_python=true
+    [[ -f "package.json" ]] && is_node=true
+
+    # Python checks
+    if $is_python; then
+        # tim-lib dependency
+        if grep -q "tim-lib" pyproject.toml 2>/dev/null || \
+           grep -q "tim_lib" requirements.txt 2>/dev/null || \
+           [[ -d "lib/tim/libs/python" ]]; then
+            log_pass "tim-lib installed (Python)"
+        else
+            log_warn "tim-lib not found - install shared library"
+        fi
+
+        # No vanilla .py without types
+        local untyped=$(find . -name "*.py" -not -path "./.*" -not -path "*/venv/*" \
+            -exec grep -L "from __future__ import\|: \w" {} \; 2>/dev/null | head -5)
+        if [[ -z "$untyped" ]]; then
+            log_pass "Python files have type hints"
+        else
+            log_warn "Some Python files may lack type hints"
+        fi
+    fi
+
+    # Node.js checks
+    if $is_node; then
+        # tim-lib dependency
+        if grep -q "@tim/lib" package.json 2>/dev/null || \
+           [[ -d "lib/tim/libs/node" ]]; then
+            log_pass "tim-lib installed (Node.js)"
+        else
+            log_warn "@tim/lib not found - install shared library"
+        fi
+
+        # No vanilla JavaScript
+        local js_files=$(find . -name "*.js" -not -path "./.*" -not -path "*/node_modules/*" \
+            -not -name "*.config.js" -not -path "*/dist/*" 2>/dev/null | head -5)
+        if [[ -z "$js_files" ]]; then
+            log_pass "No vanilla JavaScript (TypeScript only)"
+        else
+            log_fail "Found .js files - use TypeScript: $js_files"
+        fi
+    fi
+}
+
+# =============================================================================
+# CONFIGURATION CHECKS
+# =============================================================================
+
+check_configuration() {
+    log_section "Configuration:"
+
+    # Python strict mode
+    if [[ -f "pyproject.toml" ]]; then
+        if grep -q "strict = true" pyproject.toml; then
+            log_pass "mypy strict mode enabled"
+        else
+            log_fail "mypy strict mode not enabled in pyproject.toml"
+        fi
+
+        # Coverage threshold
+        if grep -q "fail_under = 90" pyproject.toml; then
+            log_pass "Coverage threshold: 90%"
+        else
+            log_fail "Coverage threshold not set to 90% in pyproject.toml"
+        fi
+    fi
+
+    # TypeScript strict mode
+    if [[ -f "tsconfig.json" ]]; then
+        if grep -q '"strict": true' tsconfig.json; then
+            log_pass "TypeScript strict mode enabled"
+        else
+            log_fail "TypeScript strict mode not enabled in tsconfig.json"
+        fi
+    fi
+
+    # Node.js coverage
+    if [[ -f "package.json" ]]; then
+        if grep -q "coverage" package.json; then
+            log_pass "Coverage configured"
+        else
+            log_warn "Coverage configuration not detected"
+        fi
+    fi
+}
+
+# =============================================================================
+# SECURITY CHECKS
+# =============================================================================
+
+check_security() {
+    log_section "Security:"
+
+    # .env in git
+    if git ls-files --error-unmatch .env &> /dev/null; then
+        log_block ".env is tracked in git - SECURITY RISK"
+    else
+        log_pass ".env not tracked in git"
+    fi
+
+    # Secrets in code (basic check)
+    local secret_patterns='(api_key|api_secret|password|secret_key|private_key)\s*=\s*["\x27][^"\x27]+'
+    local secrets_found=$(grep -riE "$secret_patterns" --include="*.py" --include="*.ts" \
+        --include="*.js" --include="*.json" . 2>/dev/null | \
+        grep -v ".env" | grep -v "node_modules" | grep -v "example" | head -3)
+
+    if [[ -z "$secrets_found" ]]; then
+        log_pass "No obvious secrets in code"
+    else
+        log_block "Possible secrets found in code"
+        echo "      $secrets_found"
+    fi
+
+    # Check .gitignore has .env
+    if [[ -f ".gitignore" ]] && grep -q "^\.env$\|^\.env\." .gitignore; then
+        log_pass ".env patterns in .gitignore"
+    else
+        log_warn ".env not in .gitignore"
+    fi
+}
+
+# =============================================================================
+# PATTERN COMPLIANCE CHECKS
+# =============================================================================
+
+check_patterns() {
+    log_section "Pattern Compliance:"
+
+    if [[ ! -f ".tim-patterns.yaml" ]]; then
+        log_block "Cannot check patterns - .tim-patterns.yaml missing"
+        return
+    fi
+
+    # Check for CUSTOM patterns without approval
+    if grep -q 'standard: "CUSTOM"\|standard: CUSTOM' .tim-patterns.yaml; then
+        # Parse YAML and check each CUSTOM pattern
+        local custom_patterns=$(grep -B1 'standard: "CUSTOM"\|standard: CUSTOM' .tim-patterns.yaml | \
+            grep -v "standard:" | grep -v "^--$" | sed 's/://g' | tr -d ' ')
+
+        for pattern in $custom_patterns; do
+            # Check if it has approved_by
+            local section_start=$(grep -n "^  $pattern:" .tim-patterns.yaml | cut -d: -f1)
+            if [[ -n "$section_start" ]]; then
+                local section=$(sed -n "${section_start},/^  [a-z]/p" .tim-patterns.yaml | head -20)
+
+                if echo "$section" | grep -q "approved_by:"; then
+                    local approver=$(echo "$section" | grep "approved_by:" | head -1 | cut -d: -f2 | tr -d ' "')
+                    if [[ -n "$approver" ]] && [[ "$approver" != "null" ]]; then
+                        log_pass "CUSTOM pattern '$pattern' approved by $approver"
+                    else
+                        log_block "CUSTOM pattern '$pattern' has empty approved_by"
+                    fi
+                else
+                    log_block "CUSTOM pattern '$pattern' needs human approval"
+                fi
+
+                if ! echo "$section" | grep -q "ticket:"; then
+                    log_warn "CUSTOM pattern '$pattern' should have standards ticket"
+                fi
+            fi
+        done
+    else
+        log_pass "No CUSTOM patterns found"
+    fi
+
+    # Check for common patterns not registered
+    check_unregistered_patterns
+}
+
+check_unregistered_patterns() {
+    # This is a simplified check - a real implementation would be more thorough
+
+    # Check for Redis usage
+    if grep -rq "redis\|Redis\|REDIS" --include="*.py" --include="*.ts" . 2>/dev/null | \
+       grep -v ".tim-patterns.yaml" | grep -v "node_modules" > /dev/null; then
+        if ! grep -q "caching:\|redis:" .tim-patterns.yaml 2>/dev/null; then
+            log_warn "Redis usage detected but no caching pattern registered"
+        fi
+    fi
+
+    # Check for message queue usage
+    if grep -rq "celery\|bull\|rabbitmq\|kafka" --include="*.py" --include="*.ts" . 2>/dev/null | \
+       grep -v ".tim-patterns.yaml" | grep -v "node_modules" > /dev/null; then
+        if ! grep -q "message_queue:\|queue:" .tim-patterns.yaml 2>/dev/null; then
+            log_warn "Message queue usage detected but not registered"
+        fi
+    fi
+
+    # Check for WebSocket usage
+    if grep -rq "websocket\|socket\.io\|ws://" --include="*.py" --include="*.ts" . 2>/dev/null | \
+       grep -v ".tim-patterns.yaml" | grep -v "node_modules" > /dev/null; then
+        if ! grep -q "websocket:\|realtime:" .tim-patterns.yaml 2>/dev/null; then
+            log_warn "WebSocket usage detected but not registered"
+        fi
+    fi
+}
+
+# =============================================================================
+# RESULTS
+# =============================================================================
+
+print_results() {
+    echo ""
+    echo "==========================================="
+    echo -e "${BOLD}TIM Compliance Check Results${NC}"
+    echo "==========================================="
+    echo ""
+    echo -e "Passed:   ${GREEN}$PASSED${NC}"
+    echo -e "Warnings: ${YELLOW}$WARNED${NC}"
+    echo -e "Failed:   ${RED}$FAILED${NC}"
+    echo -e "Blocking: ${RED}$BLOCKING${NC}"
+    echo ""
+
+    if [[ $BLOCKING -gt 0 ]]; then
+        echo "╔══════════════════════════════════════════════════════════════════════╗"
+        echo "║                    COMPLIANCE CHECK BLOCKED                          ║"
+        echo "╠══════════════════════════════════════════════════════════════════════╣"
+        echo "║ The following issues MUST be resolved before deployment:            ║"
+        echo "╠══════════════════════════════════════════════════════════════════════╣"
+        for issue in "${BLOCKING_ISSUES[@]}"; do
+            printf "║  • %-64s ║\n" "$issue"
+        done
+        echo "╠══════════════════════════════════════════════════════════════════════╣"
+        echo "║ See: standards/enforcement/strict-compliance.md                     ║"
+        echo "╚══════════════════════════════════════════════════════════════════════╝"
+        return 10
+    fi
+
+    if [[ $FAILED -gt 0 ]]; then
+        echo -e "${RED}Some checks failed.${NC} Please address before deployment."
+        echo ""
+        for failure in "${FAILURES[@]}"; do
+            echo "  - $failure"
+        done
+        return 1
+    fi
+
+    if [[ $WARNED -gt 0 ]]; then
+        echo -e "${YELLOW}Compliance passed with warnings.${NC}"
+        return 0
+    fi
+
+    echo -e "${GREEN}All compliance checks passed!${NC}"
+    return 0
+}
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+main() {
+    echo -e "${BOLD}TIM Compliance Check${NC}"
+    echo "Project: $(pwd)"
+    echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    check_structure
+    check_dependencies
+    check_configuration
+    check_security
+    check_patterns
+
+    print_results
+}
+
+main "$@"
