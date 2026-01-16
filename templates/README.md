@@ -8,26 +8,36 @@ Ready-to-copy configuration files that implement TIM Design Standards.
 
 | Template | Purpose | Standards Implemented |
 |----------|---------|----------------------|
-| `python/pyproject.toml` | Poetry project config | [Python Standard](../standards/coding/python.md), [Testing](../standards/testing/requirements.md) |
 | `python/.pre-commit-config.yaml` | Pre-commit hooks | [Gate 1](../standards/enforcement/gates.md#gate-1-local) |
-| `python/mypy.ini` | Type checking config | [Python Standard](../standards/coding/python.md) |
+
+*Planned: pyproject.toml, mypy.ini*
 
 ### Node.js Stack
 
 | Template | Purpose | Standards Implemented |
 |----------|---------|----------------------|
-| `node/package.json` | NPM project config | [TypeScript Standard](../standards/coding/typescript.md), [Testing](../standards/testing/requirements.md) |
-| `node/tsconfig.json` | TypeScript config | [TypeScript Standard](../standards/coding/typescript.md) |
-| `node/eslint.config.js` | ESLint config | [Code Organization](../standards/coding/code-organization.md) |
 | `node/.pre-commit-config.yaml` | Pre-commit hooks | [Gate 1](../standards/enforcement/gates.md#gate-1-local) |
+
+*Planned: package.json, tsconfig.json, eslint.config.js*
 
 ### CI/CD
 
+*Planned: python-ci.yml, node-ci.yml, security-scan.yml*
+
+### Operations
+
 | Template | Purpose | Standards Implemented |
 |----------|---------|----------------------|
-| `ci/python-ci.yml` | GitHub Actions for Python | [Gates](../standards/enforcement/gates.md), [CI Integration](../standards/deployment/ci-integration.md) |
-| `ci/node-ci.yml` | GitHub Actions for Node.js | [Gates](../standards/enforcement/gates.md), [CI Integration](../standards/deployment/ci-integration.md) |
-| `ci/security-scan.yml` | Security scanning workflow | [OWASP](../standards/security/owasp-checklist.md), [Secrets](../standards/security/secrets.md) |
+| `ops/ops.sh.template` | Deployment script | [ops-script](../standards/deployment/ops-script.md) |
+| `ops/ops-config.yaml.template` | Ops configuration | [ops-script](../standards/deployment/ops-script.md) |
+
+### Plans
+
+| Template | Purpose | Standards Implemented |
+|----------|---------|----------------------|
+| `plan.md.template` | Plan document | [Plan Management](../standards/operations/plan-management.md) |
+| `CLAUDE.md.template` | Project instructions | All standards |
+| `tim-patterns.yaml.template` | Pattern registry | [Pattern Compliance](../standards/enforcement/strict-compliance.md) |
 
 ## Usage
 
@@ -35,11 +45,12 @@ Ready-to-copy configuration files that implement TIM Design Standards.
 
 ```bash
 # Copy Python templates
-cp templates/python/pyproject.toml my-project/
 cp templates/python/.pre-commit-config.yaml my-project/
-cp templates/ci/python-ci.yml my-project/.github/workflows/ci.yml
+cp templates/CLAUDE.md.template my-project/CLAUDE.md
+cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
+cp templates/plan.md.template my-project/plans/
 
-# Customize pyproject.toml with your project name
+# Customize CLAUDE.md for your project
 # Install pre-commit hooks
 cd my-project && pre-commit install
 ```
@@ -48,15 +59,14 @@ cd my-project && pre-commit install
 
 ```bash
 # Copy Node.js templates
-cp templates/node/package.json my-project/
-cp templates/node/tsconfig.json my-project/
-cp templates/node/eslint.config.js my-project/
 cp templates/node/.pre-commit-config.yaml my-project/
-cp templates/ci/node-ci.yml my-project/.github/workflows/ci.yml
+cp templates/CLAUDE.md.template my-project/CLAUDE.md
+cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
+cp templates/plan.md.template my-project/plans/
 
-# Customize package.json with your project name
-# Install dependencies
-cd my-project && npm install
+# Customize CLAUDE.md for your project
+# Install pre-commit hooks
+cd my-project && pre-commit install
 ```
 
 ## Template-to-Gate Mapping
@@ -108,6 +118,7 @@ Templates are tested with:
 ## See Also
 
 - [Four-Gate Enforcement Model](../standards/enforcement/gates.md)
+- [Plan Lifecycle Management](../standards/operations/plan-management.md) - Plan creation and approval workflow
 - [Graduated Enforcement](../standards/enforcement/graduated-enforcement.md) - For migration
 - [Working Examples](../examples/) - Complete reference implementations
 - [Shared Libraries](../standards/architecture/shared-libraries.md)

@@ -56,6 +56,27 @@ For each phase:
 
 <!-- Add more phases as needed -->
 
+## Execution Strategy
+
+<!--
+Design plans for parallel agent execution. Identify:
+- **Parallelizable tasks**: Can run simultaneously with no dependencies
+- **Sequential tasks**: Must complete before others start
+- **Agent types**: Explore (search/research), Plan (design), Bash (commands)
+
+Guidelines:
+- Max 3 agents in parallel
+- Don't parallelize tasks with shared state
+- Tasks in different phases can sometimes run in parallel if no dependencies
+-->
+
+| Phase | Task | Dependencies | Agent Type | Parallelizable |
+|-------|------|--------------|------------|----------------|
+| 1 | [task description] | none | Explore | Yes |
+| 1 | [task description] | none | Explore | Yes |
+| 1 | [task description] | tasks above | Bash | No |
+| 2 | [task description] | Phase 1 | Bash | No |
+
 ## Testing Strategy
 
 <!--

@@ -359,6 +359,76 @@ When `execute` succeeds, it outputs:
 
 ---
 
+## Designing Plans for Agent Execution
+
+Plans should be designed for parallel agent execution where possible. Claude Code can launch multiple agents simultaneously, and well-designed plans take advantage of this.
+
+### Parallelization Principles
+
+1. **Identify independent tasks** - Tasks with no shared dependencies can run simultaneously
+2. **Map dependencies explicitly** - Know which tasks must wait for others
+3. **Prefer smaller parallelizable tasks** - Break large tasks into smaller parallel-capable units
+4. **Think across phases** - Some Phase 2 tasks may start before Phase 1 fully completes
+
+### Agent Type Selection
+
+| Agent Type | Use For | Examples |
+|------------|---------|----------|
+| `Explore` | Codebase search, pattern finding, research | Finding all usages, understanding architecture |
+| `Plan` | Architecture design, approach comparison | Designing new features, evaluating tradeoffs |
+| `Bash` | Independent commands, git operations | Running tests, building, migrations |
+
+### Execution Strategy Table
+
+Every plan should include an Execution Strategy table:
+
+```markdown
+| Phase | Task | Dependencies | Agent Type | Parallelizable |
+|-------|------|--------------|------------|----------------|
+| 1 | Search for auth patterns | none | Explore | Yes |
+| 1 | Search for user models | none | Explore | Yes |
+| 1 | Design auth approach | tasks above | Plan | No |
+| 2 | Implement auth | Phase 1 | Bash | No |
+| 2 | Write tests | Phase 1 | Bash | Yes (with impl) |
+```
+
+### Good vs Bad Plan Design
+
+**Bad: Monolithic, no parallelization**
+```
+Phase 1: Implement the authentication feature
+  1. Research existing auth
+  2. Design the approach
+  3. Write the code
+  4. Write tests
+  5. Deploy
+```
+
+**Good: Parallelizable with clear dependencies**
+```
+Phase 1: Research (parallel)
+  1a. [Explore] Search for existing auth patterns
+  1b. [Explore] Search for user model structure
+  1c. [Explore] Search for middleware patterns
+
+Phase 2: Design (depends on Phase 1)
+  2. [Plan] Design auth approach based on findings
+
+Phase 3: Implement (parallel where possible)
+  3a. [Bash] Implement auth middleware
+  3b. [Bash] Write unit tests (can parallel with 3a)
+  3c. [Bash] Write integration tests (depends on 3a)
+```
+
+### Guidelines
+
+- **Max 3 agents in parallel** - System limit, more isn't better
+- **Don't parallelize shared state** - If tasks modify the same files, sequence them
+- **Document sequential reasoning** - If tasks must be sequential, note why
+- **Consider failure modes** - If parallel task A fails, does task B still make sense?
+
+---
+
 ## Automation: plan-ops.sh
 
 Use `tools/plan-ops.sh` for lifecycle operations:

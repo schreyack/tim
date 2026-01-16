@@ -475,6 +475,25 @@ Active plans require **human approval** before execution. AI cannot bypass this.
 - Approval requires separate terminal session
 - Tokens expire after 15 minutes
 
+### Designing for Parallel Agent Execution
+
+Plans should be designed for parallel agent execution. Include an Execution Strategy table:
+
+| Phase | Task | Dependencies | Agent Type | Parallelizable |
+|-------|------|--------------|------------|----------------|
+| 1 | Search patterns | none | Explore | Yes |
+| 1 | Search models | none | Explore | Yes |
+| 2 | Implement | Phase 1 | Bash | No |
+
+**Agent types:** `Explore` (search/research), `Plan` (design), `Bash` (commands)
+
+**Guidelines:**
+- Max 3 agents in parallel
+- Don't parallelize tasks that modify the same files
+- Break large tasks into smaller parallelizable units
+
+See `standards/operations/plan-management.md` for full guidance.
+
 ### MANDATORY: Cleanup ~/.claude/plans
 
 When Claude Code creates plans in `~/.claude/plans/`:
