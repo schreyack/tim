@@ -1,0 +1,92 @@
+# Plan: [TITLE]
+
+## Status
+
+| Field | Value |
+|-------|-------|
+| Stage | draft |
+| Created | [YYYY-MM-DD HH:MM] |
+| Last Updated | [YYYY-MM-DD HH:MM] |
+| Author | [MODEL NAME] |
+| Approver | - |
+
+### Progress Log
+
+| Timestamp | Stage | Event |
+|-----------|-------|-------|
+| [YYYY-MM-DD HH:MM] | draft | Plan created |
+
+---
+
+## Problem/Goal
+
+<!--
+What needs to be done and why?
+- Describe the current state
+- Describe the desired state
+- Explain why this matters
+-->
+
+## Current State Analysis
+
+<!--
+What exists today?
+- Relevant files and their purposes
+- Gap analysis (what's missing)
+- Constraints or dependencies
+-->
+
+## Implementation Steps
+
+### Phase 1: [Name]
+
+<!--
+For each phase:
+1. List specific steps
+2. Include commands, code examples
+3. Note expected outcomes
+-->
+
+### Phase 2: [Name]
+
+<!-- Add more phases as needed -->
+
+## Testing Strategy
+
+<!--
+How to verify each phase:
+- Unit tests
+- Integration tests
+- Manual verification steps
+- Expected outputs
+-->
+
+## Completion Criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] All tests passing
+- [ ] Documentation updated
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| [Risk description] | [High/Medium/Low] | [How to prevent or handle] |
+
+---
+
+<!--
+USAGE NOTES:
+
+1. Replace all [PLACEHOLDERS] with actual values
+2. Delete these HTML comments before finalizing
+3. Use `./tools/plan-ops.sh` to manage plan lifecycle:
+   - init: Create folder structure
+   - import: Bring plan into project from ~/.claude/plans
+   - promote: Move from drafts to active (requires approver)
+   - complete: Move from active to completed
+   - abandon: Move to abandoned with reason
+
+See standards/operations/plan-management.md for full documentation.
+-->

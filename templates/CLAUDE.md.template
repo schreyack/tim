@@ -82,20 +82,60 @@ When encountering complicated problems:
 
 ---
 
-## Mandatory: Plans Go in Project plans/ Folder
+## Mandatory: Plan Lifecycle Management
 
-All plan files MUST be written to this project's `plans/` folder, NOT any global or user-level folder.
+All plans MUST use the project's `plans/` folder with lifecycle subfolders.
 
-**Naming convention:** `YYYY-MM-DD-description.md`
+### Folder Structure
 
 ```
 plans/
-├── 2025-01-15-feature-implementation.md
-├── 2025-01-16-bug-fix-plan.md
-└── ...
+├── drafts/      # Plans being designed (not yet approved)
+├── active/      # Approved plans under implementation
+├── completed/   # Successfully executed plans
+└── abandoned/   # Cancelled plans (preserves learnings)
 ```
 
-**IMPORTANT:** If Claude Code's plan mode suggests a different location (e.g., `~/.claude/plans/`), ignore it and use the project's `plans/` folder.
+**Naming convention:** `YYYY-MM-DD-<project>-<description>.md`
+
+### Plan Lifecycle
+
+1. **Draft** - Claude creates plan, imports to `plans/drafts/`
+2. **Active** - Human approves, moves to `plans/active/`
+3. **Completed** - All phases done, moves to `plans/completed/`
+4. **Abandoned** - Cancelled with reason, moves to `plans/abandoned/`
+
+### MANDATORY: Cleanup ~/.claude/plans
+
+When Claude Code creates plans in `~/.claude/plans/`:
+1. Copy plan to `plans/drafts/` with proper naming
+2. Add Status Header if missing
+3. **DELETE the original from `~/.claude/plans/`**
+4. Commit the new plan to git
+
+**Never leave orphan plans in `~/.claude/plans/`** - they accumulate indefinitely.
+
+### Status Header (Required)
+
+Every plan MUST start with:
+
+```markdown
+## Status
+
+| Field | Value |
+|-------|-------|
+| Stage | draft / active / completed / abandoned |
+| Created | 2025-01-16 14:30 |
+| Last Updated | 2025-01-16 16:45 |
+| Author | Claude Opus 4.5 |
+| Approver | [human name or "-"] |
+
+### Progress Log
+
+| Timestamp | Stage | Event |
+|-----------|-------|-------|
+| 2025-01-16 14:30 | draft | Plan created |
+```
 
 ### Plan Requirements
 
@@ -104,6 +144,17 @@ Every plan MUST include:
 2. **Implementation Steps** - Technical approach
 3. **Testing Strategy** - How to verify changes
 4. **Completion Criteria** - What "done" looks like
+
+### Automation
+
+Use `./tools/plan-ops.sh` for lifecycle operations:
+- `init` - Create folder structure
+- `import` - Import from ~/.claude/plans (auto-deletes original)
+- `promote` - Move draft to active (requires approver)
+- `complete` - Move active to completed
+- `abandon` - Move to abandoned with reason
+
+See `standards/operations/plan-management.md` for full documentation.
 
 ---
 
