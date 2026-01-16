@@ -19,6 +19,26 @@ from tim_lib.security import (
     verify_password,
     verify_token,
 )
+from tim_lib.db import (
+    Base,
+    create_async_engine_with_pool,
+    get_session_factory,
+    get_db_session,
+    DatabaseHealthCheck,
+    dependency_get_db,
+)
+from tim_lib.api import (
+    AppError,
+    NotFoundError,
+    ConflictError,
+    ValidationError,
+    UnauthorizedError,
+    ForbiddenError,
+    setup_exception_handlers,
+    security_headers_middleware,
+    RateLimitMiddleware,
+    create_health_router,
+)
 
 __all__ = [
     # Config
@@ -31,4 +51,22 @@ __all__ = [
     "verify_password",
     "create_access_token",
     "verify_token",
+    # Database
+    "Base",
+    "create_async_engine_with_pool",
+    "get_session_factory",
+    "get_db_session",
+    "DatabaseHealthCheck",
+    "dependency_get_db",
+    # API
+    "AppError",
+    "NotFoundError",
+    "ConflictError",
+    "ValidationError",
+    "UnauthorizedError",
+    "ForbiddenError",
+    "setup_exception_handlers",
+    "security_headers_middleware",
+    "RateLimitMiddleware",
+    "create_health_router",
 ]

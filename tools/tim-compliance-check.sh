@@ -17,7 +17,23 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="${1:-.}"
+# Parse arguments
+CI_MODE=false
+PROJECT_ROOT="."
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --ci)
+            CI_MODE=true
+            shift
+            ;;
+        *)
+            PROJECT_ROOT="$1"
+            shift
+            ;;
+    esac
+done
+
 cd "$PROJECT_ROOT"
 
 # Colors
@@ -380,6 +396,9 @@ main() {
     echo -e "${BOLD}TIM Compliance Check${NC}"
     echo "Project: $(pwd)"
     echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    if $CI_MODE; then
+        echo "Mode: CI (strict)"
+    fi
 
     check_structure
     check_dependencies
@@ -388,6 +407,15 @@ main() {
     check_patterns
 
     print_results
+    local result=$?
+
+    # In CI mode, exit with proper code for GitHub Actions
+    if $CI_MODE && [[ $result -ne 0 ]]; then
+        echo ""
+        echo "::error::TIM Compliance Check failed with exit code $result"
+    fi
+
+    return $result
 }
 
-main "$@"
+main

@@ -1,6 +1,6 @@
 # CI/CD Integration Standard
 
-This document explains how CI/CD pipelines integrate with the TIM three-gate model and ops.sh deployment system.
+This document explains how CI/CD pipelines integrate with the TIM four-gate model and ops.sh deployment system.
 
 ## Overview
 

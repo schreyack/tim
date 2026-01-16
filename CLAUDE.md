@@ -83,7 +83,7 @@ design_standards/
 ├── README.md                    # Quick reference guide
 ├── standards/
 │   ├── enforcement/             # Gate definitions, compliance, AI review
-│   │   ├── gates.md             # Three-gate model
+│   │   ├── gates.md             # Four-gate model
 │   │   ├── ai-review-checklist.md
 │   │   └── strict-compliance.md # Pattern registry enforcement
 │   ├── architecture/

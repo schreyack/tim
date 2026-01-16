@@ -57,7 +57,7 @@ Runs on every PR creation and update. Blocks merge on any failure.
 | Security scan (deps) | safety/npm audit | HIGH or CRITICAL | P0 |
 | Secrets scan (deep) | trufflehog | ANY detection | P0 |
 | Container scan | trivy | HIGH or CRITICAL | P0 |
-| License compliance | (tool TBD) | Forbidden license | P1 |
+| License compliance | license-checker (Node) / pip-licenses (Python) | GPL, AGPL, or unlicensed | P1 |
 
 ### Coverage Thresholds
 
