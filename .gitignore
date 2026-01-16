@@ -1,3 +1,20 @@
 # TIM Execution Requests (approval tokens)
 .tim-execution-requests/*
 !.tim-execution-requests/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.coverage
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
