@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# ops.sh - Project Deployment Script
+# TIM Design Standards compliant deployment wrapper
+#
+# This script sources the shared tim-ops-lib and loads project-specific
+# configuration. Customize by adding hooks in ops-hooks/ directory.
+#
+# Usage:
+#   ./ops.sh deploy          # Smart deploy
+#   ./ops.sh status          # Check status
+#   ./ops.sh help            # Show all commands
+
+set -euo pipefail
+
+# =============================================================================
+# CONFIGURATION - Edit these values for your project
+# =============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
+
+# Tim-ops-lib location (choose one method):
+
+# Method 1: Git submodule (recommended for version control)
+# TIM_OPS_LIB="$PROJECT_ROOT/lib/tim-ops/tim-ops-lib.sh"
+
+# Method 2: Shared installation
+# TIM_OPS_LIB="/usr/local/lib/tim-ops/tim-ops-lib.sh"
+
+# Method 3: Auto-download (default)
+TIM_OPS_LIB="${TIM_OPS_LIB:-$PROJECT_ROOT/.tim-ops/tim-ops-lib.sh}"
+TIM_OPS_VERSION="1.0.0"
+TIM_OPS_URL="https://raw.githubusercontent.com/your-org/design_standards/main/templates/ops/tim-ops-lib.sh"
+
+# =============================================================================
+# BOOTSTRAP - Download tim-ops-lib if not present
+# =============================================================================
+
+if [[ ! -f "$TIM_OPS_LIB" ]]; then
+    echo "Downloading tim-ops-lib v${TIM_OPS_VERSION}..."
+    mkdir -p "$(dirname "$TIM_OPS_LIB")"
+
+    if command -v curl &> /dev/null; then
+        curl -sSL "$TIM_OPS_URL" -o "$TIM_OPS_LIB"
+    elif command -v wget &> /dev/null; then
+        wget -q "$TIM_OPS_URL" -O "$TIM_OPS_LIB"
+    else
+        echo "Error: curl or wget required to download tim-ops-lib"
+        exit 1
+    fi
+
+    chmod +x "$TIM_OPS_LIB"
+    echo "Downloaded to: $TIM_OPS_LIB"
+fi
+
+# Verify checksum (optional but recommended)
+# EXPECTED_CHECKSUM="abc123..."
+# ACTUAL_CHECKSUM=$(sha256sum "$TIM_OPS_LIB" | cut -d' ' -f1)
+# if [[ "$ACTUAL_CHECKSUM" != "$EXPECTED_CHECKSUM" ]]; then
+#     echo "Error: tim-ops-lib checksum mismatch"
+#     exit 1
+# fi
+
+# =============================================================================
+# LOAD LIBRARY AND CONFIG
+# =============================================================================
+
+# Source the shared library
+source "$TIM_OPS_LIB"
+
+# Load project configuration
+if [[ -f "$PROJECT_ROOT/ops-config.yaml" ]]; then
+    load_config "$PROJECT_ROOT/ops-config.yaml"
+else
+    echo "Error: ops-config.yaml not found in $PROJECT_ROOT"
+    echo "Copy ops-config.yaml.template and customize for your project"
+    exit 4
+fi
+
+# =============================================================================
+# PROJECT-SPECIFIC HOOKS (Optional)
+# =============================================================================
+
+# Load any custom hooks from ops-hooks/ directory
+if [[ -d "$PROJECT_ROOT/ops-hooks" ]]; then
+    for hook_file in "$PROJECT_ROOT/ops-hooks"/*.sh; do
+        if [[ -f "$hook_file" ]]; then
+            source "$hook_file"
+        fi
+    done
+fi
+
+# =============================================================================
+# PROJECT-SPECIFIC COMMANDS (Optional)
+# =============================================================================
+
+# Add custom commands here or in ops-hooks/custom-commands.sh
+# Example:
+#
+# register_command "mycommand" "SAFE" "Description of my command"
+# cmd_mycommand() {
+#     echo "Running my custom command"
+# }
+
+# =============================================================================
+# LIFECYCLE HOOKS (Optional)
+# =============================================================================
+
+# Override these functions in ops-hooks/ to customize behavior
+#
+# hook_pre_deploy() {
+#     log_info "Running pre-deploy checks..."
+#     # Run tests, lint, etc.
+# }
+#
+# hook_post_deploy() {
+#     log_info "Running post-deploy tasks..."
+#     # Clear caches, warm up, etc.
+# }
+#
+# hook_pre_rollback() {
+#     log_info "Preparing for rollback..."
+# }
+#
+# hook_post_rollback() {
+#     log_info "Rollback cleanup..."
+# }
+
+# =============================================================================
+# RUN
+# =============================================================================
+
+tim_ops_main "$@"

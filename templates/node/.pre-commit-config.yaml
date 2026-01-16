@@ -1,0 +1,63 @@
+# TIM Design Standards - Node.js Pre-commit Configuration
+# Copy this file to your project root
+# Run: pre-commit install
+
+repos:
+  # Local hooks for Node.js tooling
+  - repo: local
+    hooks:
+      # TypeScript type checking
+      - id: tsc
+        name: TypeScript type check
+        entry: npx tsc --noEmit
+        language: system
+        types: [typescript]
+        pass_filenames: false
+
+      # ESLint with zero warnings tolerance
+      - id: eslint
+        name: ESLint
+        entry: npx eslint --max-warnings 0 --fix
+        language: system
+        types: [typescript]
+        pass_filenames: true
+
+      # Prettier formatting check
+      - id: prettier
+        name: Prettier
+        entry: npx prettier --check
+        language: system
+        types_or: [typescript, javascript, json, css, markdown, yaml]
+        pass_filenames: true
+
+  # Gitleaks - Detect secrets
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # Commitizen - Enforce commit message format
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.1.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+
+# CI runs these same checks
+ci:
+  autofix_commit_msg: "style: auto-fix pre-commit issues"
+  autoupdate_commit_msg: "chore: update pre-commit hooks"

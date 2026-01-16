@@ -1,0 +1,67 @@
+# TIM Design Standards - Python Pre-commit Configuration
+# Copy this file to your project root
+# Run: pre-commit install
+
+repos:
+  # Ruff - Fast linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # MyPy - Type checking (strict mode)
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args: [--strict, --ignore-missing-imports]
+        additional_dependencies:
+          - pydantic>=2.0
+          - types-passlib
+          - types-python-jose
+
+  # Detect secrets - Prevent committing secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: package-lock\.json|poetry\.lock
+
+  # Commitizen - Enforce commit message format
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.1.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]  # Allow custom tags
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: check-case-conflict
+
+  # Security - Bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: [-r, src/, -ll]  # Low severity and above
+        exclude: tests/
+
+# CI runs these same checks
+ci:
+  autofix_commit_msg: "style: auto-fix pre-commit issues"
+  autoupdate_commit_msg: "chore: update pre-commit hooks"
