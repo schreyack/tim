@@ -237,7 +237,7 @@ jobs:
               - [ ] Tests have meaningful assertions
               - [ ] No over-engineering
 
-              See: [Full Checklist](link-to-standards/ai-review-checklist.md)`
+              See: [Full Checklist](standards/enforcement/ai-review-checklist.md)`
             });
 ```
 

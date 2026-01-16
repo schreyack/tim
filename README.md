@@ -30,13 +30,17 @@ design_standards/
 ├── README.md                    # This file
 ├── standards/
 │   ├── enforcement/             # Gate definitions, compliance
-│   │   ├── gates.md             # Three-gate model
+│   │   ├── gates.md             # Four-gate model
 │   │   ├── graduated-enforcement.md  # Migration levels
+│   │   ├── ai-instruction-enforcement.md  # Detect AI ignoring CLAUDE.md
 │   │   ├── ai-review-checklist.md
 │   │   └── strict-compliance.md # Pattern registry enforcement
-│   ├── operations/              # Multi-AI coordination, migration
+│   ├── operations/              # Multi-AI coordination, migration, plans
 │   │   ├── ai-coordination.md   # Worktree/branch strategy
-│   │   └── legacy-onboarding.md # Migration playbook
+│   │   ├── legacy-onboarding.md # Migration playbook
+│   │   ├── plan-management.md   # Plan lifecycle & approval
+│   │   ├── ralph-loop-integration.md  # Ralph Loop for plan review
+│   │   └── tim-loop-integration.md    # Tim Loop for plan execution
 │   ├── architecture/
 │   │   └── shared-libraries.md  # Library strategy
 │   ├── coding/                  # Language standards
@@ -74,6 +78,7 @@ design_standards/
 | **AI Review** | [ai-review-checklist.md](standards/enforcement/ai-review-checklist.md) | Human review checklist for AI code |
 | **AI Coordination** | [ai-coordination.md](standards/operations/ai-coordination.md) | Multi-AI developer coordination |
 | **Legacy Onboarding** | [legacy-onboarding.md](standards/operations/legacy-onboarding.md) | Migration playbook for existing projects |
+| **Plan Management** | [plan-management.md](standards/operations/plan-management.md) | Plan lifecycle, Ralph Loop, Tim Loop |
 | **Test Migration** | [test-migration.md](standards/testing/test-migration.md) | Convert tests to TIM standards |
 | **Shared Libs** | [shared-libraries.md](standards/architecture/shared-libraries.md) | Required library usage |
 | **Code Organization** | [code-organization.md](standards/coding/code-organization.md) | File size limits, complexity (AI-critical) |

@@ -103,6 +103,14 @@ repos:
         language: system
         stages: [commit-msg]
 
+      # Enforce test naming convention (test_what_when_then)
+      - id: test-naming
+        name: Test naming convention
+        entry: bash -c 'INVALID=$(grep -rn "^def test_" --include="test_*.py" tests/ 2>/dev/null | grep -v "_when_\|_with_\|_returns_\|_raises_\|_creates_\|_updates_\|_deletes_" || true); if [ -n "$INVALID" ]; then echo "ERROR: Test names must follow test_<what>_<when>_<then> pattern"; echo "$INVALID"; echo "Examples: test_login_with_valid_credentials_returns_token, test_create_user_when_email_exists_raises_error"; exit 1; fi; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true
+
 # CI runs these same checks
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit issues"

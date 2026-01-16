@@ -162,6 +162,59 @@ GET /health/ready  → Readiness probe (can accept traffic)
 GET /health/live   → Full health with dependency status
 ```
 
+## Gate 4: Pattern Compliance
+
+Runs at deploy time. Blocks deploy if non-compliant.
+
+Every TIM project must register all design patterns in `.tim-patterns.yaml`. This gate verifies:
+
+| Check | Description | Failure Condition |
+|-------|-------------|-------------------|
+| Pattern registry exists | .tim-patterns.yaml in project root | Missing file |
+| All patterns registered | Code patterns match registry | Unregistered pattern detected |
+| CUSTOM patterns approved | Non-standard patterns have approval | Missing approval metadata |
+| Shared library installed | tim-lib/@tim/lib is dependency | Not in requirements/package.json |
+| No secrets in code | Hardcoded secrets check | ANY secret pattern |
+
+### Pattern Detection
+
+The compliance checker (`tim-compliance-check.sh`) detects common patterns:
+
+| Pattern | Detection Method |
+|---------|------------------|
+| Redis/caching | Import statements, connection strings |
+| WebSockets | Library imports, upgrade handlers |
+| Message queues | RabbitMQ, SQS, Celery imports |
+| External APIs | HTTP client configurations |
+| Custom auth | Non-standard auth middleware |
+
+### CUSTOM Pattern Requirements
+
+For patterns without TIM standards:
+
+```yaml
+custom_pattern:
+  standard: "CUSTOM"
+  justification: "Why no TIM standard exists"
+  approved_by: "human@example.com"  # REQUIRED
+  approved_date: "2025-01-15"       # REQUIRED
+  ticket: "STANDARDS-42"            # REQUIRED - link to extension request
+  standardize_by: "2025-03-01"      # When formal standard should be created
+```
+
+CUSTOM patterns without all required fields are blocked at deploy.
+
+### Enforcement Integration
+
+Gate 4 is enforced by:
+1. `tim-compliance-check.sh` in CI pipeline (Gate 2)
+2. `tim-compliance-check.sh` pre-deploy (Gate 3)
+3. Manual review of CUSTOM patterns
+
+See [strict-compliance.md](strict-compliance.md) for detailed pattern registry documentation.
+
+---
+
 ## Exception Process
 
 Exceptions to any gate require:

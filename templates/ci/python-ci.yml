@@ -201,15 +201,53 @@ jobs:
           severity: HIGH,CRITICAL
 
   # ==========================================================================
+  # GATE 4: Pattern Compliance
+  # ==========================================================================
+  compliance:
+    name: Pattern Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check .tim-patterns.yaml exists
+        run: |
+          if [ ! -f ".tim-patterns.yaml" ]; then
+            echo "ERROR: .tim-patterns.yaml not found"
+            echo "Every TIM project requires a pattern registry."
+            echo "Copy from: templates/tim-patterns.yaml.template"
+            exit 1
+          fi
+
+      - name: Run compliance check
+        run: |
+          # Download compliance checker if not present
+          if [ ! -f "./tools/tim-compliance-check.sh" ]; then
+            curl -sSL https://raw.githubusercontent.com/your-org/design_standards/main/tools/tim-compliance-check.sh -o tim-compliance-check.sh
+            chmod +x tim-compliance-check.sh
+          else
+            cp ./tools/tim-compliance-check.sh tim-compliance-check.sh
+          fi
+          ./tim-compliance-check.sh --ci
+
+      - name: Verify shared library installed
+        run: |
+          if grep -q "tim-lib\|tim_lib" pyproject.toml 2>/dev/null || grep -q "tim-lib\|tim_lib" requirements.txt 2>/dev/null; then
+            echo "tim-lib dependency found"
+          else
+            echo "WARNING: tim-lib not found in dependencies"
+            echo "Consider adding: pip install tim-lib"
+          fi
+
+  # ==========================================================================
   # GATE 2: All Checks Must Pass
   # ==========================================================================
   gate2-complete:
     name: Gate 2 Complete
-    needs: [typecheck, lint, test, security, secrets]
+    needs: [typecheck, lint, test, security, secrets, compliance]
     runs-on: ubuntu-latest
     steps:
       - name: All checks passed
-        run: echo "Gate 2 (CI) checks passed. PR is ready for review."
+        run: echo "Gate 2 (CI) and Gate 4 (Compliance) checks passed. PR is ready for review."
 
 # ==========================================================================
 # DEPLOYMENT (Gate 3) - Triggered on merge to main
