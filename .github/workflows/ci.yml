@@ -1,0 +1,176 @@
+# TIM Design Standards - CI Pipeline (Gate 2)
+# Runs on all pull requests and pushes to main
+# All checks must pass before merge is allowed
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================================
+  # PRE-COMMIT CHECKS
+  # ==========================================================================
+  pre-commit:
+    name: Pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  # ==========================================================================
+  # PYTHON LIBRARY TESTS
+  # ==========================================================================
+  python-libs:
+    name: Python libs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libs/python
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: libs/python/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('libs/python/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction
+
+      - name: Run ruff check
+        run: poetry run ruff check tim_lib tests
+
+      - name: Run ruff format check
+        run: poetry run ruff format --check tim_lib tests
+
+      - name: Run tests with coverage
+        run: poetry run pytest --cov=tim_lib --cov-report=xml --cov-fail-under=90
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: libs/python/coverage.xml
+          flags: python
+          fail_ci_if_error: false
+
+  # ==========================================================================
+  # NODE.JS LIBRARY TESTS
+  # ==========================================================================
+  node-libs:
+    name: Node.js libs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libs/node
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: libs/node/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: libs/node/coverage/coverage-final.json
+          flags: nodejs
+          fail_ci_if_error: false
+
+  # ==========================================================================
+  # SHELLCHECK FOR TOOLS
+  # ==========================================================================
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: "./tools"
+          severity: error
+
+  # ==========================================================================
+  # DOCUMENTATION LINK CHECK (Optional)
+  # ==========================================================================
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check markdown links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: "yes"
+          config-file: ".github/markdown-link-check-config.json"
+        continue-on-error: true
+
+  # ==========================================================================
+  # FINAL STATUS CHECK
+  # ==========================================================================
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [pre-commit, python-libs, node-libs, shellcheck]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.pre-commit.result }}" != "success" ]] || \
+             [[ "${{ needs.python-libs.result }}" != "success" ]] || \
+             [[ "${{ needs.node-libs.result }}" != "success" ]] || \
+             [[ "${{ needs.shellcheck.result }}" != "success" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All CI checks passed!"
