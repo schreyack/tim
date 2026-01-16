@@ -2,6 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## STOP AND READ: Critical Rules
+
+**Before doing ANYTHING, read and understand these rules. They are not optional.**
+
+### Rule 1: Never Prioritize Speed Over Process
+
+This is the most critical rule. No matter what:
+- Follow the rules in this document exactly
+- If uncertain about the correct approach, **ASK the user** rather than guessing
+- Never take shortcuts that could cause problems later
+
+### Rule 2: Ask Before Assuming
+
+When encountering complicated problems:
+- Investigate root causes thoroughly before implementing fixes
+- If in doubt about the approach, **pause and ask for instructions**
+- Avoid quick workarounds that mask underlying issues
+
+---
+
+## Execution Environment
+
+**This repository (design_standards) is local-only.** All commands execute on your machine.
+
+- This is a documentation/standards repository - no application to deploy
+- Tests: Run locally if any test infrastructure exists
+- File operations: Standard local editing
+
+---
+
 ## Repository Purpose
 
 This is the **TIM Design Standards** repository - the authoritative source for coding, testing, security, and deployment standards used across all TIM projects.
@@ -41,6 +73,8 @@ TIM develops exclusively with AI developers. This context informs EVERYTHING:
 
 **Non-Negotiable**: Both stacks require strict type checking. No vanilla JavaScript. No `any` types.
 
+---
+
 ## Repository Structure
 
 ```
@@ -72,6 +106,8 @@ design_standards/
     ├── tim-compliance-check.sh  # Compliance verification
     └── tim-ops-approve          # Human approval for ops
 ```
+
+---
 
 ## Four-Gate Enforcement Model
 
@@ -109,6 +145,8 @@ Runs at deploy time. Blocks deploy if non-compliant.
 - Shared library is installed
 - No secrets in code
 
+---
+
 ## Shared Libraries (REQUIRED)
 
 Every TIM project MUST use the shared libraries:
@@ -138,6 +176,8 @@ import {
 } from "@tim/lib";
 ```
 
+---
+
 ## Pattern Registry
 
 Every project MUST have `.tim-patterns.yaml` in the root:
@@ -160,6 +200,8 @@ patterns:
 
 If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
 
+---
+
 ## ops.sh Safety Tiers (NO BYPASS FLAGS)
 
 | Tier | Behavior | Examples |
@@ -175,6 +217,18 @@ For HUMAN_REQUIRED operations:
 3. AI retries operation → succeeds with valid approval
 
 BLOCKED operations MUST be performed manually via SSH.
+
+### Never Do These (in projects using ops.sh)
+
+| DO NOT | WHY |
+|--------|-----|
+| Run `ssh` commands directly | Bypasses safety controls |
+| Run `docker exec` directly | Can execute destructive operations |
+| Run SQL directly on database | No validation, no audit trail |
+
+**If you need to interact with a remote server, use `./ops.sh`. No exceptions.**
+
+---
 
 ## Hard Rules (No Exceptions)
 
@@ -203,6 +257,102 @@ BLOCKED operations MUST be performed manually via SSH.
 - **CUSTOM requires approval**: Human must approve with ticket reference
 - **Standards first**: Check for existing standard before creating CUSTOM
 
+---
+
+## Mandatory: Single Source of Truth
+
+Every piece of data, configuration, or definition must have exactly one authoritative source.
+
+### Why This Matters
+- Prevents inconsistency when values change
+- Eliminates "which one is correct?" ambiguity
+- Makes updates atomic - change once, apply everywhere
+
+### Applying the Principle
+1. **Identify the source of truth** - Where should this value be defined?
+2. **Define it once** - Add to the authoritative source
+3. **Import, don't duplicate** - All consumers reference the source
+4. **Update the source** - When changes are needed, change only the source
+
+### Anti-patterns to Avoid
+- Hardcoding the same value in multiple files
+- Creating "local" versions of shared constants
+- Copying test data between test files instead of importing
+- Duplicating validation logic instead of sharing utilities
+
+---
+
+## Mandatory: Code Quality Rules
+
+### No TODOs or Placeholders
+
+- **NO `TODO`, `FIXME`, `XXX`, `HACK` comments** - Implement fully or don't add it
+- **NO placeholder code** - No `raise NotImplementedError`, no `pass`, no `...`
+- **NO print debugging** - Use logging module (`structlog`, `logging`)
+- **NO bare except clauses** - Catch specific exceptions
+
+### Type Safety
+
+- **ALL functions must have type hints** (parameters and return types)
+- **Use `mypy --strict`** (Python) or **`tsc --strict`** (TypeScript)
+- **No `any` types** in TypeScript
+
+### Error Handling
+
+- Catch specific exceptions, not `Exception` or bare `except:`
+- Include context in error messages (user ID, relevant IDs)
+- Log errors server-side with context for debugging
+- Never expose internal details to clients
+
+### Security
+
+- Validate all user input server-side
+- Use parameterized queries (never string interpolation for SQL)
+- Validate authorization for all operations
+- Never commit secrets, credentials, or .env files
+
+---
+
+## Mandatory: Test Requirements
+
+**No changes are complete without testing.**
+
+### Test Naming Convention
+
+Use `test_<what>_<when>_<expected>` format:
+
+```python
+def test_login_with_valid_credentials_returns_token():
+def test_upload_with_invalid_format_returns_400():
+def test_create_user_when_email_exists_raises_error():
+```
+
+### Test Coverage
+
+- **Minimum 90% coverage** - All new code must meet this bar
+- **Both unit and integration tests** - Test in isolation AND with real dependencies
+- **E2E tests for critical paths** - Test full user workflows
+
+### Bug Fix Protocol
+
+When a bug is reported:
+1. **Write a test that reproduces the bug FIRST**
+2. **Run the test - verify it FAILS**
+3. **Fix the bug**
+4. **Run the test - verify it PASSES**
+5. **Run all tests to ensure no regressions**
+
+### Completion Checklist
+
+A task is NOT complete until:
+- [ ] All implementation steps are done (no TODOs, no placeholders)
+- [ ] Tests exist and pass (unit, integration, E2E as appropriate)
+- [ ] Code is deployed (if applicable)
+- [ ] Manual verification confirms the fix/feature works
+- [ ] No errors in logs
+
+---
+
 ## Using This Repository
 
 ### For New TIM Projects
@@ -222,6 +372,8 @@ BLOCKED operations MUST be performed manually via SSH.
 6. Add CI pipeline (Gate 2)
 7. Implement deploy gates (Gate 3 + 4)
 
+---
+
 ## Quick Reference
 
 | Standard | Python | Node.js |
@@ -238,6 +390,8 @@ BLOCKED operations MUST be performed manually via SSH.
 | Container scan | trivy | trivy |
 | Shared lib | tim-lib | @tim/lib |
 
+---
+
 ## Commit Message Format
 
 Use Conventional Commits:
@@ -253,3 +407,54 @@ Always include co-author line:
 ```
 Co-Authored-By: Claude <model>/<version> <noreply@anthropic.com>
 ```
+
+---
+
+## Mandatory: Plans Go in Project plans/ Folder
+
+All plan files MUST be written to this project's `plans/` folder, NOT any global or user-level folder.
+
+**Naming convention:** `YYYY-MM-DD-description.md`
+
+```
+plans/
+├── 2025-01-15-feature-implementation.md
+├── 2025-01-16-bug-fix-plan.md
+└── ...
+```
+
+**IMPORTANT:** If Claude Code's plan mode suggests a different location (e.g., `~/.claude/plans/`), ignore it and use the project's `plans/` folder.
+
+### Plan Requirements
+
+Every plan MUST include:
+1. **Problem/Goal** - What needs to be done
+2. **Implementation Steps** - Technical approach
+3. **Testing Strategy** - How to verify changes
+4. **Completion Criteria** - What "done" looks like
+
+---
+
+## TIM Design Standards Reference
+
+This project defines TIM Design Standards. Key requirements for all TIM projects:
+
+| Requirement | Threshold |
+|-------------|-----------|
+| Type safety | 100% (mypy --strict / tsc --strict) |
+| Test coverage | 90% minimum |
+| File size | 400 lines maximum |
+| Function size | 50 lines maximum |
+| Complexity | 10 maximum (cyclomatic) |
+
+---
+
+## AI Developer Acknowledgment
+
+Before making any changes, confirm you understand:
+1. All rules in this CLAUDE.md file
+2. The test naming convention (test_what_when_then)
+3. The file size limits (400 lines max)
+4. The requirement to complete features fully (no TODOs)
+
+**If you are uncertain about any rule, ASK before proceeding.**
