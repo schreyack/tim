@@ -61,11 +61,14 @@ project/
 - Delete the original from `~/.claude/plans/` (MANDATORY)
 - Add Status Header if not present
 
-**2. Draft → Active (Human Approval)**
+**2. Draft → Active (Human Approval + Ralph Loop Gate)**
+- **Multi-phase plans (2+ phases) MUST complete Ralph Loop review first**
 - Human reviews and approves the plan
 - Move to `plans/active/`
 - Update Status Header: Stage = active, Approver = [human]
 - Add log entry: "Approved by [human], moved to active/"
+
+See [Ralph Loop Gate](#ralph-loop-gate-for-multi-phase-plans) section below.
 
 **3. Active → Completed**
 - All implementation phases completed
@@ -109,6 +112,8 @@ Every plan MUST include a Status Header at the top:
 | Last Updated | 2025-01-16 16:45 |
 | Author | Claude Opus 4.5 |
 | Approver | [human who approved, or "-" if draft] |
+| Ralph Review | required / completed / not-required |
+| Ralph Date | [YYYY-MM-DD or "-" if not applicable] |
 
 ### Progress Log
 
@@ -116,6 +121,7 @@ Every plan MUST include a Status Header at the top:
 |-----------|-------|-------|
 | 2025-01-16 14:30 | draft | Plan created |
 | 2025-01-16 15:00 | draft | Added testing strategy |
+| 2025-01-16 15:30 | draft | Ralph Loop review completed |
 | 2025-01-16 16:00 | active | Approved by Tim, moved to active/ |
 | 2025-01-16 18:30 | active | Phase 1 completed |
 | 2025-01-17 10:00 | completed | All phases done, verification passed |
@@ -124,6 +130,14 @@ Every plan MUST include a Status Header at the top:
 
 [Rest of plan content...]
 ```
+
+### Ralph Review Field Values
+
+| Value | Meaning |
+|-------|---------|
+| `required` | Multi-phase plan, Ralph Loop not yet completed |
+| `completed` | Ralph Loop review finished, ready for promotion |
+| `not-required` | Single-phase plan, can skip Ralph Loop |
 
 ### Required Plan Sections
 
@@ -216,6 +230,135 @@ Before promoting draft → active:
 
 ---
 
+## Ralph Loop Gate for Multi-Phase Plans
+
+Multi-phase plans (2+ phases) **MUST** complete Ralph Loop review before promotion to active. This is a hard gate enforced by `plan-ops.sh`.
+
+### Why Ralph Loop?
+
+Ralph Loop provides iterative AI-driven improvement:
+- Catches gaps, inconsistencies, and missing details
+- Improves plan quality through multiple review passes
+- Reduces implementation failures from poor planning
+- Builds on previous iterations (AI sees its own work in files)
+
+### Detection
+
+A plan requires Ralph Loop if it contains 2+ phases, detected by patterns:
+- `## Phase`, `### Phase`
+- `Phase 1:`, `Phase 2:`, etc.
+
+Single-phase plans can be promoted directly without Ralph Loop.
+
+### Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RALPH LOOP GATE WORKFLOW                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. Create multi-phase plan in drafts/                          │
+│           │                                                     │
+│           ▼                                                     │
+│  2. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md           │
+│     (Outputs the Ralph Loop command to run)                     │
+│           │                                                     │
+│           ▼                                                     │
+│  3. Run /ralph-loop command in Claude Code                      │
+│     (Iterates until DONEDONE or max iterations)                 │
+│           │                                                     │
+│           ▼                                                     │
+│  4. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md           │
+│        --mark-complete                                          │
+│     (Updates Ralph Review: completed)                           │
+│           │                                                     │
+│           ▼                                                     │
+│  5. ./tools/plan-ops.sh promote plans/drafts/my-plan.md         │
+│        --approver "Name"                                        │
+│     (Promotion now allowed)                                     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Ralph Loop Command Format
+
+```bash
+/ralph-loop:ralph-loop "review plans/drafts/[plan-name] and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>" --max-iterations 10 --completion-promise "DONEDONE"
+```
+
+### What Happens on Promote Attempt
+
+| Plan Type | Ralph Review Status | Result |
+|-----------|---------------------|--------|
+| Single-phase | any | Allowed |
+| Multi-phase | not-required | Allowed (auto-detected) |
+| Multi-phase | required | **BLOCKED** |
+| Multi-phase | completed | Allowed |
+
+If blocked, the error message shows exact commands to run.
+
+---
+
+## Tim Loop Execution Gate (HARD ENFORCED)
+
+Active plans **MUST** be executed via `/tim-loop` with human approval. This is a hard gate that AI cannot bypass.
+
+### Why Hard Enforcement?
+
+- AI cannot add an `--approver` flag to bypass (no such flag exists)
+- Approval requires human action in a **separate terminal**
+- Approval tokens expire after 15 minutes
+- Request IDs are unique per attempt
+
+### Execution Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              PLAN EXECUTION WORKFLOW (HARD ENFORCED)             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. AI: ./tools/plan-ops.sh execute plans/active/my-plan.md     │
+│     → Creates approval request, outputs request ID              │
+│     → BLOCKED - no tim-loop command yet                         │
+│           │                                                     │
+│           ▼                                                     │
+│  2. HUMAN (separate terminal):                                  │
+│     ./tools/plan-ops.sh approve-execute <request-id>            │
+│        --approver "Name"                                        │
+│     → Validates and approves request                            │
+│           │                                                     │
+│           ▼                                                     │
+│  3. AI: ./tools/plan-ops.sh execute plans/active/my-plan.md     │
+│     → Finds valid approval                                      │
+│     → Outputs tim-loop command                                  │
+│           │                                                     │
+│           ▼                                                     │
+│  4. Run the /tim-loop command to execute the plan               │
+│           │                                                     │
+│           ▼                                                     │
+│  5. ./tools/plan-ops.sh complete plans/active/my-plan.md        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Tim Loop Command Format
+
+When `execute` succeeds, it outputs:
+
+```bash
+/tim-loop "implement plans/active/[plan-name]. you are not done until all iterations and phases of the plan are complete."
+```
+
+### Status Header Execution Fields
+
+| Field | Value |
+|-------|-------|
+| Execution Approved | yes / no |
+| Execution Approved By | [human name or "-"] |
+| Execution Started | [YYYY-MM-DD HH:MM or "-"] |
+
+---
+
 ## Automation: plan-ops.sh
 
 Use `tools/plan-ops.sh` for lifecycle operations:
@@ -227,8 +370,23 @@ Use `tools/plan-ops.sh` for lifecycle operations:
 # Import from ~/.claude/plans (copies + deletes original)
 ./tools/plan-ops.sh import ~/.claude/plans/xxx.md --name "project-feature"
 
-# Promote draft to active
+# Start Ralph Loop review (shows command to run)
+./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+
+# Mark Ralph Loop as complete (after running /ralph-loop)
+./tools/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+
+# Promote draft to active (blocked for multi-phase without ralph)
 ./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Tim"
+
+# Request execution approval (first call creates request, blocks)
+./tools/plan-ops.sh execute plans/active/my-plan.md
+
+# Human approves execution in separate terminal
+./tools/plan-ops.sh approve-execute <request-id> --approver "Tim"
+
+# Retry execute after approval (outputs tim-loop command)
+./tools/plan-ops.sh execute plans/active/my-plan.md
 
 # Complete an active plan
 ./tools/plan-ops.sh complete plans/active/my-plan.md
@@ -251,7 +409,11 @@ Use `tools/plan-ops.sh` for lifecycle operations:
 |--------|---------|
 | Start new project | `./tools/plan-ops.sh init` |
 | Import Claude's plan | `./tools/plan-ops.sh import ~/.claude/plans/xxx.md --name "desc"` |
+| Start Ralph review | `./tools/plan-ops.sh ralph plans/drafts/plan.md` |
+| Complete Ralph review | `./tools/plan-ops.sh ralph plans/drafts/plan.md --mark-complete` |
 | Approve plan | `./tools/plan-ops.sh promote plans/drafts/plan.md --approver "Name"` |
+| Request execution | `./tools/plan-ops.sh execute plans/active/plan.md` |
+| Approve execution (human) | `./tools/plan-ops.sh approve-execute <id> --approver "Name"` |
 | Finish plan | `./tools/plan-ops.sh complete plans/active/plan.md` |
 | Cancel plan | `./tools/plan-ops.sh abandon plans/*/plan.md --reason "why"` |
 | View all plans | `./tools/plan-ops.sh list all` |

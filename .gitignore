@@ -1,0 +1,3 @@
+# TIM Execution Requests (approval tokens)
+.tim-execution-requests/*
+!.tim-execution-requests/.gitkeep

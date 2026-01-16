@@ -429,9 +429,51 @@ plans/
 ### Plan Lifecycle
 
 1. **Draft** - Claude creates plan, imports to `plans/drafts/`
-2. **Active** - Human approves, moves to `plans/active/`
-3. **Completed** - All phases done, moves to `plans/completed/`
-4. **Abandoned** - Cancelled with reason, moves to `plans/abandoned/`
+2. **Ralph Review** - Multi-phase plans (2+ phases) MUST complete Ralph Loop review
+3. **Active** - Human approves, moves to `plans/active/`
+4. **Completed** - All phases done, moves to `plans/completed/`
+5. **Abandoned** - Cancelled with reason, moves to `plans/abandoned/`
+
+### Ralph Loop Gate (MANDATORY for Multi-Phase Plans)
+
+Plans with 2+ phases **cannot be promoted** until Ralph Loop review is completed:
+
+```bash
+# 1. Show Ralph Loop command
+./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+
+# 2. Run the displayed /ralph-loop command in Claude Code
+
+# 3. Mark review complete
+./tools/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+
+# 4. Now promotion is allowed
+./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
+```
+
+Single-phase plans can skip Ralph Loop and promote directly.
+
+### Tim Loop Execution Gate (HARD ENFORCED)
+
+Active plans require **human approval** before execution. AI cannot bypass this.
+
+```bash
+# 1. AI requests execution (creates approval request, BLOCKS)
+./tools/plan-ops.sh execute plans/active/my-plan.md
+
+# 2. HUMAN approves in separate terminal
+./tools/plan-ops.sh approve-execute <request-id> --approver "Name"
+
+# 3. AI retries (now outputs tim-loop command)
+./tools/plan-ops.sh execute plans/active/my-plan.md
+
+# 4. Run the /tim-loop command
+```
+
+**Why AI cannot bypass:**
+- No `--approver` flag exists
+- Approval requires separate terminal session
+- Tokens expire after 15 minutes
 
 ### MANDATORY: Cleanup ~/.claude/plans
 
@@ -457,6 +499,11 @@ Every plan MUST start with:
 | Last Updated | 2025-01-16 16:45 |
 | Author | Claude Opus 4.5 |
 | Approver | [human name or "-"] |
+| Ralph Review | required / completed / not-required |
+| Ralph Date | [YYYY-MM-DD or "-"] |
+| Execution Approved | yes / no |
+| Execution Approved By | [human name or "-"] |
+| Execution Started | [YYYY-MM-DD HH:MM or "-"] |
 
 ### Progress Log
 
@@ -464,6 +511,11 @@ Every plan MUST start with:
 |-----------|-------|-------|
 | 2025-01-16 14:30 | draft | Plan created |
 ```
+
+**Ralph Review values:**
+- `required` - Multi-phase plan, Ralph Loop not yet done
+- `completed` - Ralph Loop finished, ready for promotion
+- `not-required` - Single-phase plan
 
 ### Plan Requirements
 
@@ -478,7 +530,10 @@ Every plan MUST include:
 Use `./tools/plan-ops.sh` for lifecycle operations:
 - `init` - Create folder structure
 - `import` - Import from ~/.claude/plans (auto-deletes original)
-- `promote` - Move draft to active (requires approver)
+- `ralph` - Start/complete Ralph Loop review (multi-phase plans)
+- `promote` - Move draft to active (blocked for multi-phase until ralphed)
+- `execute` - Request execution approval (requires human approval)
+- `approve-execute` - Human approves execution (run in separate terminal)
 - `complete` - Move active to completed
 - `abandon` - Move to abandoned with reason
 
