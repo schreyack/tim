@@ -14,8 +14,8 @@ TIM projects must use shared libraries for common functionality. This prevents c
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                    design_standards (THIS REPO)                       │   │
 │  │  ├── templates/ops/tim-ops-lib.sh   ← Ops: Bash library              │   │
-│  │  ├── libs/python/tim_lib/           ← Python: Shared library         │   │
-│  │  └── libs/node/tim-lib/             ← Node.js: Shared library        │   │
+│  │  ├── libs/python/tim_lib/           ← Python: tim-lib                │   │
+│  │  └── libs/node/                      ← Node.js: @tim/lib              │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                           │                                                  │
 │                           │ Git submodule OR                                 │
@@ -26,7 +26,7 @@ TIM projects must use shared libraries for common functionality. This prevents c
 │  │                  │  │                  │  │                  │          │
 │  │  Uses:           │  │  Uses:           │  │  Uses:           │          │
 │  │  - tim-ops-lib   │  │  - tim-ops-lib   │  │  - tim-ops-lib   │          │
-│  │  - tim-py        │  │  - tim-node      │  │  - tim-py        │          │
+│  │  - tim-lib (py)  │  │  - @tim/lib (js) │  │  - tim-lib (py)  │          │
 │  └──────────────────┘  └──────────────────┘  └──────────────────┘          │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -40,7 +40,7 @@ The ops.sh deployment library. Already implemented in `templates/ops/tim-ops-lib
 
 **Provides:**
 - Deployment commands (deploy, rollback, status)
-- Safety tiers (SAFE, MODERATE, PROTECTED, BLOCKED)
+- Safety tiers (SAFE, MODERATE, HUMAN_REQUIRED, BLOCKED)
 - Health checks
 - Audit logging
 - Notifications
@@ -75,7 +75,7 @@ pip install -e lib/tim/libs/python
 pip install tim-lib
 ```
 
-### 3. tim-node (Node.js/TypeScript)
+### 3. @tim/lib (Node.js/TypeScript)
 
 Shared TypeScript library for all TIM Node.js projects.
 

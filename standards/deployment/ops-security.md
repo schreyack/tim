@@ -349,11 +349,11 @@ verify_security() {
 tim_ops_main() {
     # ... argument parsing ...
 
-    # Verify security before protected/blocked operations
+    # Verify security before human_required/blocked operations
     local info="${COMMANDS[$command]}"
     local tier="${info%%|*}"
 
-    if [[ "$tier" == "MODERATE" ]] || [[ "$tier" == "PROTECTED" ]] || [[ "$tier" == "BLOCKED" ]]; then
+    if [[ "$tier" == "MODERATE" ]] || [[ "$tier" == "HUMAN_REQUIRED" ]] || [[ "$tier" == "BLOCKED" ]]; then
         verify_security || return $?
     fi
 

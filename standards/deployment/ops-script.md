@@ -31,9 +31,9 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 |---------|-------------|-------------|
 | `ops.sh deploy` | MODERATE | Smart deploy (detect changes, rebuild as needed) |
 | `ops.sh deploy --sync-only` | SAFE | Sync files without rebuild |
-| `ops.sh deploy --force` | PROTECTED | Force full rebuild |
-| `ops.sh rollback` | PROTECTED | Rollback to previous deployment |
-| `ops.sh rollback --version <tag>` | PROTECTED | Rollback to specific version |
+| `ops.sh deploy --force` | HUMAN_REQUIRED | Force full rebuild |
+| `ops.sh rollback` | HUMAN_REQUIRED | Rollback to previous deployment |
+| `ops.sh rollback --version <tag>` | HUMAN_REQUIRED | Rollback to specific version |
 
 ### Status Commands
 
@@ -50,7 +50,7 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 |---------|-------------|-------------|
 | `ops.sh db:migrate` | MODERATE | Run pending migrations |
 | `ops.sh db:migrate --dry-run` | SAFE | Preview migrations |
-| `ops.sh db:rollback` | PROTECTED | Rollback last migration |
+| `ops.sh db:rollback` | HUMAN_REQUIRED | Rollback last migration |
 | `ops.sh db:backup` | SAFE | Create database backup |
 | `ops.sh db:restore <file>` | BLOCKED | Restore from backup (requires confirmation) |
 
@@ -60,7 +60,7 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 |---------|-------------|-------------|
 | `ops.sh shell` | MODERATE | Open shell in container |
 | `ops.sh restart` | MODERATE | Restart services |
-| `ops.sh stop` | PROTECTED | Stop all services |
+| `ops.sh stop` | HUMAN_REQUIRED | Stop all services |
 | `ops.sh destroy` | BLOCKED | Remove all containers/data |
 
 ## Safety Tier Model
@@ -75,10 +75,12 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 - Logs all actions
 - May prompt for confirmation in interactive mode
 
-### PROTECTED (Exit Code: 2 without --confirm)
-- Potentially destructive
-- Requires `--confirm` flag or interactive confirmation
-- Logged with timestamp and user
+### HUMAN_REQUIRED (Exit Code: 2)
+- Potentially destructive operations
+- Requires human approval via `tim-ops-approve`
+- AI cannot bypass - no `--confirm` flag available
+- Creates approval request that human must authorize
+- Logged with timestamp, user, and approver
 
 ### BLOCKED (Exit Code: 3)
 - Extremely dangerous
@@ -92,7 +94,7 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 |------|---------|
 | 0 | Success |
 | 1 | General error |
-| 2 | Requires confirmation (PROTECTED) |
+| 2 | Requires human approval (HUMAN_REQUIRED) |
 | 3 | Blocked operation (BLOCKED) |
 | 4 | Configuration error |
 | 5 | Health check failed |
