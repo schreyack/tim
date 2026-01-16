@@ -37,9 +37,7 @@ class AppError(Exception):
     status_code: int = 500
     message: str = "An error occurred"
 
-    def __init__(
-        self, message: str | None = None, detail: str | None = None
-    ) -> None:
+    def __init__(self, message: str | None = None, detail: str | None = None) -> None:
         self.message = message or self.__class__.message
         self.detail = detail
         super().__init__(self.message)

@@ -10,7 +10,7 @@ Example:
     logger = get_logger()
 
     logger.info("user_created", user_id=123, email="test@example.com")
-    # Output: {"event": "user_created", "user_id": 123, "email": "test@example.com", ...}
+    # Output: {"event": "user_created", "user_id": 123, ...}
 """
 
 import logging

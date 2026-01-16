@@ -1,6 +1,5 @@
 """Tests for tim_lib.db module."""
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

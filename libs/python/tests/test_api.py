@@ -1,11 +1,9 @@
 """Tests for tim_lib.api module."""
 
-import time
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from tim_lib.api import (
@@ -192,9 +190,7 @@ class TestSecurityHeadersMiddleware:
 
         assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
 
-    def test_middleware_adds_csp(
-        self, app_with_security_headers: FastAPI
-    ) -> None:
+    def test_middleware_adds_csp(self, app_with_security_headers: FastAPI) -> None:
         """Test Content-Security-Policy header is added."""
         client = TestClient(app_with_security_headers)
         response = client.get("/test")
@@ -211,9 +207,7 @@ class TestRateLimitMiddleware:
         """Create mock ASGI app."""
 
         async def app(scope: Any, receive: Any, send: Any) -> None:
-            await send(
-                {"type": "http.response.start", "status": 200, "headers": []}
-            )
+            await send({"type": "http.response.start", "status": 200, "headers": []})
             await send({"type": "http.response.body", "body": b"OK"})
 
         return app
@@ -259,9 +253,7 @@ class TestRateLimitMiddleware:
         assert responses[0]["status"] == 429
 
     @pytest.mark.asyncio
-    async def test_middleware_passes_non_http_requests(
-        self, mock_app: Any
-    ) -> None:
+    async def test_middleware_passes_non_http_requests(self, mock_app: Any) -> None:
         """Test that non-HTTP requests are passed through."""
         middleware = RateLimitMiddleware(mock_app, requests_per_minute=1)
         scope = {"type": "websocket"}
@@ -314,9 +306,7 @@ class TestHealthRouter:
         app.include_router(health_router)
         return app
 
-    def test_health_endpoint_returns_healthy(
-        self, app_with_health: FastAPI
-    ) -> None:
+    def test_health_endpoint_returns_healthy(self, app_with_health: FastAPI) -> None:
         """Test /health endpoint returns healthy status."""
         client = TestClient(app_with_health)
         response = client.get("/health")
@@ -324,9 +314,7 @@ class TestHealthRouter:
         assert response.status_code == 200
         assert response.json() == {"status": "healthy"}
 
-    def test_ready_endpoint_returns_ready(
-        self, app_with_health: FastAPI
-    ) -> None:
+    def test_ready_endpoint_returns_ready(self, app_with_health: FastAPI) -> None:
         """Test /health/ready endpoint returns ready status."""
         client = TestClient(app_with_health)
         response = client.get("/health/ready")

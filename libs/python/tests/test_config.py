@@ -59,9 +59,7 @@ class TestBaseAppSettings:
 
         assert "LOG_LEVEL must be one of" in str(exc_info.value)
 
-    def test_log_level_normalized_to_uppercase(
-        self, valid_env: dict[str, str]
-    ) -> None:
+    def test_log_level_normalized_to_uppercase(self, valid_env: dict[str, str]) -> None:
         """Test that log level is normalized to uppercase."""
         valid_env["LOG_LEVEL"] = "debug"  # lowercase
         os.environ.update(valid_env)
@@ -157,9 +155,7 @@ class TestBaseAppSettings:
         masked = settings.get_masked_value("nonexistent_key")
         assert masked == "<not set>"
 
-    def test_to_safe_dict_masks_sensitive_keys(
-        self, valid_env: dict[str, str]
-    ) -> None:
+    def test_to_safe_dict_masks_sensitive_keys(self, valid_env: dict[str, str]) -> None:
         """Test that to_safe_dict masks database_url and jwt_secret."""
         os.environ.update(valid_env)
         settings = BaseAppSettings()

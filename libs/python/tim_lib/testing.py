@@ -97,7 +97,6 @@ class AsyncTestClient:
         # Set db override if provided
         if self.db_override:
             # Find the get_db dependency and override it
-            from tim_lib.db import dependency_get_db
 
             async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
                 yield self.db_override  # type: ignore
@@ -159,9 +158,9 @@ def assert_response_ok(response: Any) -> None:
     Raises:
         AssertionError: If status code is not 2xx.
     """
-    assert 200 <= response.status_code < 300, (
-        f"Expected 2xx, got {response.status_code}: {response.text}"
-    )
+    assert (
+        200 <= response.status_code < 300
+    ), f"Expected 2xx, got {response.status_code}: {response.text}"
 
 
 def assert_response_created(response: Any) -> None:
@@ -173,9 +172,9 @@ def assert_response_created(response: Any) -> None:
     Raises:
         AssertionError: If status code is not 201.
     """
-    assert response.status_code == 201, (
-        f"Expected 201, got {response.status_code}: {response.text}"
-    )
+    assert (
+        response.status_code == 201
+    ), f"Expected 201, got {response.status_code}: {response.text}"
 
 
 def assert_response_error(response: Any, status_code: int) -> None:
@@ -188,9 +187,9 @@ def assert_response_error(response: Any, status_code: int) -> None:
     Raises:
         AssertionError: If status code doesn't match.
     """
-    assert response.status_code == status_code, (
-        f"Expected {status_code}, got {response.status_code}: {response.text}"
-    )
+    assert (
+        response.status_code == status_code
+    ), f"Expected {status_code}, got {response.status_code}: {response.text}"
 
 
 class UserFactory:

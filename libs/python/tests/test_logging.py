@@ -209,9 +209,7 @@ class TestLogContextMiddleware:
         assert b"x-correlation-id" in headers
 
     @pytest.mark.asyncio
-    async def test_middleware_uses_provided_correlation_id(
-        self, mock_app: Any
-    ) -> None:
+    async def test_middleware_uses_provided_correlation_id(self, mock_app: Any) -> None:
         """Test that middleware uses existing correlation ID if provided."""
         middleware = LogContextMiddleware(mock_app)
         sent_messages: list[dict[str, Any]] = []
@@ -243,9 +241,7 @@ class TestLogContextMiddleware:
         scope = {"type": "websocket"}
         called = False
 
-        async def tracking_app(
-            scope: Any, receive: Any, send: Any
-        ) -> None:
+        async def tracking_app(scope: Any, receive: Any, send: Any) -> None:
             nonlocal called
             called = True
 

@@ -36,9 +36,9 @@ patterns:
     library: Zod
     naming: "{domain}.ts"
     variants:
-      - "{domain}CreateSchema" - input for creation
-      - "{domain}UpdateSchema" - input for updates
-      - "{Domain}Response" - output interface
+      - "{domain}CreateSchema"  # input for creation
+      - "{domain}UpdateSchema"  # input for updates
+      - "{Domain}Response"  # output interface
 
   # Test patterns
   testing:

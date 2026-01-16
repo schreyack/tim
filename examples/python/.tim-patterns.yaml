@@ -45,9 +45,9 @@ patterns:
     location: app/schemas/
     naming: "{domain}.py"
     variants:
-      - "{Domain}Create" - input for creation
-      - "{Domain}Update" - input for updates (all optional)
-      - "{Domain}Response" - output to client
+      - "{Domain}Create"  # input for creation
+      - "{Domain}Update"  # input for updates (all optional)
+      - "{Domain}Response"  # output to client
 
   # Test patterns
   testing:

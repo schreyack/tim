@@ -137,9 +137,9 @@ def verify_token(
         payload: dict[str, Any] = jwt.decode(token, secret, algorithms=[algorithm])
         return payload
     except jwt.ExpiredSignatureError:
-        raise TokenValidationError("Token has expired", detail="expired")
+        raise TokenValidationError("Token has expired", detail="expired") from None
     except JWTError as e:
-        raise TokenValidationError("Invalid token", detail=str(e))
+        raise TokenValidationError("Invalid token", detail=str(e)) from e
 
 
 def verify_token_with_fallback(
