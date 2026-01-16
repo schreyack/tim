@@ -20,7 +20,7 @@ import type { Request, Response, NextFunction, Application } from "express";
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
-  public readonly detail?: string;
+  public readonly detail: string | undefined;
 
   constructor(
     statusCode: number,

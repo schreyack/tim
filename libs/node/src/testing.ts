@@ -55,7 +55,7 @@ export function createMockConfig<T extends Record<string, unknown>>(
     PORT: 0, // Random available port
   };
 
-  return { ...defaults, ...overrides } as T;
+  return { ...defaults, ...overrides } as unknown as T;
 }
 
 /**
@@ -494,6 +494,6 @@ export function createSequenceMock<T>(
     if (response instanceof Error) {
       throw response;
     }
-    return response;
+    return response as T;
   };
 }
