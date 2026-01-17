@@ -13,6 +13,7 @@ const configSchema = z.object({
     .enum(["development", "staging", "production"])
     .default("development"),
   port: z.number().int().positive().default(3000),
+  logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -26,6 +27,7 @@ function loadConfig(): Config {
       : undefined,
     environment: process.env["NODE_ENV"],
     port: process.env["PORT"] ? parseInt(process.env["PORT"], 10) : undefined,
+    logLevel: process.env["LOG_LEVEL"],
   });
 
   if (!result.success) {

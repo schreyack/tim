@@ -21,10 +21,10 @@ Example:
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+from jose import JWTError, jwt  # type: ignore[import-untyped]
+from passlib.context import CryptContext  # type: ignore[import-untyped]
 
 # Password hashing context (bcrypt with secure defaults)
 _pwd_context = CryptContext(
@@ -47,7 +47,7 @@ def hash_password(password: str) -> str:
         hashed = hash_password("my_secure_password")
         # Store hashed in database
     """
-    return _pwd_context.hash(password)
+    return cast(str, _pwd_context.hash(password))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -66,7 +66,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         if verify_password(user_input, stored_hash):
             # Password correct
     """
-    return _pwd_context.verify(plain_password, hashed_password)
+    return cast(bool, _pwd_context.verify(plain_password, hashed_password))
 
 
 def create_access_token(
@@ -96,7 +96,7 @@ def create_access_token(
     to_encode = data.copy()
     expire = datetime.now(UTC) + timedelta(minutes=expires_minutes)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, secret, algorithm=algorithm)
+    return cast(str, jwt.encode(to_encode, secret, algorithm=algorithm))
 
 
 class TokenValidationError(Exception):

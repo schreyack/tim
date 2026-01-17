@@ -108,7 +108,12 @@ class AsyncTestClient:
                     self.app.dependency_overrides[key] = override_get_db
 
         try:
-            async with AsyncClient(app=self.app, base_url=self.base_url) as client:
+            from httpx import ASGITransport
+
+            transport = ASGITransport(app=self.app)
+            async with AsyncClient(
+                transport=transport, base_url=self.base_url
+            ) as client:
                 yield client
         finally:
             # Restore original overrides

@@ -5,7 +5,7 @@ All test data is defined in a central location. No hardcoding. No duplication. S
 ## Core Principles
 
 1. **Single Source** - All test data in `tests/data/` directory
-2. **YAML Format** - Human-readable, easy to review, version controlled
+2. **YAML Format (REQUIRED)** - All test data MUST be in YAML format. No JSON, no hardcoded objects, no alternatives. YAML is mandatory for human readability, reviewability, and version control
 3. **No Hardcoding** - Tests import data, never define it inline
 4. **Type Safety** - YAML exported as typed objects
 5. **Environment Aware** - Data can vary by environment
@@ -582,9 +582,34 @@ module.exports = {
 
 ```yaml
 # In CI pipeline
+- name: Verify YAML-only test data (HARD REQUIREMENT)
+  run: |
+    # BLOCK: No JSON test data files allowed
+    if find tests/data -name "*.json" | grep -q .; then
+      echo "ERROR: JSON files found in tests/data/. Only YAML is allowed."
+      find tests/data -name "*.json"
+      exit 1
+    fi
+
+    # BLOCK: No JS/TS files defining test data objects (index.ts and schema.ts are exceptions)
+    if find tests/data -name "*.ts" ! -name "index.ts" ! -name "schema.ts" | grep -q .; then
+      echo "ERROR: Unexpected TypeScript files in tests/data/. Test data must be in YAML."
+      find tests/data -name "*.ts" ! -name "index.ts" ! -name "schema.ts"
+      exit 1
+    fi
+
 - name: Check for hardcoded test data
   run: |
     # Find any test files with hardcoded data
     grep -r "email.*@" tests/ --include="*.spec.ts" | grep -v "example.com" | grep -v "{{" && exit 1 || true
     grep -r "password.*=" tests/ --include="*.spec.ts" | grep -v "testData\." | grep -v "import" && exit 1 || true
 ```
+
+## Hard Requirements Summary
+
+| Requirement | Enforcement | Gate |
+|-------------|-------------|------|
+| YAML format only | CI blocks JSON/JS test data files | Gate 2 |
+| No hardcoded data | ESLint rule + CI grep check | Gate 1 + Gate 2 |
+| Test ID traceability | Required in all created data | Code review |
+| Cleanup after tests | afterEach hook required | Code review |

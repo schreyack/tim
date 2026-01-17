@@ -223,12 +223,14 @@ class RateLimitMiddleware:
         headers = dict(scope.get("headers", []))
         forwarded = headers.get(b"x-forwarded-for")
         if forwarded:
-            return forwarded.decode().split(",")[0].strip()
+            result: str = forwarded.decode().split(",")[0].strip()
+            return result
 
         # Fall back to direct client
         client = scope.get("client")
         if client:
-            return client[0]
+            ip: str = client[0]
+            return ip
 
         return "unknown"
 

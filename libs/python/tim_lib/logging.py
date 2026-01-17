@@ -15,9 +15,10 @@ Example:
 
 import logging
 import sys
-from typing import Any
+from typing import Any, cast
 
 import structlog
+from structlog.stdlib import BoundLogger
 from structlog.types import Processor
 
 
@@ -62,7 +63,7 @@ def configure_logging(
                 event_dict["environment"] = environment
             return event_dict
 
-        processors.append(add_service_context)
+        processors.append(cast(Processor, add_service_context))
 
     # Add renderer
     processors.append(renderer)
@@ -86,7 +87,7 @@ def configure_logging(
     )
 
 
-def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
+def get_logger(name: str | None = None) -> BoundLogger:
     """Get a configured logger instance.
 
     Args:
@@ -99,7 +100,7 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
         logger = get_logger(__name__)
         logger.info("processing_request", request_id="abc123")
     """
-    return structlog.get_logger(name)
+    return cast(BoundLogger, structlog.get_logger(name))
 
 
 def bind_context(**kwargs: Any) -> None:

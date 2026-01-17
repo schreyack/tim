@@ -3,6 +3,7 @@
  */
 
 import type { Request, Response, NextFunction } from "express";
+import type { RequestWithLogger } from "@tim/lib/logging";
 
 import { AppError, ValidationError } from "../services/errors.js";
 
@@ -13,7 +14,7 @@ interface ErrorResponse {
 
 export function errorHandler(
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void {
@@ -31,6 +32,10 @@ export function errorHandler(
     return;
   }
 
-  console.error("Unhandled error:", err);
+  // Log unhandled errors using structured logger
+  const logger = (req as RequestWithLogger).log;
+  if (logger !== undefined) {
+    logger.error({ err }, "Unhandled error");
+  }
   res.status(500).json({ detail: "Internal server error" });
 }

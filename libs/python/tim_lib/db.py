@@ -164,11 +164,12 @@ class DatabaseHealthCheck:
     async def get_pool_status(self) -> dict[str, Any]:
         """Get connection pool statistics."""
         pool = self.engine.pool
+        # Pool stats methods are available on QueuePool but not typed in stubs
         return {
-            "pool_size": pool.size(),
-            "checked_in": pool.checkedin(),
-            "checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
+            "pool_size": getattr(pool, "size", lambda: 0)(),
+            "checked_in": getattr(pool, "checkedin", lambda: 0)(),
+            "checked_out": getattr(pool, "checkedout", lambda: 0)(),
+            "overflow": getattr(pool, "overflow", lambda: 0)(),
         }
 
     async def detailed_check(self) -> dict[str, Any]:
