@@ -5,10 +5,14 @@
 # This script sources the shared tim-ops-lib and loads project-specific
 # configuration. Customize by adding hooks in ops-hooks/ directory.
 #
+# IMPORTANT: The --env flag is REQUIRED for all commands.
+# All deployments are remote-only. See standards/deployment/remote-only.md
+#
 # Usage:
-#   ./ops.sh deploy          # Smart deploy
-#   ./ops.sh status          # Check status
-#   ./ops.sh help            # Show all commands
+#   ./ops.sh --env dev deploy              # Deploy to development
+#   ./ops.sh --env uat status              # Check UAT status
+#   ./ops.sh --env prod deploy --ticket PROJ-123  # Deploy to production
+#   ./ops.sh help                          # Show all commands
 
 set -euo pipefail
 
@@ -29,7 +33,7 @@ PROJECT_ROOT="$SCRIPT_DIR"
 
 # Method 3: Auto-download (default)
 TIM_OPS_LIB="${TIM_OPS_LIB:-$PROJECT_ROOT/.tim-ops/tim-ops-lib.sh}"
-TIM_OPS_VERSION="2.0.0"
+TIM_OPS_VERSION="3.0.0"
 TIM_OPS_URL="https://raw.githubusercontent.com/your-org/design_standards/main/templates/ops/tim-ops-lib.sh"
 
 # =============================================================================

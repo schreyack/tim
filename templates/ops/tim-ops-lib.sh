@@ -21,7 +21,7 @@ set -euo pipefail
 # CONFIGURATION
 # =============================================================================
 
-TIM_OPS_VERSION="2.0.0"
+TIM_OPS_VERSION="3.0.0"
 TIM_OPS_AUDIT_LOG="${TIM_OPS_AUDIT_LOG:-$HOME/.tim-ops/audit.log}"
 TIM_OPS_STATE_DIR="${TIM_OPS_STATE_DIR:-$HOME/.tim-ops/state}"
 TIM_OPS_APPROVAL_DIR="${TIM_OPS_APPROVAL_DIR:-$HOME/.tim-ops/approvals}"
@@ -56,6 +56,81 @@ declare -A COMMANDS=()
 # Project configuration (loaded from ops-config.yaml)
 declare -A CONFIG=()
 declare -a SERVICES=()
+
+# Environment configuration (loaded from environments.yaml)
+declare -A ENV_CONFIG=()
+CURRENT_ENV=""
+
+# Per-environment command tier matrix
+# Format: ENV:COMMAND -> TIER
+# This implements the command-matrix.md specification
+declare -A ENV_COMMAND_TIERS=(
+    # DEV - Permissive (sandbox)
+    ["dev:status"]="SAFE"
+    ["dev:health"]="SAFE"
+    ["dev:logs"]="SAFE"
+    ["dev:deploy"]="SAFE"
+    ["dev:deploy:force"]="SAFE"
+    ["dev:deploy:sync"]="SAFE"
+    ["dev:restart"]="SAFE"
+    ["dev:stop"]="SAFE"
+    ["dev:shell"]="SAFE"
+    ["dev:exec"]="SAFE"
+    ["dev:db:migrate"]="SAFE"
+    ["dev:db:migrate:dry"]="SAFE"
+    ["dev:db:rollback"]="SAFE"
+    ["dev:db:backup"]="SAFE"
+    ["dev:db:restore"]="SAFE"
+    ["dev:db:seed"]="SAFE"
+    ["dev:db:reset"]="SAFE"
+    ["dev:env:get"]="SAFE"
+    ["dev:env:set"]="SAFE"
+    ["dev:rollback"]="SAFE"
+
+    # UAT - Moderate restrictions
+    ["uat:status"]="SAFE"
+    ["uat:health"]="SAFE"
+    ["uat:logs"]="SAFE"
+    ["uat:deploy"]="MODERATE"
+    ["uat:deploy:force"]="HUMAN_REQUIRED"
+    ["uat:deploy:sync"]="MODERATE"
+    ["uat:restart"]="MODERATE"
+    ["uat:stop"]="HUMAN_REQUIRED"
+    ["uat:shell"]="MODERATE"
+    ["uat:exec"]="MODERATE"
+    ["uat:db:migrate"]="MODERATE"
+    ["uat:db:migrate:dry"]="SAFE"
+    ["uat:db:rollback"]="HUMAN_REQUIRED"
+    ["uat:db:backup"]="SAFE"
+    ["uat:db:restore"]="HUMAN_REQUIRED"
+    ["uat:db:seed"]="HUMAN_REQUIRED"
+    ["uat:db:reset"]="BLOCKED"
+    ["uat:env:get"]="SAFE"
+    ["uat:env:set"]="HUMAN_REQUIRED"
+    ["uat:rollback"]="HUMAN_REQUIRED"
+
+    # PROD - Maximum restrictions
+    ["prod:status"]="SAFE"
+    ["prod:health"]="SAFE"
+    ["prod:logs"]="SAFE"
+    ["prod:deploy"]="HUMAN_REQUIRED"
+    ["prod:deploy:force"]="BLOCKED"
+    ["prod:deploy:sync"]="HUMAN_REQUIRED"
+    ["prod:restart"]="HUMAN_REQUIRED"
+    ["prod:stop"]="BLOCKED"
+    ["prod:shell"]="BLOCKED"
+    ["prod:exec"]="BLOCKED"
+    ["prod:db:migrate"]="HUMAN_REQUIRED"
+    ["prod:db:migrate:dry"]="SAFE"
+    ["prod:db:rollback"]="BLOCKED"
+    ["prod:db:backup"]="SAFE"
+    ["prod:db:restore"]="BLOCKED"
+    ["prod:db:seed"]="BLOCKED"
+    ["prod:db:reset"]="BLOCKED"
+    ["prod:env:get"]="MODERATE"
+    ["prod:env:set"]="BLOCKED"
+    ["prod:rollback"]="HUMAN_REQUIRED"
+)
 
 # =============================================================================
 # LOGGING
@@ -158,6 +233,197 @@ load_config() {
     COMPOSE_FILE="${CONFIG[docker_compose_file]:-docker-compose.yml}"
 
     log_debug "Loaded config: PROJECT_NAME=$PROJECT_NAME, REMOTE_HOST=$REMOTE_HOST"
+}
+
+# =============================================================================
+# ENVIRONMENT LOADING (environments.yaml)
+# =============================================================================
+#
+# Loads environment-specific configuration from environments.yaml
+# This file is NOT in git - each operator maintains their own copy
+# See: standards/deployment/environments.md
+
+load_environment() {
+    local env_name="$1"
+    local env_file="${PROJECT_ROOT:-$(pwd)}/environments.yaml"
+
+    # Validate environment name
+    if [[ ! "$env_name" =~ ^(dev|uat|prod)$ ]]; then
+        log_error "Invalid environment: $env_name"
+        log_error "Valid environments: dev, uat, prod"
+        return 1
+    fi
+
+    # Check environments.yaml exists
+    if [[ ! -f "$env_file" ]]; then
+        log_error "environments.yaml not found at: $env_file"
+        log_error ""
+        log_error "This file is required but NOT committed to git."
+        log_error "To set up:"
+        log_error "  1. Copy environments.yaml.example to environments.yaml"
+        log_error "  2. Configure with real connection details"
+        log_error "  3. chmod 600 environments.yaml"
+        log_error ""
+        log_error "See: standards/deployment/environments.md"
+        return 4
+    fi
+
+    # Check file permissions (should be 600)
+    local perms
+    if [[ "$(uname)" == "Darwin" ]]; then
+        perms=$(stat -f "%Lp" "$env_file" 2>/dev/null || echo "000")
+    else
+        perms=$(stat -c "%a" "$env_file" 2>/dev/null || echo "000")
+    fi
+    if [[ "$perms" != "600" ]]; then
+        log_warn "environments.yaml has permissions $perms (should be 600)"
+        log_warn "Fix with: chmod 600 environments.yaml"
+    fi
+
+    CURRENT_ENV="$env_name"
+
+    # Parse environment section from YAML
+    # This is a simple parser - for complex YAML, use yq
+    local in_env_section=false
+    local in_target_env=false
+    local current_subsection=""
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip comments and empty lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+
+        # Detect environments: section
+        if [[ "$line" == "environments:" ]]; then
+            in_env_section=true
+            continue
+        fi
+
+        # Only process if in environments section
+        if [[ "$in_env_section" == "true" ]]; then
+            # Detect target environment (e.g., "  dev:")
+            if [[ "$line" =~ ^[[:space:]]{2}([a-z]+):$ ]]; then
+                local env_key="${BASH_REMATCH[1]}"
+                if [[ "$env_key" == "$env_name" ]]; then
+                    in_target_env=true
+                else
+                    in_target_env=false
+                fi
+                continue
+            fi
+
+            # If in target environment, parse its contents
+            if [[ "$in_target_env" == "true" ]]; then
+                # Detect subsection (e.g., "    connection:")
+                if [[ "$line" =~ ^[[:space:]]{4}([a-z_]+):$ ]]; then
+                    current_subsection="${BASH_REMATCH[1]}"
+                    continue
+                fi
+
+                # Parse key: value pairs
+                if [[ "$line" =~ ^[[:space:]]+([a-z_]+):[[:space:]]*(.*)$ ]]; then
+                    local key="${BASH_REMATCH[1]}"
+                    local value="${BASH_REMATCH[2]}"
+
+                    # Remove quotes
+                    value="${value#\"}"
+                    value="${value%\"}"
+                    value="${value#\'}"
+                    value="${value%\'}"
+
+                    # Expand environment variables
+                    value=$(eval echo "$value" 2>/dev/null || echo "$value")
+
+                    # Store with subsection prefix
+                    if [[ -n "$current_subsection" ]]; then
+                        ENV_CONFIG["${current_subsection}_${key}"]="$value"
+                    else
+                        ENV_CONFIG["$key"]="$value"
+                    fi
+                fi
+            fi
+        fi
+    done < "$env_file"
+
+    # Set convenience variables from loaded environment
+    REMOTE_HOST="${ENV_CONFIG[host]:-}"
+    REMOTE_USER="${ENV_CONFIG[connection_user]:-}"
+    REMOTE_PATH="${ENV_CONFIG[remote_path]:-}"
+    SSH_KEY_FILE="${ENV_CONFIG[connection_key_file]:-}"
+    CONNECTION_METHOD="${ENV_CONFIG[connection_method]:-ssh}"
+
+    if [[ -z "$REMOTE_HOST" ]]; then
+        log_error "Environment '$env_name' not found or missing 'host' in environments.yaml"
+        return 4
+    fi
+
+    log_debug "Loaded environment: $env_name (host=$REMOTE_HOST, user=$REMOTE_USER)"
+    log_info "Environment: ${BOLD}$env_name${NC} ($REMOTE_HOST)"
+}
+
+# Get tier for command based on current environment
+get_env_tier() {
+    local command="$1"
+    local env="${CURRENT_ENV:-}"
+
+    if [[ -z "$env" ]]; then
+        log_error "No environment set. Use --env flag."
+        return 1
+    fi
+
+    local tier_key="${env}:${command}"
+    local tier="${ENV_COMMAND_TIERS[$tier_key]:-}"
+
+    # If no specific tier defined, fall back to command's default tier
+    if [[ -z "$tier" ]]; then
+        local cmd_info="${COMMANDS[$command]:-}"
+        if [[ -n "$cmd_info" ]]; then
+            tier="${cmd_info%%|*}"
+        else
+            tier="BLOCKED"  # Unknown commands are blocked by default
+        fi
+    fi
+
+    echo "$tier"
+}
+
+# =============================================================================
+# SECURITY VERIFICATION
+# =============================================================================
+#
+# Runs security checks before operations. Blocks on violations.
+# See: standards/deployment/ops-security.md
+
+verify_security() {
+    local verify_script="${PROJECT_ROOT:-$(pwd)}/scripts/verify-ops-security.sh"
+
+    # Also check in templates location
+    if [[ ! -f "$verify_script" ]]; then
+        verify_script="${PROJECT_ROOT:-$(pwd)}/verify-ops-security.sh"
+    fi
+
+    if [[ ! -f "$verify_script" ]]; then
+        log_warn "Security verification script not found"
+        log_warn "Recommended: Add scripts/verify-ops-security.sh from design_standards"
+        return 0  # Warning only if script missing
+    fi
+
+    log_info "Running security verification..."
+
+    if ! bash "$verify_script"; then
+        log_error "============================================================"
+        log_error "SECURITY VERIFICATION FAILED"
+        log_error "============================================================"
+        log_error ""
+        log_error "Operations are BLOCKED until security issues are resolved."
+        log_error "Run: ./scripts/verify-ops-security.sh --fix"
+        log_error ""
+        log_error "============================================================"
+        return 10
+    fi
+
+    log_success "Security verification passed"
+    return 0
 }
 
 # =============================================================================
@@ -870,39 +1136,64 @@ cmd_test() {
 
 cmd_help() {
     echo -e "${BOLD}TIM Ops - ${PROJECT_NAME:-Project}${NC}"
-    echo "Usage: ops.sh <command> [options]"
+    echo "Usage: ops.sh --env <environment> <command> [options]"
     echo ""
-    echo -e "${BOLD}Safety Tiers:${NC}"
-    echo "  SAFE          - Always allowed"
-    echo "  MODERATE      - Allowed (changes logged)"
+    echo -e "${BOLD}REQUIRED:${NC}"
+    echo "  --env <env>            Environment: dev, uat, or prod (MANDATORY)"
+    echo ""
+    echo -e "${BOLD}Environments:${NC}"
+    echo "  dev   - Development (permissive, sandbox)"
+    echo "  uat   - User Acceptance Testing (moderate restrictions)"
+    echo "  prod  - Production (maximum restrictions)"
+    echo ""
+    echo -e "${BOLD}Safety Tiers (vary by environment):${NC}"
+    echo "  SAFE           - Always allowed"
+    echo "  MODERATE       - Allowed (changes logged)"
     echo "  HUMAN_REQUIRED - Requires human approval (no bypass)"
-    echo "  BLOCKED       - Never allowed in ops.sh (manual only)"
+    echo "  BLOCKED        - Never allowed in ops.sh (manual only)"
     echo ""
     echo -e "${BOLD}Commands:${NC}"
 
     for cmd in $(echo "${!COMMANDS[@]}" | tr ' ' '\n' | sort); do
         local info="${COMMANDS[$cmd]}"
-        local tier="${info%%|*}"
+        local default_tier="${info%%|*}"
         local desc="${info#*|}"
+
+        # Show environment-specific tier if current env is set
+        local display_tier="$default_tier"
+        if [[ -n "$CURRENT_ENV" ]]; then
+            display_tier=$(get_env_tier "$cmd")
+        fi
+
         local tier_color="$NC"
-        case "$tier" in
+        case "$display_tier" in
             SAFE) tier_color="$GREEN" ;;
             MODERATE) tier_color="$YELLOW" ;;
             HUMAN_REQUIRED) tier_color="$RED" ;;
             BLOCKED) tier_color="$RED${BOLD}" ;;
         esac
-        printf "  %-20s [${tier_color}%-14s${NC}] %s\n" "$cmd" "$tier" "$desc"
+        printf "  %-20s [${tier_color}%-14s${NC}] %s\n" "$cmd" "$display_tier" "$desc"
     done
 
     echo ""
     echo -e "${BOLD}Options:${NC}"
+    echo "  --env <env>            REQUIRED: dev, uat, or prod"
+    echo "  --ticket <id>          Ticket reference (required for prod deploys)"
     echo "  --dry-run              Preview changes without executing"
     echo "  -v, --verbose          Verbose output"
     echo "  -h, --help             Show this help"
     echo ""
+    echo -e "${BOLD}Examples:${NC}"
+    echo "  ./ops.sh --env dev deploy              Deploy to development"
+    echo "  ./ops.sh --env uat status              Check UAT status"
+    echo "  ./ops.sh --env prod deploy --ticket PROJ-123"
+    echo ""
     echo -e "${BOLD}NOTE:${NC} There are NO bypass flags. HUMAN_REQUIRED operations"
     echo "require pre-approval from a human. BLOCKED operations must"
     echo "be performed manually outside of ops.sh."
+    echo ""
+    echo "Command tiers vary by environment. Use --env with 'help' to see"
+    echo "tiers for a specific environment."
     echo ""
     echo "Version: $TIM_OPS_VERSION"
 }
@@ -918,6 +1209,8 @@ cmd_version() {
 
 tim_ops_main() {
     local command=""
+    local environment=""
+    local ticket=""
     local dry_run=false
     local verbose=false
     local args=()
@@ -925,6 +1218,22 @@ tim_ops_main() {
     # Parse arguments - NOTE: No --confirm or dangerous bypass flags
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --env)
+                if [[ -z "${2:-}" ]]; then
+                    log_error "ERROR: --env requires a value (dev, uat, or prod)"
+                    return 1
+                fi
+                environment="$2"
+                shift 2
+                ;;
+            --ticket)
+                if [[ -z "${2:-}" ]]; then
+                    log_error "ERROR: --ticket requires a value (e.g., PROJ-123)"
+                    return 1
+                fi
+                ticket="$2"
+                shift 2
+                ;;
             --dry-run)
                 dry_run=true
                 shift
@@ -957,6 +1266,41 @@ tim_ops_main() {
     # Default to help
     [[ -z "$command" ]] && command="help"
 
+    # =========================================================================
+    # ENVIRONMENT REQUIREMENT - MANDATORY
+    # =========================================================================
+    # The --env flag is REQUIRED for all commands except help/version
+    # This is the cornerstone of environment isolation
+    # See: standards/deployment/remote-only.md
+    #
+    if [[ "$command" != "help" ]] && [[ "$command" != "version" ]]; then
+        if [[ -z "$environment" ]]; then
+            log_error "============================================================"
+            log_error "ERROR: --env flag is REQUIRED"
+            log_error "============================================================"
+            log_error ""
+            log_error "All TIM operations require explicit environment specification."
+            log_error ""
+            log_error "Usage:"
+            log_error "  ./ops.sh --env dev <command>    # Development"
+            log_error "  ./ops.sh --env uat <command>    # User Acceptance Testing"
+            log_error "  ./ops.sh --env prod <command>   # Production"
+            log_error ""
+            log_error "Example:"
+            log_error "  ./ops.sh --env dev deploy"
+            log_error "  ./ops.sh --env prod deploy --ticket PROJ-123"
+            log_error ""
+            log_error "See: standards/deployment/remote-only.md"
+            log_error "============================================================"
+            return 1
+        fi
+
+        # Load the specified environment
+        if ! load_environment "$environment"; then
+            return $?
+        fi
+    fi
+
     # Normalize command (deploy --force -> deploy:force)
     case "$command" in
         deploy)
@@ -982,8 +1326,50 @@ tim_ops_main() {
         return 1
     fi
 
-    local info="${COMMANDS[$command]}"
-    local tier="${info%%|*}"
+    # =========================================================================
+    # ENVIRONMENT-SPECIFIC TIER LOOKUP
+    # =========================================================================
+    # Get tier based on environment + command combination
+    # This implements standards/deployment/command-matrix.md
+    #
+    local tier
+    if [[ -n "$CURRENT_ENV" ]]; then
+        tier=$(get_env_tier "$command")
+    else
+        # For help/version commands without env, use default tier
+        local info="${COMMANDS[$command]}"
+        tier="${info%%|*}"
+    fi
+
+    # =========================================================================
+    # PRODUCTION TICKET REQUIREMENT
+    # =========================================================================
+    # Production deploys require --ticket for traceability
+    #
+    if [[ "$CURRENT_ENV" == "prod" ]] && [[ "$command" =~ ^deploy ]]; then
+        if [[ -z "$ticket" ]]; then
+            log_error "============================================================"
+            log_error "ERROR: Production deploys require --ticket"
+            log_error "============================================================"
+            log_error ""
+            log_error "Example: ./ops.sh --env prod deploy --ticket PROJ-123"
+            log_error ""
+            log_error "============================================================"
+            return 1
+        fi
+        log_info "Ticket: $ticket"
+    fi
+
+    # =========================================================================
+    # SECURITY VERIFICATION (for non-SAFE operations)
+    # =========================================================================
+    # Run security checks before potentially dangerous operations
+    #
+    if [[ "$tier" != "SAFE" ]] && [[ -n "$CURRENT_ENV" ]]; then
+        if ! verify_security; then
+            return $?
+        fi
+    fi
 
     # Check safety tier - NO bypass flags passed
     if ! check_safety "$tier" "$command"; then
