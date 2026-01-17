@@ -202,7 +202,46 @@ If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
 
 ---
 
+## Remote-Only Deployment (MANDATORY)
+
+**All deployments are remote. No local environments. No exceptions.**
+
+### Three Required Environments
+
+| Environment | Access | Restrictions |
+|-------------|--------|--------------|
+| **dev** | All developers | Minimal (sandbox only) |
+| **uat** | QA team, tech leads | Moderate |
+| **prod** | DevOps/SRE only | Maximum |
+
+### The --env Flag is REQUIRED
+
+```bash
+# ALWAYS specify environment
+./ops.sh --env dev deploy     # Deploy to dev
+./ops.sh --env uat deploy     # Deploy to UAT
+./ops.sh --env prod deploy --ticket PROJ-123  # Deploy to prod
+
+# This will FAIL
+./ops.sh deploy               # ERROR: --env required
+```
+
+### Configuration Files
+
+| File | In Git? | Purpose |
+|------|---------|---------|
+| `environments.yaml` | NO (.gitignore) | Connection details per environment |
+| `environments.yaml.example` | YES | Template showing structure |
+| `ops-config.yaml` | YES | Project settings (services, database) |
+
+See `standards/deployment/environments.md` for full schema.
+See `standards/deployment/command-matrix.md` for per-environment restrictions.
+
+---
+
 ## ops.sh Safety Tiers (NO BYPASS FLAGS)
+
+**Safety tiers vary by environment.** Dev is permissive. Prod is restrictive.
 
 | Tier | Behavior | Examples |
 |------|----------|----------|
@@ -210,6 +249,11 @@ If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
 | **MODERATE** | Allowed with logging | deploy, restart, migrate |
 | **HUMAN_REQUIRED** | Requires human approval | rollback, stop, db:rollback |
 | **BLOCKED** | Never allowed in ops.sh | destroy, db:restore |
+
+**Example: `shell` command by environment:**
+- Dev: SAFE (debug freely)
+- UAT: MODERATE (allowed, logged)
+- Prod: BLOCKED (data theft risk)
 
 For HUMAN_REQUIRED operations:
 1. AI attempts operation → creates approval request
@@ -225,8 +269,9 @@ BLOCKED operations MUST be performed manually via SSH.
 | Run `ssh` commands directly | Bypasses safety controls |
 | Run `docker exec` directly | Can execute destructive operations |
 | Run SQL directly on database | No validation, no audit trail |
+| Run `docker-compose up` locally | No local environments allowed |
 
-**If you need to interact with a remote server, use `./ops.sh`. No exceptions.**
+**If you need to interact with a remote server, use `./ops.sh --env <env>`. No exceptions.**
 
 ---
 
@@ -361,7 +406,12 @@ A task is NOT complete until:
 3. Install shared library: `pip install ./lib/design_standards/libs/python` or `npm install ./lib/design_standards/libs/node`
 4. Copy `.tim-patterns.yaml` template and register patterns
 5. Configure CI pipeline from `templates/ci/`
-6. Run `tools/tim-compliance-check.sh` to verify setup
+6. **Set up remote environments:**
+   - Copy `templates/environments.yaml.example` to project root
+   - Add `environments.yaml` to `.gitignore`
+   - Configure dev/uat/prod remote servers
+   - Create `environments.yaml` with real connection details
+7. Run `tools/tim-compliance-check.sh` to verify setup
 
 ### For Existing Projects
 1. Run `tools/tim-compliance-check.sh` to identify gaps
@@ -371,6 +421,10 @@ A task is NOT complete until:
 5. Implement pre-commit hooks (Gate 1)
 6. Add CI pipeline (Gate 2)
 7. Implement deploy gates (Gate 3 + 4)
+8. **Migrate to remote-only deployment:**
+   - Remove local docker-compose configurations
+   - Set up remote dev environment
+   - Update team workflow to use `./ops.sh --env dev`
 
 ---
 

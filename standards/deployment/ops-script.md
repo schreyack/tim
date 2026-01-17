@@ -2,6 +2,8 @@
 
 All TIM projects use a standardized `ops.sh` deployment interface. This document defines the required commands, safety model, and implementation pattern.
 
+**CRITICAL**: All deployments are remote-only. The `--env` flag is REQUIRED for every command. See `standards/deployment/remote-only.md` for the policy and `standards/deployment/environments.md` for configuration.
+
 ## Architecture: Shared Library Model
 
 ```
@@ -20,6 +22,24 @@ project/
         ├── post-deploy.sh
         └── custom-commands.sh
 ```
+
+## Environment Requirement
+
+**The `--env` flag is MANDATORY for all commands:**
+
+```bash
+# REQUIRED - Always specify environment
+./ops.sh --env dev deploy     # Deploy to dev
+./ops.sh --env uat deploy     # Deploy to UAT
+./ops.sh --env prod deploy    # Deploy to production
+
+# ERROR - No environment specified
+./ops.sh deploy               # FAILS: --env flag required
+```
+
+Command tiers vary by environment. See `standards/deployment/command-matrix.md` for the full matrix.
+
+---
 
 ## Required Commands
 
@@ -100,19 +120,63 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 | 5 | Health check failed |
 | 6 | Migration failed |
 
-## Configuration (ops-config.yaml)
+## Configuration Files
+
+### environments.yaml (REQUIRED)
+
+Remote environment configuration. **Must be in .gitignore** - contains sensitive connection details.
+
+See `standards/deployment/environments.md` for full schema.
 
 ```yaml
-# ops-config.yaml - Project-specific configuration
+# environments.yaml - NOT in git
+version: "1.0"
+project: "jamphoria"
+
+environments:
+  dev:
+    host: "dev.example.com"
+    connection:
+      method: "ssh"
+      user: "deploy"
+      key_file: "${HOME}/.ssh/dev_deploy_key"
+    remote:
+      type: "docker-compose"
+      path: "/opt/apps/jamphoria/dev"
+
+  uat:
+    host: "uat.example.com"
+    connection:
+      method: "ssh"
+      user: "deploy"
+      key_file: "${HOME}/.ssh/uat_deploy_key"
+    remote:
+      type: "docker-compose"
+      path: "/opt/apps/jamphoria/uat"
+
+  prod:
+    host: "prod.example.com"
+    connection:
+      method: "ssh"
+      user: "deploy"
+      key_file: "${HOME}/.ssh/prod_deploy_key"
+    remote:
+      type: "docker-compose"
+      path: "/opt/apps/jamphoria/prod"
+    protections:
+      require_approval: true
+      require_ticket: true
+      backup_before_deploy: true
+```
+
+### ops-config.yaml (Project Settings)
+
+Project-specific settings shared across environments:
+
+```yaml
+# ops-config.yaml - Project-specific configuration (committed to git)
 project:
   name: "jamphoria"
-  environment: "production"  # production, staging, development
-
-remote:
-  host: "192.168.86.14"
-  user: "tim"
-  path: "/home/tim/apps/jamphoria-v2"
-  ssh_key: "~/.ssh/id_rsa"  # Optional
 
 services:
   backend:

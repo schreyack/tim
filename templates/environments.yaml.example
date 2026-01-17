@@ -1,0 +1,178 @@
+# environments.yaml - Remote Environment Configuration
+# =======================================================
+# COPY this file to environments.yaml and configure with real values.
+# DO NOT commit environments.yaml to git - it contains sensitive data.
+#
+# Usage: cp environments.yaml.example environments.yaml && chmod 600 environments.yaml
+#
+# See: standards/deployment/environments.md for full documentation.
+
+version: "1.0"
+project: "your-project-name"
+
+environments:
+  # =============================================================================
+  # DEV - Development Environment
+  # =============================================================================
+  # Purpose: Rapid iteration and testing
+  # Access: All developers
+  # Restrictions: Minimal (sandbox isolation only)
+  # =============================================================================
+  dev:
+    description: "Development environment for rapid iteration"
+    host: "dev.example.com"  # Replace with your dev server
+    connection:
+      method: "ssh"
+      user: "deploy"
+      port: 22
+      key_file: "${HOME}/.ssh/dev_deploy_key"
+
+      # Alternative: AWS SSM (uncomment to use)
+      # method: "ssm"
+      # instance_id: "i-0123456789abcdef"
+      # region: "us-east-1"
+      # profile: "dev"
+
+      # Alternative: Google Cloud (uncomment to use)
+      # method: "gcloud"
+      # project: "your-gcp-project"
+      # zone: "us-central1-a"
+      # instance: "dev-server"
+
+    remote:
+      type: "docker-compose"
+      path: "/opt/apps/${PROJECT}/dev"
+      compose_file: "docker-compose.yml"
+
+      # Alternative: Kubernetes (uncomment to use)
+      # type: "kubernetes"
+      # namespace: "dev"
+      # context: "dev-cluster"
+      # manifests_path: "k8s/"
+
+    isolation:
+      network: "dev-network"
+      data_prefix: "dev_"
+      allowed_cidrs: ["0.0.0.0/0"]  # Dev allows all IPs
+
+  # =============================================================================
+  # UAT - User Acceptance Testing Environment
+  # =============================================================================
+  # Purpose: Stakeholder review and QA testing
+  # Access: QA team, tech leads
+  # Restrictions: Moderate
+  # =============================================================================
+  uat:
+    description: "User acceptance testing environment"
+    host: "uat.example.com"  # Replace with your UAT server
+    connection:
+      method: "ssh"
+      user: "deploy"
+      port: 22
+      key_file: "${HOME}/.ssh/uat_deploy_key"
+    remote:
+      type: "docker-compose"
+      path: "/opt/apps/${PROJECT}/uat"
+      compose_file: "docker-compose.yml"
+    isolation:
+      network: "uat-network"
+      data_prefix: "uat_"
+      allowed_cidrs: ["10.0.0.0/8"]  # Internal network only
+
+  # =============================================================================
+  # PROD - Production Environment
+  # =============================================================================
+  # Purpose: Live user traffic
+  # Access: DevOps/SRE only
+  # Restrictions: Maximum - see protections section
+  # =============================================================================
+  prod:
+    description: "Production environment - EXTREME CAUTION"
+    host: "prod.example.com"  # Replace with your production server
+    connection:
+      method: "ssh"
+      user: "deploy"
+      port: 22
+      key_file: "${HOME}/.ssh/prod_deploy_key"
+
+      # Recommended: Use bastion host for production
+      # jump_host: "bastion.example.com"
+      # jump_user: "jump"
+      # jump_key: "${HOME}/.ssh/bastion_key"
+
+    remote:
+      type: "docker-compose"
+      path: "/opt/apps/${PROJECT}/prod"
+      compose_file: "docker-compose.yml"
+    isolation:
+      network: "prod-network"
+      data_prefix: "prod_"
+      allowed_cidrs: ["10.0.3.0/24"]  # Restricted CIDR
+
+    # Production-specific protections (all recommended to be true)
+    protections:
+      require_approval: true      # All operations need human approval
+      require_ticket: true        # Must provide --ticket PROJ-123
+      backup_before_deploy: true  # Auto-backup before every deploy
+      canary_required: true       # Deploy to 10% first, then promote
+
+# =============================================================================
+# Connection Method Reference
+# =============================================================================
+#
+# SSH (Standard):
+#   method: "ssh"
+#   user: "deploy"
+#   port: 22
+#   key_file: "${HOME}/.ssh/deploy_key"
+#   jump_host: "bastion.example.com"  # Optional
+#   jump_user: "jump"                  # Optional
+#   jump_key: "${HOME}/.ssh/bastion"   # Optional
+#
+# AWS SSM (Keyless):
+#   method: "ssm"
+#   instance_id: "i-0123456789abcdef"
+#   region: "us-east-1"
+#   profile: "production"  # Optional AWS CLI profile
+#
+# Google Cloud:
+#   method: "gcloud"
+#   project: "my-gcp-project"
+#   zone: "us-central1-a"
+#   instance: "prod-server"
+#
+# Azure Bastion:
+#   method: "azure"
+#   resource_group: "my-rg"
+#   vm_name: "prod-vm"
+#   subscription: "xxx-xxx-xxx"
+#
+# =============================================================================
+# Remote Type Reference
+# =============================================================================
+#
+# Docker Compose (Default):
+#   type: "docker-compose"
+#   path: "/opt/apps/project"
+#   compose_file: "docker-compose.yml"
+#   project_name: "myproject"  # Optional
+#
+# Kubernetes:
+#   type: "kubernetes"
+#   namespace: "production"
+#   context: "prod-cluster"
+#   kubeconfig: "/etc/kubernetes/admin.conf"  # Optional
+#   manifests_path: "k8s/"
+#
+# AWS ECS:
+#   type: "ecs"
+#   cluster: "prod-cluster"
+#   service: "api-service"
+#   region: "us-east-1"
+#   task_definition: "api-task:latest"
+#
+# Google Cloud Run:
+#   type: "cloud-run"
+#   project: "my-gcp-project"
+#   region: "us-central1"
+#   service: "api-service"

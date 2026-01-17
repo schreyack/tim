@@ -2,6 +2,8 @@
 
 This document explains how CI/CD pipelines integrate with the TIM four-gate model and ops.sh deployment system.
 
+**CRITICAL**: All deployments are remote-only. There are no local environments. See `standards/deployment/remote-only.md` for the policy.
+
 ## Overview
 
 ```
@@ -166,8 +168,24 @@ Rules:
 After CI passes and PR is merged:
 
 ```bash
-# From local machine
-./ops.sh deploy --environment production --confirm
+# From local machine - ALWAYS specify --env
+./ops.sh --env prod deploy --ticket PROJ-123
+```
+
+**Note**: The `--env` flag is REQUIRED. Production deploys also require `--ticket`.
+
+### Deployment Workflow by Environment
+
+```bash
+# Development - rapid iteration, minimal restrictions
+./ops.sh --env dev deploy
+
+# UAT - testing, moderate restrictions
+./ops.sh --env uat deploy
+
+# Production - strict, requires approval and ticket
+./ops.sh --env prod deploy --ticket PROJ-123
+# Will prompt for human approval via tim-ops-approve
 ```
 
 ### Automated Deployment
@@ -190,10 +208,10 @@ deploy:
         ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
     - name: Deploy via ops.sh
-      run: ./ops.sh deploy --environment production --confirm
+      run: ./ops.sh --env prod deploy --ticket ${{ github.event.head_commit.message }}
 
     - name: Verify deployment
-      run: ./ops.sh health --environment production
+      run: ./ops.sh --env prod health
 ```
 
 ### GitHub Secrets Required
@@ -279,6 +297,50 @@ Setup:
 | Canary | - | - | ops.sh canary |
 | Rollback | - | - | ops.sh rollback |
 
+## Remote-Only Validation
+
+CI should validate that no local configurations exist:
+
+```yaml
+validate-remote-only:
+  name: Validate Remote-Only Policy
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Check for local docker configurations
+      run: |
+        # Fail if docker-compose files have localhost
+        if grep -r "localhost" docker-compose*.yml 2>/dev/null; then
+          echo "ERROR: Local docker configurations not allowed"
+          exit 1
+        fi
+
+    - name: Check for local database URLs
+      run: |
+        # Fail if .env.example has local database URLs
+        if grep -r "localhost" .env.example 2>/dev/null | grep -i "database"; then
+          echo "ERROR: Local database URLs not allowed"
+          exit 1
+        fi
+
+    - name: Verify environments.yaml.example exists
+      run: |
+        if [[ ! -f environments.yaml.example ]]; then
+          echo "ERROR: environments.yaml.example required"
+          exit 1
+        fi
+
+    - name: Verify environments.yaml is gitignored
+      run: |
+        if ! grep -q "environments.yaml" .gitignore 2>/dev/null; then
+          echo "ERROR: environments.yaml must be in .gitignore"
+          exit 1
+        fi
+```
+
+---
+
 ## Checklist for New Projects
 
 - [ ] Copy appropriate CI workflow to `.github/workflows/ci.yml`
@@ -287,3 +349,6 @@ Setup:
 - [ ] Create `production` environment with protection rules
 - [ ] Test workflow by creating a PR
 - [ ] Verify all checks pass before first production deploy
+- [ ] Create `environments.yaml.example` (committed)
+- [ ] Add `environments.yaml` to `.gitignore`
+- [ ] Set up remote dev/uat/prod environments
