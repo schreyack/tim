@@ -891,6 +891,12 @@ wizard_step_promote() {
 wizard_step_ai_ready() {
     print_step_header "ai-ready" "AI Developer Ready Review"
 
+    # Check if already approved - skip step if so
+    if has_ai_ready_approval "$WIZARD_PLAN_FILE"; then
+        log_info "Plan is already marked AI Developer Ready. Continuing..."
+        return 0
+    fi
+
     echo ""
     echo "Run this command in Claude Code to review for AI implementation concerns:"
     local checklist="${DESIGN_STANDARDS_DIR}/standards/enforcement/ai-developer-ready-checklist.md"
@@ -904,8 +910,16 @@ wizard_step_ai_ready() {
     local name
     name=$(prompt_for_name "Enter reviewer name")
 
-    # cmd_ai_ready calls verify_interactive_terminal, which will pass since wizard runs interactively
-    cmd_ai_ready "$WIZARD_PLAN_FILE" --reviewer "$name"
+    # Use helper directly to avoid cmd_ai_ready's exit calls
+    if ! update_ai_ready_status "$WIZARD_PLAN_FILE" "$name"; then
+        log_error "Failed to update AI Developer Ready status"
+        return 1
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "AI Developer Ready approved by ${name}"; then
+        log_error "Failed to update progress log"
+        return 1
+    fi
+    log_info "AI Developer Ready approval recorded."
 }
 
 wizard_step_execute_request() {
