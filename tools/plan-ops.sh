@@ -761,6 +761,114 @@ strip_ansi() {
     echo "$1" | sed 's/\x1b\[[0-9;]*m//g'
 }
 
+# Check and configure tim-loop permissions in Claude Code settings
+# Ensures the project has the necessary permissions to run /tim-loop
+ensure_tim_loop_permissions() {
+    local project_dir="${1:-.}"
+    local settings_file="${project_dir}/.claude/settings.local.json"
+    local required_permission='Bash(~/.claude/commands/scripts/*)'
+
+    # Check if .claude directory exists
+    if [[ ! -d "${project_dir}/.claude" ]]; then
+        mkdir -p "${project_dir}/.claude"
+        log_info "Created ${project_dir}/.claude directory"
+    fi
+
+    # Check if settings file exists
+    if [[ ! -f "$settings_file" ]]; then
+        # Create minimal settings file with tim-loop permissions
+        cat > "$settings_file" << 'EOF'
+{
+  "permissions": {
+    "allow": [
+      "Skill(tim-loop)",
+      "Bash(~/.claude/commands/scripts/*)",
+      "Bash(\"$HOME/.claude/commands/scripts/tim-loop-setup.sh\":*)"
+    ]
+  }
+}
+EOF
+        log_info "Created $settings_file with tim-loop permissions"
+        return 0
+    fi
+
+    # Check if tim-loop bash permission already exists (check for either pattern)
+    if grep -q 'Bash(~/.claude/commands/scripts/\*)' "$settings_file" 2>/dev/null || \
+       grep -q 'Bash("\$HOME/.claude/commands/scripts/tim-loop-setup.sh"' "$settings_file" 2>/dev/null; then
+        return 0  # Already configured
+    fi
+
+    # Permission not found - offer to add it
+    echo ""
+    log_warn "Tim-loop permissions not found in project settings."
+    echo ""
+    echo "The /tim-loop command requires this permission in .claude/settings.local.json:"
+    echo -e "  ${GREEN}\"Bash(~/.claude/commands/scripts/*)\"${NC}"
+    echo ""
+    echo -n "Add this permission automatically? [Y/n] "
+    read -r response </dev/tty
+
+    if [[ ! "$response" =~ ^[Nn] ]]; then
+        # Add permission using python for reliable JSON manipulation
+        if command -v python3 &>/dev/null; then
+            python3 << PYTHON_EOF
+import json
+import sys
+
+settings_file = "$settings_file"
+try:
+    with open(settings_file, 'r') as f:
+        data = json.load(f)
+except:
+    data = {}
+
+# Ensure permissions.allow exists
+if 'permissions' not in data:
+    data['permissions'] = {}
+if 'allow' not in data['permissions']:
+    data['permissions']['allow'] = []
+
+# Add required permissions if not present
+required = [
+    'Skill(tim-loop)',
+    'Bash(~/.claude/commands/scripts/*)',
+    'Bash("$HOME/.claude/commands/scripts/tim-loop-setup.sh":*)'
+]
+for perm in required:
+    if perm not in data['permissions']['allow']:
+        data['permissions']['allow'].insert(0, perm)
+
+with open(settings_file, 'w') as f:
+    json.dump(data, f, indent=2)
+
+print("OK")
+PYTHON_EOF
+            log_info "Added tim-loop permissions to $settings_file"
+            echo ""
+            log_warn "IMPORTANT: Restart Claude Code for the new permissions to take effect."
+            echo -n "Press Enter after restarting Claude Code..."
+            read -r </dev/tty
+        else
+            log_error "python3 not found. Please add the permission manually."
+            echo ""
+            echo "Add this to .claude/settings.local.json in the permissions.allow array:"
+            echo -e "  ${GREEN}\"Bash(~/.claude/commands/scripts/*)\"${NC}"
+            echo ""
+            echo -n "Press Enter when done..."
+            read -r </dev/tty
+        fi
+    else
+        echo ""
+        log_warn "Skipped. /tim-loop may fail without this permission."
+        echo ""
+        echo "To add manually, edit .claude/settings.local.json and add to permissions.allow:"
+        echo -e "  ${GREEN}\"Bash(~/.claude/commands/scripts/*)\"${NC}"
+        echo ""
+        echo -n "Press Enter to continue anyway..."
+        read -r </dev/tty
+    fi
+}
+
 # =============================================================================
 # WIZARD COMMAND AND STEP FUNCTIONS
 # =============================================================================
@@ -1038,6 +1146,14 @@ wizard_step_execute_approve() {
 
 wizard_step_tim_loop() {
     print_step_header "tim-loop" "Run Tim Loop Implementation"
+
+    # Determine project directory from plan file path
+    # Go up from plans/active/ to find project root
+    local project_dir
+    project_dir=$(dirname "$(dirname "$(dirname "$WIZARD_PLAN_FILE")")")
+
+    # Ensure tim-loop permissions are configured
+    ensure_tim_loop_permissions "$project_dir"
 
     echo ""
     echo "Run this command in Claude Code:"
