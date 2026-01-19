@@ -99,20 +99,35 @@ find_plans_by_name() {
 }
 
 # Resolve a plan argument to an absolute path
-# If it's already a path (contains /), use it directly
+# If it's a path and exists, use it directly
+# If it's a path but doesn't exist, extract filename and search
 # If it's just a name, search for it and handle duplicates
 resolve_plan_path() {
     local arg="$1"
+    local search_name=""
 
-    # If it looks like a path, use it directly
+    # If it looks like a path
     if [[ "$arg" == */* ]]; then
-        to_absolute "$arg"
-        return 0
+        local abs_path
+        abs_path=$(to_absolute "$arg")
+
+        # If file exists at this path, use it
+        if [[ -f "$abs_path" ]]; then
+            echo "$abs_path"
+            return 0
+        fi
+
+        # File doesn't exist at given path - extract filename and search
+        search_name=$(basename "$arg" .md)
+        log_warn "File not found at: $arg"
+        log_info "Searching for plan by name: $search_name"
+    else
+        search_name="$arg"
     fi
 
     # Search for plans matching the name
     local matches
-    matches=$(find_plans_by_name "$arg")
+    matches=$(find_plans_by_name "$search_name")
 
     if [[ -z "$matches" ]]; then
         log_error "No plan found matching: $arg"
