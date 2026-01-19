@@ -615,11 +615,11 @@ cmd_ralph() {
         echo ""
         log_info "Multi-phase plan detected. Ralph Loop review is REQUIRED before promotion."
         echo ""
-        log_info "STEP 1: Run this command in Claude Code to start Ralph Loop review:"
+        log_info "STEP 1 of 2: Run this command in Claude Code to start Ralph Loop review:"
         echo ""
         echo -e "${GREEN}/ralph-loop:ralph-loop \"review ${plan_file} and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\"${NC}"
         echo ""
-        log_info "STEP 2: After Ralph Loop completes, mark it done:"
+        log_info "STEP 2 of 2: After Ralph Loop completes, mark it done:"
         echo -e "  ${GREEN}$SCRIPT_PATH ralph $plan_file --mark-complete${NC}"
     fi
 }
@@ -714,11 +714,11 @@ cmd_promote() {
     log_info "Promoted to active: $dest"
 
     echo ""
-    log_info "STEP 1: Run Ralph Loop to review plan for AI implementation concerns:"
+    log_info "STEP 1 of 2: Run Ralph Loop to review plan for AI implementation concerns:"
     echo ""
     echo -e "${GREEN}/ralph-loop:ralph-loop \"review ${dest} for AI implementation concerns using standards/enforcement/ai-developer-ready-checklist.md. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\"${NC}"
     echo ""
-    log_info "STEP 2: After Ralph Loop completes, human confirms and approves:"
+    log_info "STEP 2 of 2: After Ralph Loop completes, human confirms and approves:"
     echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $dest --reviewer \"Your Name\"${NC}"
 }
 
@@ -770,6 +770,9 @@ cmd_ai_ready() {
     # Check if already approved
     if has_ai_ready_approval "$plan_file"; then
         log_warn "Plan is already marked AI Developer Ready"
+        echo ""
+        log_info "NEXT STEP: Request execution approval (AI runs this, then you approve in separate terminal):"
+        echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
         exit 0
     fi
 
@@ -839,10 +842,10 @@ cmd_execute() {
 
         log_error "BLOCKED: Execution requires human approval."
         echo ""
-        log_info "STEP 1: A human must approve execution in a SEPARATE TERMINAL:"
+        log_info "STEP 1 of 2: A human must approve execution in a SEPARATE TERMINAL:"
         echo -e "  ${GREEN}$SCRIPT_PATH approve-execute ${request_id} --approver \"Your Name\"${NC}"
         echo ""
-        log_info "STEP 2: Then retry this command:"
+        log_info "STEP 2 of 2: Then retry this command:"
         echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
         echo ""
         log_warn "Approval expires in ${EXECUTION_EXPIRY_MINUTES} minutes."
@@ -856,11 +859,11 @@ cmd_execute() {
     echo ""
     log_info "Execution APPROVED!"
     echo ""
-    log_info "STEP 1: Run this command in Claude Code to start implementation:"
+    log_info "STEP 1 of 2: Run this command in Claude Code to start implementation:"
     echo ""
     echo -e "${GREEN}/tim-loop \"implement ${plan_file}. you are not done until all iterations and phases of the plan are complete.\"${NC}"
     echo ""
-    log_info "STEP 2: When tim-loop completes successfully, mark the plan as complete:"
+    log_info "STEP 2 of 2: When tim-loop completes successfully, mark the plan as complete:"
     echo -e "  ${GREEN}$SCRIPT_PATH complete $plan_file${NC}"
 }
 
