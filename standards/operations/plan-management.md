@@ -359,6 +359,137 @@ When `execute` succeeds, it outputs:
 
 ---
 
+## AI Developer Ready Gate (MANDATORY)
+
+Before execution, ALL plans require AI Developer Ready approval. This ensures plans are reviewed with the specific mindset that an AI developer will implement them.
+
+### Why This Gate?
+
+AI developers make different mistakes than humans:
+- Misinterpret ambiguous instructions
+- Hallucinate APIs or methods that don't exist
+- Over-engineer simple solutions
+- Leave placeholder code when instructions are vague
+- Miss implicit context that humans would understand
+
+### Workflow
+
+```bash
+# After promoting to active/, human reviews for AI concerns:
+./tools/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"
+```
+
+This is a **HARD REQUIREMENT**. Both `execute` and `tim-loop --implement` will fail without this approval.
+
+### Checklist Reference
+
+See `standards/enforcement/ai-developer-ready-checklist.md` for the full review checklist.
+
+### Approval Stamp Format
+
+When approved, this stamp is added to the plan:
+
+```markdown
+### AI Developer Ready Approval
+
+**Reviewer**: [Name]
+**Date**: YYYY-MM-DD
+**Iteration**: N (FINAL)
+**Status**: APPROVED
+```
+
+### Status Header AI Developer Ready Fields
+
+| Field | Value |
+|-------|-------|
+| AI Developer Ready | yes / no |
+| AI Developer Ready By | [reviewer name or "-"] |
+| AI Developer Ready Date | [YYYY-MM-DD or "-"] |
+| AI Developer Ready Iteration | [N or "-"] |
+
+---
+
+## Implementation Verification Gate (MANDATORY)
+
+After implementation, tim-loop verifies that 100% of plan objectives are met. There is no escape hatch.
+
+### Why This Gate?
+
+- AI implementations may miss objectives
+- Partial completion is not acceptable
+- Forces complete implementations, not "good enough"
+
+### Verification Flow
+
+1. **Implementation completes** - Tim-loop adds `<!-- VERIFIED: NO -->` marker
+2. **Verification phase** - Each completion criterion is checked
+3. **If 100% met** - `<!-- VERIFIED: YES -->`, tim-loop exits
+4. **If gaps found** - Creates remediation plan, tim-loop continues
+
+### Remediation Flow
+
+When verification fails:
+1. Original plan marked `<!-- VERIFIED: FAILED -->`
+2. New remediation plan created in `plans/drafts/`
+3. Remediation plan goes through FULL lifecycle (Ralph → Promote → AI-Ready → Execute)
+4. When remediation succeeds, original plan updated to `<!-- VERIFIED: YES -->`
+
+### Status Header Verification Fields
+
+| Field | Value |
+|-------|-------|
+| Implementation Verified | yes / no |
+| Implementation Verified By | [reviewer or "-"] |
+| Implementation Verified Date | [YYYY-MM-DD or "-"] |
+| Remediation Plan | [path or "-"] |
+
+---
+
+## AI Bypass Prevention
+
+Multiple layers prevent AI from approving its own work:
+
+### Layer 1: PreToolUse Hook
+
+A Claude Code hook intercepts Bash commands and blocks approval patterns:
+
+```bash
+# ~/.claude/hooks/block-ai-approvals.sh blocks:
+# - plan-ops.sh promote --approver
+# - plan-ops.sh ai-ready --reviewer
+# - plan-ops.sh approve-execute
+# - plan-ops.sh ralph --mark-complete
+```
+
+### Layer 2: TTY Verification
+
+Approval commands verify they're running from an interactive terminal:
+- Checks if stdin is a terminal
+- Checks for Claude Code session environment variables
+- Blocks piped or scripted execution
+
+### Layer 3: Process Lineage Check
+
+Approval commands check process ancestry:
+- Walks up the process tree
+- Blocks if any ancestor is a Claude process
+
+### Hook Registration
+
+To enable AI bypass prevention, register the hook in `~/.claude/settings.local.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {"command": "~/.claude/hooks/block-ai-approvals.sh"}
+    ]
+  }
+}
+```
+
+---
+
 ## Designing Plans for Agent Execution
 
 Plans should be designed for parallel agent execution where possible. Claude Code can launch multiple agents simultaneously, and well-designed plans take advantage of this.

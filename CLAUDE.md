@@ -53,6 +53,47 @@ TIM develops exclusively with AI developers. This context informs EVERYTHING:
 - **Fast iteration is expected** - Quick failure, quick fix, quick retry
 - **Human review is critical** - See `standards/enforcement/ai-review-checklist.md`
 
+### Why Strict Enforcement Works for AI
+
+AI agents don't get frustrated by repetition. When code fails type checking or tests, the agent simply tries again. This makes feedback loops (and pre-commit hooks especially) incredibly powerful for AI-driven development.
+
+**Key insight**: Strictness is a feature, not a bug.
+
+| Human Developer | AI Developer |
+|----------------|--------------|
+| Frustrated by repeated failures | Unfazed by iteration |
+| May disable "annoying" checks | Cannot bypass enforcement |
+| Tires after many fix cycles | Unlimited patience |
+| May cut corners under pressure | Follows rules consistently |
+
+This is why TIM enforces:
+- **Type checking on every commit** - Catches AI hallucinations about types
+- **Tests must pass before merge** - Catches plausible-sounding but broken logic
+- **90% coverage minimum** - Forces comprehensive testing, not just happy paths
+- **No bypass flags** - Removes temptation to skip verification
+
+### The Unified Check Command
+
+Every TIM project should have a single command that runs all verification:
+
+```bash
+# Node.js projects
+npm run check    # Types + lint + format + tests
+
+# Python projects
+poe check        # Types + lint + format + tests
+```
+
+This is the **primary feedback mechanism** for AI development. The check command should:
+1. Run fast (under 2 minutes for local checks)
+2. Fail early (type errors before tests)
+3. Provide clear error messages (AI needs to understand what failed)
+4. Be idempotent (running twice gives same result)
+
+When AI sees check failures, it can iterate immediately. This tight feedback loop is what makes AI development effective.
+
+See: `standards/operations/afk-coding-patterns.md` for extended autonomous development patterns.
+
 ## Approved Technology Stacks
 
 ### Stack 1: Python
@@ -528,6 +569,33 @@ Active plans require **human approval** before execution. AI cannot bypass this.
 - No `--approver` flag exists
 - Approval requires separate terminal session
 - Tokens expire after 15 minutes
+
+### AI Developer Ready Gate (MANDATORY)
+
+Before execution, ALL plans require AI Developer Ready approval:
+
+```bash
+# After promoting to active/, human reviews for AI concerns:
+./tools/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"
+```
+
+This is a HARD REQUIREMENT. Both `execute` and `tim-loop --implement` will fail without this approval.
+
+The reviewer should verify:
+- Instructions are unambiguous (AI has one interpretation)
+- No hallucination opportunities (referenced APIs/files exist)
+- Guard rails are explicit (error handling specified)
+- Verification criteria are code-checkable
+
+See: `standards/enforcement/ai-developer-ready-checklist.md`
+
+### Implementation Verification Gate (MANDATORY)
+
+After implementation, tim-loop verifies 100% of plan objectives are met. There is NO escape hatch.
+
+- If 100% verified → `<!-- VERIFIED: YES -->` → tim-loop exits
+- If gaps found → Creates remediation plan → Full lifecycle required
+- Tim-loop CANNOT exit until verification passes
 
 ### Designing for Parallel Agent Execution
 

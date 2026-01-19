@@ -115,6 +115,76 @@ Templates are tested with:
 - Pattern registry validation via compliance checker
 - CUSTOM patterns require human approval
 
+---
+
+## AI Development Feedback Loop
+
+These templates implement a tight feedback loop optimized for AI development. The key insight: **AI agents don't get frustrated by repetition.** When code fails, AI simply tries again.
+
+### The Unified Check Command
+
+Every project should have a single command that runs all verification:
+
+```bash
+# Node.js (in package.json scripts)
+npm run check
+
+# Python (in pyproject.toml with poethepoet)
+poe check
+```
+
+The `check` command should run, in order:
+
+| Step | What It Catches | Typical Time |
+|------|----------------|--------------|
+| Type check (`tsc`/`mypy`) | Type errors, undefined references | 5-15s |
+| Lint (`eslint`/`ruff`) | Code style, potential bugs | 5-10s |
+| Format check | Formatting inconsistencies | 2-5s |
+| Tests | Logic errors, regressions | 30s-2min |
+
+### Why This Order Matters
+
+1. **Type errors first** - Fastest feedback, catches hallucinated types
+2. **Lint second** - Catches issues that types miss
+3. **Format third** - Quick, rarely fails if editor configured
+4. **Tests last** - Slowest, but catches everything else
+
+### Pre-commit Hooks
+
+Templates include pre-commit hooks that run `check` automatically. This is critical for AI development:
+
+- AI cannot commit broken code
+- AI gets immediate feedback
+- AI iterates until all checks pass
+
+### Example package.json Scripts
+
+```json
+{
+  "scripts": {
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "format:check": "prettier --check .",
+    "test": "vitest run --coverage"
+  }
+}
+```
+
+### Strictness Is the Feature
+
+All templates enforce strict settings by default:
+
+- `tsconfig.json`: `"strict": true`
+- `eslint`: `--max-warnings 0`
+- Coverage: 90% minimum threshold
+
+These aren't obstacles - they're the quality gates that make AI development reliable.
+
+See: [AFK Coding Patterns](../standards/operations/afk-coding-patterns.md) for extended autonomous development.
+
+---
+
 ## See Also
 
 - [Four-Gate Enforcement Model](../standards/enforcement/gates.md)
