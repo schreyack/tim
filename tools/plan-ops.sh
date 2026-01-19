@@ -569,7 +569,9 @@ print_step_header() {
     local title="$2"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "[${state^^}] $title"
+    local upper_state
+    upper_state=$(echo "$state" | tr '[:lower:]' '[:upper:]')
+    echo "[$upper_state] $title"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
@@ -579,12 +581,52 @@ prompt_for_name() {
     local prompt="$1"
     local name=""
     while [[ -z "$name" ]]; do
-        read -r -p "$prompt: " name
+        echo -n "$prompt: " >&2
+        read -r name </dev/tty
         if [[ -z "$name" ]]; then
             echo "Name required. Please enter a name." >&2
         fi
     done
     echo "$name"
+}
+
+# Read a line from the terminal (works even when stdin is redirected)
+read_from_tty() {
+    local prompt="$1"
+    local var_name="${2:-REPLY}"
+    echo -n "$prompt" >&2
+    read -r "$var_name" </dev/tty
+}
+
+# Copy text to clipboard (cross-platform)
+copy_to_clipboard() {
+    local text="$1"
+    if command -v pbcopy &>/dev/null; then
+        # macOS
+        echo -n "$text" | pbcopy
+        return 0
+    elif command -v xclip &>/dev/null; then
+        # Linux with xclip
+        echo -n "$text" | xclip -selection clipboard
+        return 0
+    elif command -v xsel &>/dev/null; then
+        # Linux with xsel
+        echo -n "$text" | xsel --clipboard --input
+        return 0
+    fi
+    return 1
+}
+
+# Display a command and copy it to clipboard
+show_command() {
+    local cmd="$1"
+    echo ""
+    echo -e "  ${GREEN}${cmd}${NC}"
+    echo ""
+    if copy_to_clipboard "$cmd"; then
+        echo -e "  ${YELLOW}(Copied to clipboard)${NC}"
+    fi
+    echo ""
 }
 
 # Strip ANSI color/formatting codes from string
@@ -686,7 +728,8 @@ wizard_step_import() {
     print_step_header "import" "Import plan to drafts folder"
 
     local name
-    read -r -p "Enter a short name for this plan (press Enter for default): " name
+    echo -n "Enter a short name for this plan (press Enter for default): "
+    read -r name </dev/tty
     [[ -z "$name" ]] && name=$(basename "$WIZARD_PLAN_FILE" .md)
 
     echo ""
@@ -712,10 +755,10 @@ wizard_step_ralph() {
 
     echo ""
     echo "Run this command in Claude Code:"
-    echo ""
-    echo -e "  ${GREEN}/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\"${NC}"
-    echo ""
-    read -r -p "Press Enter when Ralph Loop completes..."
+    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\""
+    show_command "$cmd"
+    echo -n "Press Enter when Ralph Loop completes..."
+    read -r </dev/tty
 
     echo ""
     echo "Marking Ralph Loop complete..."
@@ -754,10 +797,10 @@ wizard_step_ai_ready() {
 
     echo ""
     echo "Run this command in Claude Code to review for AI implementation concerns:"
-    echo ""
-    echo -e "  ${GREEN}/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE for AI implementation concerns using standards/enforcement/ai-developer-ready-checklist.md. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\"${NC}"
-    echo ""
-    read -r -p "Press Enter when Ralph Loop completes..."
+    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE for AI implementation concerns using standards/enforcement/ai-developer-ready-checklist.md. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\""
+    show_command "$cmd"
+    echo -n "Press Enter when Ralph Loop completes..."
+    read -r </dev/tty
 
     echo ""
     echo "Marking as AI Developer Ready..."
@@ -781,10 +824,10 @@ wizard_step_execute_request() {
     echo "Request ID: $request_id"
     echo ""
     echo "Run this command in a SEPARATE TERMINAL to approve:"
-    echo ""
-    echo -e "  ${GREEN}$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\"${NC}"
-    echo ""
-    read -r -p "Press Enter when approved..."
+    local cmd="$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\""
+    show_command "$cmd"
+    echo -n "Press Enter when approved..."
+    read -r </dev/tty
 
     # Verify approval succeeded before continuing
     local approval
@@ -820,10 +863,10 @@ wizard_step_execute_approve() {
     echo "Found pending approval request: $request_id"
     echo ""
     echo "Run this command in a SEPARATE TERMINAL to approve:"
-    echo ""
-    echo -e "  ${GREEN}$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\"${NC}"
-    echo ""
-    read -r -p "Press Enter when approved..."
+    local cmd="$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\""
+    show_command "$cmd"
+    echo -n "Press Enter when approved..."
+    read -r </dev/tty
 
     # Verify approval
     local approval
@@ -850,14 +893,15 @@ wizard_step_tim_loop() {
 
     echo ""
     echo "Run this command in Claude Code:"
-    echo ""
-    echo -e "  ${GREEN}/tim-loop \"implement $WIZARD_PLAN_FILE. you are not done until all iterations and phases of the plan are complete.\"${NC}"
-    echo ""
-    read -r -p "Press Enter when Tim Loop completes..."
+    local cmd="/tim-loop \"implement $WIZARD_PLAN_FILE. you are not done until all iterations and phases of the plan are complete.\""
+    show_command "$cmd"
+    echo -n "Press Enter when Tim Loop completes..."
+    read -r </dev/tty
 
     echo ""
     echo "Did Tim Loop complete successfully? (y/n)"
-    read -r -p "> " response
+    echo -n "> "
+    read -r response </dev/tty
 
     if [[ "$response" =~ ^[Yy] ]]; then
         # Mark implementation as verified so state transitions to 'complete'
@@ -1708,7 +1752,8 @@ cmd_cleanup_drafts() {
     fi
 
     echo ""
-    read -r -p "Delete these files? [y/N] " response
+    echo -n "Delete these files? [y/N] "
+    read -r response </dev/tty
     if [[ "$response" =~ ^[Yy]$ ]]; then
         find "${PLANS_DIR}/drafts" -name "*.md" -mtime +"$days" -delete
         log_info "Deleted stale drafts."
