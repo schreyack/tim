@@ -616,15 +616,19 @@ Plans should be designed for parallel agent execution. Include an Execution Stra
 
 See `standards/operations/plan-management.md` for full guidance.
 
-### MANDATORY: Cleanup ~/.claude/plans
+### Importing Plans from ~/.claude/plans
 
-When Claude Code creates plans in `~/.claude/plans/`:
-1. Copy plan to `plans/drafts/` with proper naming
-2. Add Status Header if missing
-3. **DELETE the original from `~/.claude/plans/`**
-4. Commit the new plan to git
+When Claude Code creates plans in `~/.claude/plans/`, use the import command:
 
-**Never leave orphan plans in `~/.claude/plans/`** - they accumulate indefinitely.
+```bash
+./tools/plan-ops.sh import ~/.claude/plans/<plan-name>.md --name "description"
+```
+
+This automatically:
+- Copies to `plans/drafts/` with proper date-prefixed naming
+- Adds Status Header if missing
+- Deletes the original from `~/.claude/plans/`
+- Shows the next step to run
 
 ### Status Header (Required)
 
