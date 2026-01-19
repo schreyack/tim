@@ -714,7 +714,11 @@ cmd_promote() {
     log_info "Promoted to active: $dest"
 
     echo ""
-    log_info "NEXT STEP: Mark as AI Developer Ready after reviewing for AI concerns:"
+    log_info "STEP 1: Run Ralph Loop to review plan for AI implementation concerns:"
+    echo ""
+    echo -e "${GREEN}/ralph-loop:ralph-loop \"review ${dest} for AI implementation concerns using standards/enforcement/ai-developer-ready-checklist.md. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\"${NC}"
+    echo ""
+    log_info "STEP 2: After Ralph Loop completes, human confirms and approves:"
     echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $dest --reviewer \"Your Name\"${NC}"
 }
 
