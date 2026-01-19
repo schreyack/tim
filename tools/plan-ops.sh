@@ -1170,6 +1170,91 @@ update_status() {
     fi
 }
 
+# Ensure all required Status Header fields exist
+# Adds missing fields with appropriate defaults
+ensure_status_header_fields() {
+    local file="$1"
+    local ts
+    ts=$(timestamp)
+
+    # If no Status Header at all, add_status_header will handle it
+    if ! grep -q "## Status" "$file"; then
+        return 0
+    fi
+
+    # Define required fields with their default values
+    # Format: "field_name|default_value|anchor_field"
+    # anchor_field is where to insert after if missing
+    local ralph_status="not-required"
+    if [[ "$(requires_ralph "$file")" == "true" ]]; then
+        ralph_status="required"
+    fi
+
+    local required_fields=(
+        "Stage|draft|Field"
+        "Created|${ts}|Stage"
+        "Last Updated|${ts}|Created"
+        "Author|Claude|Last Updated"
+        "Approver|-|Author"
+        "Ralph Review|${ralph_status}|Approver"
+        "Ralph Date|-|Ralph Review"
+        "Execution Approved|no|Ralph Date"
+        "Execution Approved By|-|Execution Approved"
+        "Execution Started|-|Execution Approved By"
+        "AI Developer Ready|no|Execution Started"
+        "AI Developer Ready By|-|AI Developer Ready"
+        "AI Developer Ready Date|-|AI Developer Ready By"
+        "AI Developer Ready Iteration|-|AI Developer Ready Date"
+        "Implementation Verified|no|AI Developer Ready Iteration"
+        "Implementation Verified By|-|Implementation Verified"
+        "Implementation Verified Date|-|Implementation Verified By"
+        "Remediation Plan|-|Implementation Verified Date"
+    )
+
+    local added_fields=()
+
+    for field_spec in "${required_fields[@]}"; do
+        local field_name default_value anchor_field
+        field_name=$(echo "$field_spec" | cut -d'|' -f1)
+        default_value=$(echo "$field_spec" | cut -d'|' -f2)
+        anchor_field=$(echo "$field_spec" | cut -d'|' -f3)
+
+        # Check if field exists
+        if ! grep -q "| ${field_name} |" "$file"; then
+            # Add field after anchor
+            if grep -q "| ${anchor_field} |" "$file"; then
+                sed -i '' "/| ${anchor_field} |/a\\
+| ${field_name} | ${default_value} |" "$file"
+                added_fields+=("$field_name")
+            fi
+        fi
+    done
+
+    # Check for Progress Log section
+    if ! grep -q "### Progress Log" "$file"; then
+        # Find the last field row and add Progress Log after it
+        local last_field_line
+        last_field_line=$(grep -n "^| " "$file" | tail -1 | cut -d: -f1)
+        if [[ -n "$last_field_line" ]]; then
+            sed -i '' "${last_field_line}a\\
+\\
+### Progress Log\\
+\\
+| Timestamp | Stage | Event |\\
+|-----------|-------|-------|\\
+| ${ts} | draft | Plan imported |\\
+\\
+---" "$file"
+            added_fields+=("Progress Log")
+        fi
+    fi
+
+    # Report what was added
+    if [[ ${#added_fields[@]} -gt 0 ]]; then
+        log_info "Added missing Status Header fields: ${added_fields[*]}"
+    fi
+}
+
 # Add Status Header to a plan that doesn't have one
 add_status_header() {
     local file="$1"
@@ -1298,6 +1383,10 @@ cmd_import() {
     # Check if file is already in plans/drafts/ (already imported)
     if [[ "$source" == *"/plans/drafts/"* ]]; then
         log_info "Plan is already in drafts folder: $source"
+
+        # Ensure Status Header has all required fields (fix incomplete headers)
+        ensure_status_header_fields "$source"
+
         echo ""
 
         # Check current state and provide next steps
@@ -1339,8 +1428,9 @@ cmd_import() {
     cp "$source" "$dest"
     log_info "Copied to: $dest"
 
-    # Add status header if missing
+    # Ensure Status Header exists and has all required fields
     add_status_header "$dest" "Claude"
+    ensure_status_header_fields "$dest"
 
     # Delete the original
     rm "$source"
