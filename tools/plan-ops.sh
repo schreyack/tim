@@ -254,7 +254,7 @@ has_ai_ready_approval() {
 update_ai_ready_status() {
     local file="$1"
     local reviewer="$2"
-    local iteration="$3"
+    local iteration="${3:-1}"  # Default to iteration 1
     local ts date
     ts=$(timestamp)
     date=$(datestamp)
