@@ -297,32 +297,37 @@ Setup:
 | Canary | - | - | ops.sh canary |
 | Rollback | - | - | ops.sh rollback |
 
-## Remote-Only Validation
+## Remote-First Validation
 
-CI should validate that no local configurations exist:
+CI should validate the remote-first policy while allowing opt-in local development:
 
 ```yaml
-validate-remote-only:
-  name: Validate Remote-Only Policy
+validate-remote-policy:
+  name: Validate Remote-First Policy
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v4
 
-    - name: Check for local docker configurations
+    - name: Check for local docker configurations in non-local compose files
       run: |
-        # Fail if docker-compose files have localhost
-        if grep -r "localhost" docker-compose*.yml 2>/dev/null; then
-          echo "ERROR: Local docker configurations not allowed"
-          exit 1
-        fi
+        # Fail if docker-compose.yml or docker-compose.prod.yml have localhost
+        # docker-compose.local.yml is allowed to have localhost
+        for file in docker-compose.yml docker-compose.dev.yml docker-compose.uat.yml docker-compose.prod.yml; do
+          if [[ -f "$file" ]] && grep -q "localhost" "$file"; then
+            echo "ERROR: $file contains localhost - this is only allowed in docker-compose.local.yml"
+            exit 1
+          fi
+        done
+        echo "OK: No localhost in remote compose files"
 
     - name: Check for local database URLs
       run: |
         # Fail if .env.example has local database URLs
         if grep -r "localhost" .env.example 2>/dev/null | grep -i "database"; then
-          echo "ERROR: Local database URLs not allowed"
+          echo "ERROR: Local database URLs not allowed in .env.example"
           exit 1
         fi
+        echo "OK: No localhost database URLs in .env.example"
 
     - name: Verify environments.yaml.example exists
       run: |
@@ -330,6 +335,7 @@ validate-remote-only:
           echo "ERROR: environments.yaml.example required"
           exit 1
         fi
+        echo "OK: environments.yaml.example exists"
 
     - name: Verify environments.yaml is gitignored
       run: |
@@ -337,6 +343,17 @@ validate-remote-only:
           echo "ERROR: environments.yaml must be in .gitignore"
           exit 1
         fi
+        echo "OK: environments.yaml is gitignored"
+
+    - name: Verify docker-compose.local.yml is gitignored (if exists)
+      run: |
+        if [[ -f docker-compose.local.yml ]]; then
+          if ! grep -q "docker-compose.local.yml" .gitignore 2>/dev/null; then
+            echo "WARNING: docker-compose.local.yml exists but is not in .gitignore"
+            echo "Local compose files should generally be gitignored"
+          fi
+        fi
+        echo "OK: Local compose file check complete"
 ```
 
 ---

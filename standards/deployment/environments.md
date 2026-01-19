@@ -1,13 +1,14 @@
 # TIM Environment Configuration Standard
 
-All TIM projects must define remote environments using a standardized `environments.yaml` configuration file. This document specifies the schema, connection methods, and remote types supported.
+All TIM projects must define environments using a standardized `environments.yaml` configuration file. This document specifies the schema, connection methods, and remote types supported.
 
 ## Core Principles
 
-1. **Remote-only** - All deployments happen on remote servers. No local environments.
+1. **Remote-first** - All standard environments (dev, uat, prod) run on remote servers. Local is opt-in.
 2. **Environment isolation** - Each environment is completely isolated. Dev cannot access UAT or Prod.
 3. **Single configuration file** - One `environments.yaml` defines all environments for a project.
 4. **Never in git** - `environments.yaml` must be in `.gitignore`. Contains sensitive connection details.
+5. **Human approval for local** - Local development requires explicit human approval via `tim-local-dev-enable`.
 
 ## File Location and Security
 
@@ -90,6 +91,15 @@ environments:
       require_ticket: true
       backup_before_deploy: true
       canary_required: true
+
+  # Optional: Local development (requires human approval to use)
+  # local:
+  #   description: "Local development environment"
+  #   connection:
+  #     method: "local"
+  #   remote:
+  #     type: "docker-compose"
+  #     compose_file: "docker-compose.local.yml"
 ```
 
 ### Required Fields
@@ -110,6 +120,53 @@ environments:
 | `remote` | object | Yes | Remote execution environment |
 | `isolation` | object | No | Network and data isolation settings |
 | `protections` | object | No | Additional safety rules (typically for prod) |
+
+## Local Environment (Optional)
+
+Local development is disabled by default but can be enabled by a human for specific projects.
+
+### Enabling Local Development
+
+```bash
+# Human must run (AI cannot):
+tim-local-dev-enable --project /path/to/project
+
+# Check status
+tim-local-dev-enable --check --project /path/to/project
+
+# Revoke
+tim-local-dev-enable --revoke --project /path/to/project
+```
+
+### Local Configuration
+
+The local environment can be configured in `environments.yaml`, though this is optional:
+
+```yaml
+environments:
+  local:
+    description: "Local development environment"
+    connection:
+      method: "local"  # Special method for local execution
+    remote:
+      type: "docker-compose"
+      compose_file: "docker-compose.local.yml"  # Defaults to this if not specified
+```
+
+### Local Behavior
+
+| Aspect | Behavior |
+|--------|----------|
+| Connection method | Direct Docker access (no SSH) |
+| File sync | Not needed (already local) |
+| Command tiers | All SAFE (no restrictions) |
+| Compose file | `docker-compose.local.yml` (fallback: `docker-compose.yml`) |
+| Approval required | Yes, via `tim-local-dev-enable` |
+| AI can enable | No (multiple bypass prevention layers) |
+
+### Storage
+
+Local development approvals are stored in `~/.tim-ops/local-dev-approvals/` with one file per project. Operations are logged to `~/.tim-ops/local-dev-audit.log`.
 
 ## Connection Methods
 
@@ -353,13 +410,15 @@ Since `environments.yaml` is not in git, new operators follow this process:
 
 Operators only get credentials for environments they need:
 
-| Role | Dev | UAT | Prod |
-|------|-----|-----|------|
-| Developer | Yes | No | No |
-| QA Engineer | Yes | Yes | No |
-| Tech Lead | Yes | Yes | No |
-| DevOps/SRE | Yes | Yes | Yes |
-| On-call Engineer | No | No | Yes (read-only) |
+| Role | Local | Dev | UAT | Prod |
+|------|-------|-----|-----|------|
+| Developer | Self-enable* | Yes | No | No |
+| QA Engineer | Self-enable* | Yes | Yes | No |
+| Tech Lead | Self-enable* | Yes | Yes | No |
+| DevOps/SRE | Self-enable* | Yes | Yes | Yes |
+| On-call Engineer | No | No | No | Yes (read-only) |
+
+*Local requires running `tim-local-dev-enable` (human only, AI cannot)
 
 ## Validation
 
@@ -373,12 +432,21 @@ ops.sh validates `environments.yaml` on every command:
 # 4. Connection method is supported
 # 5. Remote type is supported
 # 6. Specified environment exists
+# 7. Local environment has human approval (if --env local)
 
 ./ops.sh --env dev status
 # OK: Environment 'dev' loaded from environments.yaml
 
 ./ops.sh --env staging status
 # ERROR: Environment 'staging' not found in environments.yaml
+
+./ops.sh --env local status
+# ERROR: LOCAL DEVELOPMENT NOT ENABLED
+# To enable: tim-local-dev-enable --project .
+
+# After human enables local dev:
+./ops.sh --env local status
+# OK: Environment 'local' (direct Docker access)
 ```
 
 ## Compliance Checklist
@@ -387,6 +455,9 @@ ops.sh validates `environments.yaml` on every command:
 - [ ] `environments.yaml.example` committed (without real values)
 - [ ] `.gitignore` includes `environments.yaml`
 - [ ] File permissions are `600`
-- [ ] All three environments defined (dev, uat, prod)
+- [ ] All three remote environments defined (dev, uat, prod)
+- [ ] Local environment is optional (requires human approval to use)
 - [ ] Prod has `protections` section configured
 - [ ] Separate SSH keys per environment
+- [ ] `docker-compose.local.yml` is gitignored (if used)
+- [ ] `tim-local-dev-enable` tool is available for human opt-in

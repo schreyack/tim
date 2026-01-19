@@ -1,12 +1,12 @@
-# TIM Remote-Only Deployment Policy
+# TIM Remote-First Deployment Policy
 
-All TIM projects operate on a **remote-only deployment model**. This document defines the policy, rationale, and enforcement mechanisms.
+All TIM projects operate on a **remote-first deployment model**. This document defines the policy, rationale, and enforcement mechanisms.
 
 ## Policy Statement
 
-**No local deployments. All environments (dev, uat, prod) run on remote servers. All access is through ops.sh.**
+**Remote by default. All standard environments (dev, uat, prod) run on remote servers.**
 
-This is a hard requirement with no exceptions.
+Local development is available as an **opt-in option** that requires explicit human approval. AI developers cannot enable local development.
 
 ## Rationale
 
@@ -231,6 +231,108 @@ For existing projects with local development:
 2. Update CLAUDE.md with remote-only instructions
 3. Archive local development documentation
 
+## Optional: Human-Enabled Local Development
+
+While TIM defaults to remote-only, local development can be enabled for specific projects by a human.
+
+### Why Allow Local Dev?
+
+Sometimes local development is appropriate:
+- Rapid iteration during feature development
+- Debugging complex issues with local tools
+- Working with limited or no network access
+- Personal preference for certain workflows
+
+### The Approval Requirement
+
+Local development is **disabled by default** and requires explicit human approval:
+
+```bash
+# A human must run this (AI cannot):
+tim-local-dev-enable --project /path/to/project
+
+# Check status
+tim-local-dev-enable --check --project /path/to/project
+
+# Revoke access
+tim-local-dev-enable --revoke --project /path/to/project
+
+# List all enabled projects
+tim-local-dev-enable --list
+```
+
+### AI Bypass Prevention
+
+The `tim-local-dev-enable` tool has multiple layers to prevent AI from enabling local dev:
+
+1. **Interactive terminal check** - Requires stdin attached to a terminal
+2. **Environment variable detection** - Blocks if CLAUDE_CODE_SESSION or TIM_LOOP_SESSION_ID is set
+3. **Process tree inspection** - Walks up process hierarchy looking for claude-related processes
+4. **No --approver flag** - Requires interactive email prompt
+
+### What Changes Once Approved
+
+Once local dev is enabled for a project:
+
+| Aspect | Before Approval | After Approval |
+|--------|-----------------|----------------|
+| `--env local` | Blocked with error | Allowed |
+| All commands | N/A | SAFE tier (no restrictions) |
+| Docker access | N/A | Direct (not via SSH) |
+| File sync | N/A | Not needed (already local) |
+
+### Local Environment Workflow
+
+```bash
+# After enabling local dev:
+./ops.sh --env local deploy      # Build and start containers locally
+./ops.sh --env local status      # Check local container status
+./ops.sh --env local logs        # View local container logs
+./ops.sh --env local shell       # Open shell in local container
+./ops.sh --env local db:migrate  # Run migrations on local database
+```
+
+### Local Docker Compose File
+
+Local development uses `docker-compose.local.yml` by default, falling back to `docker-compose.yml` if not present.
+
+You can customize this in `environments.yaml`:
+
+```yaml
+environments:
+  local:
+    remote:
+      compose_file: "docker-compose.local.yml"
+```
+
+### Audit Logging
+
+All local operations are logged to `~/.tim-ops/local-dev-audit.log` for accountability:
+
+```
+2025-01-19T10:30:00Z | user | myproject | LOCAL | deploy | STARTED | 0s
+2025-01-19T10:30:45Z | user | myproject | LOCAL | deploy | SUCCESS | 45s
+```
+
+### When to Use Local vs Remote Dev
+
+| Use Local When | Use Remote Dev When |
+|----------------|---------------------|
+| Rapid iteration on features | Testing environment parity |
+| Debugging with local tools | Team collaboration |
+| Limited network access | CI/CD pipeline integration |
+| Personal preference | Pre-production validation |
+
+### Revoking Access
+
+If local dev is no longer needed or appropriate:
+
+```bash
+tim-local-dev-enable --revoke --project /path/to/project
+```
+
+After revocation, `./ops.sh --env local` will fail with instructions on how to re-enable.
+
 ## FAQ
 
 ### Q: What about offline development?
@@ -268,10 +370,12 @@ Integration and E2E tests run on remote dev or UAT.
 
 ## Compliance Checklist
 
-- [ ] No `docker-compose.yml` with `localhost`
+- [ ] No `docker-compose.yml` with `localhost` (unless `docker-compose.local.yml`)
 - [ ] No `.env` with local database URLs
-- [ ] `environments.yaml` defines dev, uat, prod
+- [ ] `environments.yaml` defines dev, uat, prod (local is optional)
 - [ ] ops.sh requires `--env` flag
-- [ ] CI validates remote-only compliance
-- [ ] Developer onboarding uses remote dev
-- [ ] CLAUDE.md documents remote-only workflow
+- [ ] CI validates remote-first compliance
+- [ ] `docker-compose.local.yml` is gitignored (if present)
+- [ ] Developer onboarding uses remote dev by default
+- [ ] CLAUDE.md documents remote-first workflow
+- [ ] `tim-local-dev-enable` is available in PATH for human opt-in

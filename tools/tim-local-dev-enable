@@ -1,0 +1,487 @@
+#!/usr/bin/env bash
+# tim-local-dev-enable - Human-only approval tool for local development
+#
+# This script enables opt-in local development for a TIM project.
+# It is designed to be IMPOSSIBLE for AI developers to use.
+#
+# AI Bypass Prevention Layers:
+# 1. Interactive terminal check ([[ -t 0 ]])
+# 2. Claude session environment variable detection
+# 3. Process tree walk for "claude" in ancestor processes
+# 4. No --approver flag - prompts interactively
+#
+# Usage:
+#   tim-local-dev-enable --project /path/to/project   # Enable local dev
+#   tim-local-dev-enable --check --project /path/to/project  # Check status
+#   tim-local-dev-enable --revoke --project /path/to/project  # Revoke
+#   tim-local-dev-enable --list  # List all enabled projects
+#   tim-local-dev-enable --help
+
+set -euo pipefail
+
+TIM_OPS_DIR="${TIM_OPS_DIR:-$HOME/.tim-ops}"
+TIM_LOCAL_DEV_DIR="$TIM_OPS_DIR/local-dev-approvals"
+TIM_LOCAL_DEV_AUDIT="$TIM_OPS_DIR/local-dev-audit.log"
+
+# Colors (disabled if not a terminal)
+if [[ -t 1 ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    BLUE='\033[0;34m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    RED='' GREEN='' YELLOW='' BLUE='' BOLD='' NC=''
+fi
+
+# =============================================================================
+# AI BYPASS PREVENTION
+# =============================================================================
+# These checks ensure only humans can run this tool.
+# AI developers (Claude Code, tim-loop, etc.) will be blocked.
+
+check_not_ai_session() {
+    # Layer 1: Interactive terminal check
+    if [[ ! -t 0 ]]; then
+        echo -e "${RED}ERROR: This tool requires an interactive terminal.${NC}" >&2
+        echo "" >&2
+        echo "AI developers cannot use this tool." >&2
+        echo "A human must run this command directly from a terminal." >&2
+        exit 10
+    fi
+
+    # Layer 2: Claude session environment variables
+    if [[ -n "${CLAUDE_CODE_SESSION:-}" ]]; then
+        echo -e "${RED}ERROR: Detected Claude Code session.${NC}" >&2
+        echo "" >&2
+        echo "This tool cannot be run from within Claude Code." >&2
+        echo "A human must run this command in a separate terminal." >&2
+        exit 10
+    fi
+
+    if [[ -n "${TIM_LOOP_SESSION_ID:-}" ]]; then
+        echo -e "${RED}ERROR: Detected tim-loop session.${NC}" >&2
+        echo "" >&2
+        echo "This tool cannot be run from within a tim-loop session." >&2
+        echo "A human must run this command in a separate terminal." >&2
+        exit 10
+    fi
+
+    # Layer 3: Process tree walk for "claude" in ancestors
+    # Walk up the process tree looking for claude-related processes
+    local pid=$$
+    local max_depth=20
+    local depth=0
+
+    while [[ $pid -gt 1 ]] && [[ $depth -lt $max_depth ]]; do
+        local cmd=""
+        if [[ "$(uname)" == "Darwin" ]]; then
+            cmd=$(ps -p "$pid" -o comm= 2>/dev/null || echo "")
+        else
+            cmd=$(ps -p "$pid" -o comm= 2>/dev/null || echo "")
+        fi
+
+        # Check for claude-related process names
+        if [[ "$cmd" =~ [Cc]laude ]] || [[ "$cmd" =~ "node" && -n "${CLAUDE_CODE_SESSION:-}" ]]; then
+            echo -e "${RED}ERROR: Detected Claude-related process in ancestry.${NC}" >&2
+            echo "" >&2
+            echo "This tool cannot be run from within an AI session." >&2
+            echo "A human must run this command in a separate terminal." >&2
+            exit 10
+        fi
+
+        # Get parent PID
+        if [[ "$(uname)" == "Darwin" ]]; then
+            pid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || echo "0")
+        else
+            pid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || echo "0")
+        fi
+        ((depth++))
+    done
+
+    return 0
+}
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+get_project_hash() {
+    local project_path="$1"
+    # Normalize path and create hash
+    local normalized
+    normalized=$(cd "$project_path" 2>/dev/null && pwd || echo "$project_path")
+    echo -n "$normalized" | shasum -a 256 | cut -c1-16
+}
+
+get_approval_file() {
+    local project_path="$1"
+    local hash
+    hash=$(get_project_hash "$project_path")
+    echo "$TIM_LOCAL_DEV_DIR/${hash}.approval"
+}
+
+audit_log() {
+    local action="$1"
+    local project="$2"
+    local user="${3:-$USER}"
+
+    mkdir -p "$(dirname "$TIM_LOCAL_DEV_AUDIT")"
+
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    echo "$timestamp | $user | $action | $project" >> "$TIM_LOCAL_DEV_AUDIT"
+}
+
+# =============================================================================
+# COMMANDS
+# =============================================================================
+
+show_help() {
+    echo -e "${BOLD}tim-local-dev-enable${NC} - Human-only local development approval"
+    echo ""
+    echo "Usage:"
+    echo "  tim-local-dev-enable --project <path>         Enable local dev for a project"
+    echo "  tim-local-dev-enable --check --project <path> Check if local dev is enabled"
+    echo "  tim-local-dev-enable --revoke --project <path> Revoke local dev approval"
+    echo "  tim-local-dev-enable --list                   List all enabled projects"
+    echo "  tim-local-dev-enable --help                   Show this help"
+    echo ""
+    echo -e "${YELLOW}IMPORTANT:${NC}"
+    echo "  This tool is for HUMANS ONLY. AI developers cannot use this tool."
+    echo "  The approval allows local Docker development for the specified project."
+    echo ""
+    echo "  Local dev is DISABLED BY DEFAULT in TIM projects."
+    echo "  Once enabled, ops.sh will accept --env local for that project."
+    echo ""
+    echo "Approvals:"
+    echo "  - Are permanent until explicitly revoked"
+    echo "  - Are stored per-project on your local machine"
+    echo "  - Are logged for audit purposes"
+    echo "  - Cannot be created by AI developers"
+    echo ""
+    echo "See: standards/deployment/remote-only.md"
+}
+
+enable_local_dev() {
+    local project_path="$1"
+
+    # Validate project path
+    if [[ ! -d "$project_path" ]]; then
+        echo -e "${RED}ERROR: Project path does not exist: $project_path${NC}"
+        return 1
+    fi
+
+    # Normalize path
+    local normalized_path
+    normalized_path=$(cd "$project_path" && pwd)
+
+    # Check if ops.sh or ops-config.yaml exists (validate it's a TIM project)
+    if [[ ! -f "$normalized_path/ops.sh" ]] && [[ ! -f "$normalized_path/ops-config.yaml" ]]; then
+        echo -e "${YELLOW}WARNING: This doesn't appear to be a TIM project.${NC}"
+        echo "  Missing: ops.sh or ops-config.yaml"
+        echo ""
+        read -p "Continue anyway? (yes/no): " confirm
+        if [[ "$confirm" != "yes" ]]; then
+            echo "Aborted."
+            return 1
+        fi
+    fi
+
+    # Check if already enabled
+    local approval_file
+    approval_file=$(get_approval_file "$normalized_path")
+
+    if [[ -f "$approval_file" ]]; then
+        echo -e "${YELLOW}Local development is already enabled for this project.${NC}"
+        echo ""
+        echo "Project: $normalized_path"
+        echo "Approval file: $approval_file"
+        echo ""
+        echo "Use --revoke to disable, then re-enable if needed."
+        return 0
+    fi
+
+    # Show warning and get confirmation
+    echo -e "${BOLD}Enable Local Development${NC}"
+    echo "========================================"
+    echo ""
+    echo -e "Project: ${BLUE}$normalized_path${NC}"
+    echo ""
+    echo -e "${YELLOW}WARNING: This enables local Docker development for this project.${NC}"
+    echo ""
+    echo "Once enabled:"
+    echo "  - You can use: ./ops.sh --env local <command>"
+    echo "  - All safety tiers become SAFE in local environment"
+    echo "  - Local Docker containers will run on your machine"
+    echo ""
+    echo "This is appropriate for:"
+    echo "  - Local development and debugging"
+    echo "  - Running tests against local services"
+    echo "  - Iterating quickly without remote deployment"
+    echo ""
+    echo "This should NOT be used for:"
+    echo "  - Production workloads"
+    echo "  - Anything that should follow remote-only policy"
+    echo ""
+    read -p "Enter your email to confirm (or 'cancel' to abort): " approver_email
+
+    if [[ "$approver_email" == "cancel" ]] || [[ -z "$approver_email" ]]; then
+        echo -e "${RED}Approval cancelled.${NC}"
+        return 1
+    fi
+
+    # Validate email format (basic check)
+    if [[ ! "$approver_email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+        echo -e "${RED}Invalid email format.${NC}"
+        return 1
+    fi
+
+    # Create approval
+    mkdir -p "$TIM_LOCAL_DEV_DIR"
+
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local hash
+    hash=$(get_project_hash "$normalized_path")
+
+    cat > "$approval_file" << EOF
+# TIM Local Development Approval
+# Generated: $timestamp
+#
+# This file enables local development for the specified project.
+# Delete this file or run 'tim-local-dev-enable --revoke' to disable.
+
+project_path: $normalized_path
+project_hash: $hash
+approved_by: $approver_email
+approved_at: $timestamp
+machine: $(hostname)
+EOF
+
+    # Set restrictive permissions
+    chmod 600 "$approval_file"
+
+    # Audit log
+    audit_log "ENABLED" "$normalized_path" "$approver_email"
+
+    echo ""
+    echo -e "${GREEN}Local development enabled!${NC}"
+    echo ""
+    echo "Project: $normalized_path"
+    echo "Approved by: $approver_email"
+    echo ""
+    echo "You can now use:"
+    echo "  cd $normalized_path"
+    echo "  ./ops.sh --env local deploy"
+    echo "  ./ops.sh --env local status"
+    echo "  ./ops.sh --env local logs"
+    echo ""
+    echo "To disable: tim-local-dev-enable --revoke --project $normalized_path"
+}
+
+check_local_dev() {
+    local project_path="$1"
+
+    # Normalize path
+    local normalized_path
+    if [[ -d "$project_path" ]]; then
+        normalized_path=$(cd "$project_path" && pwd)
+    else
+        normalized_path="$project_path"
+    fi
+
+    local approval_file
+    approval_file=$(get_approval_file "$normalized_path")
+
+    if [[ -f "$approval_file" ]]; then
+        echo -e "${GREEN}Local development is ENABLED for this project.${NC}"
+        echo ""
+        echo "Project: $normalized_path"
+        echo "Approval file: $approval_file"
+        echo ""
+        echo "Details:"
+        grep -E "^(approved_by|approved_at):" "$approval_file" | sed 's/^/  /'
+        return 0
+    else
+        echo -e "${YELLOW}Local development is NOT enabled for this project.${NC}"
+        echo ""
+        echo "Project: $normalized_path"
+        echo ""
+        echo "To enable: tim-local-dev-enable --project $normalized_path"
+        return 1
+    fi
+}
+
+revoke_local_dev() {
+    local project_path="$1"
+
+    # Normalize path
+    local normalized_path
+    if [[ -d "$project_path" ]]; then
+        normalized_path=$(cd "$project_path" && pwd)
+    else
+        normalized_path="$project_path"
+    fi
+
+    local approval_file
+    approval_file=$(get_approval_file "$normalized_path")
+
+    if [[ ! -f "$approval_file" ]]; then
+        echo -e "${YELLOW}Local development is not enabled for this project.${NC}"
+        echo ""
+        echo "Project: $normalized_path"
+        return 0
+    fi
+
+    # Show current approval
+    echo -e "${BOLD}Revoke Local Development${NC}"
+    echo "========================================"
+    echo ""
+    echo "Project: $normalized_path"
+    echo ""
+    echo "Current approval:"
+    grep -E "^(approved_by|approved_at):" "$approval_file" | sed 's/^/  /'
+    echo ""
+
+    read -p "Are you sure you want to revoke local dev access? (yes/no): " confirm
+
+    if [[ "$confirm" != "yes" ]]; then
+        echo "Revocation cancelled."
+        return 1
+    fi
+
+    # Remove approval file
+    rm -f "$approval_file"
+
+    # Audit log
+    audit_log "REVOKED" "$normalized_path" "$USER"
+
+    echo ""
+    echo -e "${GREEN}Local development access revoked.${NC}"
+    echo ""
+    echo "The project will now use remote-only deployment policy."
+    echo "./ops.sh --env local will no longer work for this project."
+}
+
+list_enabled() {
+    echo -e "${BOLD}Projects with Local Development Enabled${NC}"
+    echo "========================================"
+    echo ""
+
+    if [[ ! -d "$TIM_LOCAL_DEV_DIR" ]] || [[ -z "$(ls -A "$TIM_LOCAL_DEV_DIR" 2>/dev/null)" ]]; then
+        echo "No projects have local development enabled."
+        return 0
+    fi
+
+    for approval_file in "$TIM_LOCAL_DEV_DIR"/*.approval; do
+        [[ -f "$approval_file" ]] || continue
+
+        local project_path
+        project_path=$(grep "^project_path:" "$approval_file" | cut -d: -f2- | tr -d ' ')
+        local approved_by
+        approved_by=$(grep "^approved_by:" "$approval_file" | cut -d: -f2- | tr -d ' ')
+        local approved_at
+        approved_at=$(grep "^approved_at:" "$approval_file" | cut -d: -f2- | tr -d ' ')
+
+        echo -e "${BLUE}$project_path${NC}"
+        echo "  Approved by: $approved_by"
+        echo "  Approved at: $approved_at"
+        echo ""
+    done
+}
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+main() {
+    local action=""
+    local project_path=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --list|-l)
+                action="list"
+                shift
+                ;;
+            --check|-c)
+                action="check"
+                shift
+                ;;
+            --revoke|-r)
+                action="revoke"
+                shift
+                ;;
+            --project|-p)
+                if [[ -z "${2:-}" ]]; then
+                    echo -e "${RED}ERROR: --project requires a path argument${NC}"
+                    exit 1
+                fi
+                project_path="$2"
+                shift 2
+                ;;
+            *)
+                # If no flags, assume it's the project path (for convenience)
+                if [[ -d "$1" ]]; then
+                    project_path="$1"
+                else
+                    echo -e "${RED}ERROR: Unknown option or invalid path: $1${NC}"
+                    echo ""
+                    show_help
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Default action is "enable" if project path is provided
+    if [[ -z "$action" ]] && [[ -n "$project_path" ]]; then
+        action="enable"
+    fi
+
+    # Handle --list which doesn't need project
+    if [[ "$action" == "list" ]]; then
+        list_enabled
+        exit 0
+    fi
+
+    # All other actions require --project
+    if [[ -z "$project_path" ]]; then
+        echo -e "${RED}ERROR: --project is required${NC}"
+        echo ""
+        show_help
+        exit 1
+    fi
+
+    # AI bypass check (runs for all project operations)
+    check_not_ai_session
+
+    case "$action" in
+        enable)
+            enable_local_dev "$project_path"
+            ;;
+        check)
+            check_local_dev "$project_path"
+            ;;
+        revoke)
+            revoke_local_dev "$project_path"
+            ;;
+        *)
+            echo -e "${RED}ERROR: No action specified${NC}"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

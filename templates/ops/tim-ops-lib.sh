@@ -21,10 +21,12 @@ set -euo pipefail
 # CONFIGURATION
 # =============================================================================
 
-TIM_OPS_VERSION="3.0.0"
+TIM_OPS_VERSION="3.1.0"
 TIM_OPS_AUDIT_LOG="${TIM_OPS_AUDIT_LOG:-$HOME/.tim-ops/audit.log}"
 TIM_OPS_STATE_DIR="${TIM_OPS_STATE_DIR:-$HOME/.tim-ops/state}"
 TIM_OPS_APPROVAL_DIR="${TIM_OPS_APPROVAL_DIR:-$HOME/.tim-ops/approvals}"
+TIM_LOCAL_DEV_DIR="${TIM_LOCAL_DEV_DIR:-$HOME/.tim-ops/local-dev-approvals}"
+TIM_LOCAL_DEV_AUDIT="${TIM_LOCAL_DEV_AUDIT:-$HOME/.tim-ops/local-dev-audit.log}"
 
 # Colors (disabled if not a terminal)
 if [[ -t 1 ]]; then
@@ -130,6 +132,30 @@ declare -A ENV_COMMAND_TIERS=(
     ["prod:env:get"]="MODERATE"
     ["prod:env:set"]="BLOCKED"
     ["prod:rollback"]="HUMAN_REQUIRED"
+
+    # LOCAL - All SAFE (human-approved sandbox)
+    # Local development requires explicit human approval via tim-local-dev-enable
+    # Once approved, all commands are SAFE because it's a controlled local environment
+    ["local:status"]="SAFE"
+    ["local:health"]="SAFE"
+    ["local:logs"]="SAFE"
+    ["local:deploy"]="SAFE"
+    ["local:deploy:force"]="SAFE"
+    ["local:deploy:sync"]="SAFE"
+    ["local:restart"]="SAFE"
+    ["local:stop"]="SAFE"
+    ["local:shell"]="SAFE"
+    ["local:exec"]="SAFE"
+    ["local:db:migrate"]="SAFE"
+    ["local:db:migrate:dry"]="SAFE"
+    ["local:db:rollback"]="SAFE"
+    ["local:db:backup"]="SAFE"
+    ["local:db:restore"]="SAFE"
+    ["local:db:seed"]="SAFE"
+    ["local:db:reset"]="SAFE"
+    ["local:env:get"]="SAFE"
+    ["local:env:set"]="SAFE"
+    ["local:rollback"]="SAFE"
 )
 
 # =============================================================================
@@ -236,6 +262,64 @@ load_config() {
 }
 
 # =============================================================================
+# LOCAL DEVELOPMENT APPROVAL CHECK
+# =============================================================================
+#
+# Validates that human has approved local development for this project.
+# Approval is granted via: tim-local-dev-enable --project <path>
+# See: standards/deployment/remote-only.md
+
+get_project_hash() {
+    local project_path="$1"
+    # Normalize path and create hash
+    local normalized
+    normalized=$(cd "$project_path" 2>/dev/null && pwd || echo "$project_path")
+    echo -n "$normalized" | shasum -a 256 | cut -c1-16
+}
+
+check_local_dev_enabled() {
+    local project_root="${PROJECT_ROOT:-$(pwd)}"
+
+    # Get normalized project path
+    local normalized_path
+    normalized_path=$(cd "$project_root" 2>/dev/null && pwd || echo "$project_root")
+
+    # Calculate hash and find approval file
+    local hash
+    hash=$(get_project_hash "$normalized_path")
+    local approval_file="$TIM_LOCAL_DEV_DIR/${hash}.approval"
+
+    if [[ ! -f "$approval_file" ]]; then
+        return 1
+    fi
+
+    # Verify the approval file is for this project
+    local stored_path
+    stored_path=$(grep "^project_path:" "$approval_file" 2>/dev/null | cut -d: -f2- | tr -d ' ')
+
+    if [[ "$stored_path" != "$normalized_path" ]]; then
+        log_warn "Approval file hash collision - approval invalid"
+        return 1
+    fi
+
+    return 0
+}
+
+local_audit_log() {
+    local command="$1"
+    local result="$2"
+    local duration="${3:-0}"
+
+    mkdir -p "$(dirname "$TIM_LOCAL_DEV_AUDIT")"
+
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local user="${USER:-unknown}"
+    local project="${CONFIG[project_name]:-unknown}"
+
+    echo "$timestamp | $user | $project | LOCAL | $command | $result | ${duration}s" >> "$TIM_LOCAL_DEV_AUDIT"
+}
+
+# =============================================================================
 # ENVIRONMENT LOADING (environments.yaml)
 # =============================================================================
 #
@@ -248,10 +332,75 @@ load_environment() {
     local env_file="${PROJECT_ROOT:-$(pwd)}/environments.yaml"
 
     # Validate environment name
-    if [[ ! "$env_name" =~ ^(dev|uat|prod)$ ]]; then
+    if [[ ! "$env_name" =~ ^(local|dev|uat|prod)$ ]]; then
         log_error "Invalid environment: $env_name"
-        log_error "Valid environments: dev, uat, prod"
+        log_error "Valid environments: local, dev, uat, prod"
         return 1
+    fi
+
+    # ==========================================================================
+    # LOCAL ENVIRONMENT - Special handling
+    # ==========================================================================
+    # Local development requires explicit human approval via tim-local-dev-enable
+    # Once approved, local uses direct Docker access instead of SSH
+    #
+    if [[ "$env_name" == "local" ]]; then
+        # Check if local dev is enabled for this project
+        if ! check_local_dev_enabled; then
+            log_error "============================================================"
+            log_error "LOCAL DEVELOPMENT NOT ENABLED"
+            log_error "============================================================"
+            log_error ""
+            log_error "Local development is disabled by default in TIM projects."
+            log_error "A human must explicitly enable it for this project."
+            log_error ""
+            log_error "To enable local development:"
+            log_error "  tim-local-dev-enable --project ${PROJECT_ROOT:-$(pwd)}"
+            log_error ""
+            log_error "This command must be run by a human in an interactive terminal."
+            log_error "AI developers cannot enable local development."
+            log_error ""
+            log_error "See: standards/deployment/remote-only.md"
+            log_error "============================================================"
+            return 1
+        fi
+
+        # Local environment is enabled - configure for local Docker access
+        CURRENT_ENV="local"
+        CONNECTION_METHOD="local"
+        REMOTE_HOST="localhost"
+        REMOTE_USER=""
+        REMOTE_PATH="${PROJECT_ROOT:-$(pwd)}"
+
+        # Load local-specific settings from environments.yaml if present
+        if [[ -f "$env_file" ]]; then
+            # Check if local section exists
+            if grep -q "^  local:" "$env_file" 2>/dev/null; then
+                # Parse local-specific compose file if set
+                local compose_file
+                compose_file=$(grep -A 10 "^  local:" "$env_file" | grep "compose_file:" | head -1 | cut -d: -f2- | tr -d ' "'"'" || echo "")
+                if [[ -n "$compose_file" ]]; then
+                    COMPOSE_FILE="$compose_file"
+                else
+                    COMPOSE_FILE="${CONFIG[docker_compose_file]:-docker-compose.local.yml}"
+                fi
+            else
+                COMPOSE_FILE="${CONFIG[docker_compose_file]:-docker-compose.local.yml}"
+            fi
+        else
+            COMPOSE_FILE="${CONFIG[docker_compose_file]:-docker-compose.local.yml}"
+        fi
+
+        # Fall back to docker-compose.yml if local file doesn't exist
+        if [[ ! -f "${PROJECT_ROOT:-$(pwd)}/$COMPOSE_FILE" ]]; then
+            if [[ -f "${PROJECT_ROOT:-$(pwd)}/docker-compose.yml" ]]; then
+                COMPOSE_FILE="docker-compose.yml"
+            fi
+        fi
+
+        log_info "Environment: ${BOLD}local${NC} (direct Docker access)"
+        log_debug "Compose file: $COMPOSE_FILE"
+        return 0
     fi
 
     # Check environments.yaml exists
@@ -618,6 +767,20 @@ ssh_cmd() {
     ssh $ssh_opts "${REMOTE_USER}@${REMOTE_HOST}" "$cmd"
 }
 
+# Execute command locally or remotely depending on environment
+local_or_remote_cmd() {
+    local cmd="$1"
+
+    if [[ "${CONNECTION_METHOD:-ssh}" == "local" ]]; then
+        # Local execution - run directly
+        log_debug "Local exec: $cmd"
+        eval "$cmd"
+    else
+        # Remote execution via SSH
+        ssh_cmd "$cmd"
+    fi
+}
+
 rsync_files() {
     local src="$1"
     local dest="$2"
@@ -638,14 +801,25 @@ docker_compose() {
     local action="$1"
     shift
 
-    ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE $action $*"
+    if [[ "${CONNECTION_METHOD:-ssh}" == "local" ]]; then
+        # Local execution - run docker compose directly
+        log_debug "Local docker compose: $action $*"
+        (cd "${REMOTE_PATH:-$(pwd)}" && docker compose -f "$COMPOSE_FILE" $action "$@")
+    else
+        # Remote execution via SSH
+        ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE $action $*"
+    fi
 }
 
 get_container_status() {
     local service="$1"
     local container="${PROJECT_NAME}-${service}"
 
-    ssh_cmd "docker inspect -f '{{.State.Status}}' $container 2>/dev/null" || echo "not found"
+    if [[ "${CONNECTION_METHOD:-ssh}" == "local" ]]; then
+        docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "not found"
+    else
+        ssh_cmd "docker inspect -f '{{.State.Status}}' $container 2>/dev/null" || echo "not found"
+    fi
 }
 
 # =============================================================================
@@ -832,12 +1006,22 @@ cmd_deploy() {
 
     log_info "Starting deployment for ${PROJECT_NAME}..."
 
-    # Sync files
-    log_info "Syncing files to ${REMOTE_HOST}..."
-    rsync_files "$PROJECT_ROOT/" "$REMOTE_PATH/"
+    # Local deployment doesn't need file sync
+    if [[ "${CONNECTION_METHOD:-ssh}" == "local" ]]; then
+        log_info "Local deployment - no file sync needed"
+        local_audit_log "deploy" "STARTED" "0"
+    else
+        # Sync files to remote
+        log_info "Syncing files to ${REMOTE_HOST}..."
+        rsync_files "$PROJECT_ROOT/" "$REMOTE_PATH/"
+    fi
 
     if [[ "$sync_only" == "true" ]]; then
-        log_success "Files synced (no rebuild)"
+        if [[ "${CONNECTION_METHOD:-ssh}" == "local" ]]; then
+            log_success "Sync-only mode not applicable for local deployment"
+        else
+            log_success "Files synced (no rebuild)"
+        fi
         audit_log "deploy:sync" "SUCCESS" "$(($(date +%s) - start_time))"
         return 0
     fi
@@ -932,7 +1116,13 @@ cmd_rollback() {
 cmd_status() {
     echo -e "${BOLD}${PROJECT_NAME} Status${NC}"
     echo "----------------------------------------"
-    echo "Remote: ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}"
+    if [[ "${CONNECTION_METHOD:-ssh}" == "local" ]]; then
+        echo "Environment: LOCAL (direct Docker access)"
+        echo "Path: ${REMOTE_PATH}"
+        echo "Compose file: ${COMPOSE_FILE}"
+    else
+        echo "Remote: ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}"
+    fi
     echo "Deployed commit: $(get_deployed_commit)"
     echo "Last deploy: $(date -r $(get_last_deploy_time) 2>/dev/null || echo 'never')"
     echo ""
@@ -1139,9 +1329,10 @@ cmd_help() {
     echo "Usage: ops.sh --env <environment> <command> [options]"
     echo ""
     echo -e "${BOLD}REQUIRED:${NC}"
-    echo "  --env <env>            Environment: dev, uat, or prod (MANDATORY)"
+    echo "  --env <env>            Environment: local, dev, uat, or prod (MANDATORY)"
     echo ""
     echo -e "${BOLD}Environments:${NC}"
+    echo "  local - Local development (requires human approval, all commands SAFE)"
     echo "  dev   - Development (permissive, sandbox)"
     echo "  uat   - User Acceptance Testing (moderate restrictions)"
     echo "  prod  - Production (maximum restrictions)"
@@ -1177,13 +1368,14 @@ cmd_help() {
 
     echo ""
     echo -e "${BOLD}Options:${NC}"
-    echo "  --env <env>            REQUIRED: dev, uat, or prod"
+    echo "  --env <env>            REQUIRED: local, dev, uat, or prod"
     echo "  --ticket <id>          Ticket reference (required for prod deploys)"
     echo "  --dry-run              Preview changes without executing"
     echo "  -v, --verbose          Verbose output"
     echo "  -h, --help             Show this help"
     echo ""
     echo -e "${BOLD}Examples:${NC}"
+    echo "  ./ops.sh --env local deploy            Deploy locally (requires approval)"
     echo "  ./ops.sh --env dev deploy              Deploy to development"
     echo "  ./ops.sh --env uat status              Check UAT status"
     echo "  ./ops.sh --env prod deploy --ticket PROJ-123"
@@ -1282,11 +1474,13 @@ tim_ops_main() {
             log_error "All TIM operations require explicit environment specification."
             log_error ""
             log_error "Usage:"
+            log_error "  ./ops.sh --env local <command>  # Local (requires approval)"
             log_error "  ./ops.sh --env dev <command>    # Development"
             log_error "  ./ops.sh --env uat <command>    # User Acceptance Testing"
             log_error "  ./ops.sh --env prod <command>   # Production"
             log_error ""
             log_error "Example:"
+            log_error "  ./ops.sh --env local deploy"
             log_error "  ./ops.sh --env dev deploy"
             log_error "  ./ops.sh --env prod deploy --ticket PROJ-123"
             log_error ""

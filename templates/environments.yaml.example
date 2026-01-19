@@ -1,4 +1,4 @@
-# environments.yaml - Remote Environment Configuration
+# environments.yaml - Environment Configuration
 # =======================================================
 # COPY this file to environments.yaml and configure with real values.
 # DO NOT commit environments.yaml to git - it contains sensitive data.
@@ -11,6 +11,25 @@ version: "1.0"
 project: "your-project-name"
 
 environments:
+  # =============================================================================
+  # LOCAL - Local Development (OPTIONAL - requires human approval)
+  # =============================================================================
+  # Purpose: Local development and debugging
+  # Access: Human-approved only (AI cannot enable)
+  # Restrictions: None (all commands SAFE once approved)
+  #
+  # To enable: tim-local-dev-enable --project .
+  # To check:  tim-local-dev-enable --check --project .
+  # To revoke: tim-local-dev-enable --revoke --project .
+  # =============================================================================
+  # Uncomment to customize local settings (optional):
+  # local:
+  #   description: "Local development environment"
+  #   connection:
+  #     method: "local"
+  #   remote:
+  #     type: "docker-compose"
+  #     compose_file: "docker-compose.local.yml"
   # =============================================================================
   # DEV - Development Environment
   # =============================================================================

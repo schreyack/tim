@@ -243,14 +243,15 @@ If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
 
 ---
 
-## Remote-Only Deployment (MANDATORY)
+## Remote-First Deployment (MANDATORY)
 
-**All deployments are remote. No local environments. No exceptions.**
+**Remote by default. Local development is opt-in and requires human approval.**
 
-### Three Required Environments
+### Four Available Environments
 
 | Environment | Access | Restrictions |
 |-------------|--------|--------------|
+| **local** | Human-approved only | None (all SAFE) |
 | **dev** | All developers | Minimal (sandbox only) |
 | **uat** | QA team, tech leads | Moderate |
 | **prod** | DevOps/SRE only | Maximum |
@@ -259,6 +260,7 @@ If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
 
 ```bash
 # ALWAYS specify environment
+./ops.sh --env local deploy   # Deploy locally (requires human approval)
 ./ops.sh --env dev deploy     # Deploy to dev
 ./ops.sh --env uat deploy     # Deploy to UAT
 ./ops.sh --env prod deploy --ticket PROJ-123  # Deploy to prod
@@ -266,6 +268,20 @@ If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
 # This will FAIL
 ./ops.sh deploy               # ERROR: --env required
 ```
+
+### Local Development (Opt-In)
+
+Local development is **disabled by default**. A human must explicitly enable it:
+
+```bash
+# A human must run this (AI cannot):
+tim-local-dev-enable --project /path/to/project
+
+# Then ops.sh --env local will work
+./ops.sh --env local deploy
+```
+
+AI developers cannot enable local development - the tool has multiple bypass prevention layers.
 
 ### Configuration Files
 
@@ -310,9 +326,10 @@ BLOCKED operations MUST be performed manually via SSH.
 | Run `ssh` commands directly | Bypasses safety controls |
 | Run `docker exec` directly | Can execute destructive operations |
 | Run SQL directly on database | No validation, no audit trail |
-| Run `docker-compose up` locally | No local environments allowed |
+| Run `docker-compose up` directly | Use ops.sh --env local instead |
+| Enable local dev without human | AI cannot bypass approval |
 
-**If you need to interact with a remote server, use `./ops.sh --env <env>`. No exceptions.**
+**If you need to interact with any environment, use `./ops.sh --env <env>`. No exceptions.**
 
 ---
 
@@ -462,10 +479,10 @@ A task is NOT complete until:
 5. Implement pre-commit hooks (Gate 1)
 6. Add CI pipeline (Gate 2)
 7. Implement deploy gates (Gate 3 + 4)
-8. **Migrate to remote-only deployment:**
-   - Remove local docker-compose configurations
-   - Set up remote dev environment
-   - Update team workflow to use `./ops.sh --env dev`
+8. **Migrate to remote-first deployment:**
+   - Set up remote dev/uat/prod environments
+   - Update team workflow to use `./ops.sh --env dev` by default
+   - For local dev: humans can opt-in via `tim-local-dev-enable`
 
 ---
 
