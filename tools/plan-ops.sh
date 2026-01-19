@@ -21,6 +21,9 @@ CLAUDE_PLANS_DIR="${HOME}/.claude/plans"
 EXECUTION_REQUESTS_DIR=".tim-execution-requests"
 EXECUTION_EXPIRY_MINUTES=15
 
+# Resolve script's absolute path (works even when called via symlink)
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -30,6 +33,59 @@ NC='\033[0m' # No Color
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+
+# Convert a path to absolute (resolves relative paths against cwd)
+to_absolute() {
+    local path="$1"
+    if [[ "$path" = /* ]]; then
+        echo "$path"
+    else
+        echo "$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path")"
+    fi
+}
+
+# Check if process is a descendant of Claude Code
+# Returns: 0 (true) if descendant, 1 (false) otherwise
+is_claude_descendant() {
+    local pid=$$
+    while [[ $pid -ne 1 ]]; do
+        local parent_cmd
+        parent_cmd=$(ps -p "$pid" -o comm= 2>/dev/null || echo "")
+        if [[ "$parent_cmd" == *"claude"* ]]; then
+            return 0  # Is a descendant
+        fi
+        pid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ')
+        [[ -z "$pid" ]] && break
+    done
+    return 1  # Not a descendant
+}
+
+# Verify command is running from interactive terminal (human, not AI)
+# Used by approval commands to block AI bypass attempts
+verify_interactive_terminal() {
+    # Check if stdin is a terminal (interactive)
+    if [[ ! -t 0 ]]; then
+        log_error "BLOCKED: This command must be run interactively."
+        log_error "AI/scripts cannot run approval commands."
+        log_error ""
+        log_error "Open a terminal and run this command manually."
+        exit 1
+    fi
+
+    # Check if we're running under Claude Code session
+    if [[ -n "${CLAUDE_CODE_SESSION:-}" ]] || [[ -n "${TIM_LOOP_SESSION_ID:-}" ]]; then
+        log_error "BLOCKED: Cannot approve from within Claude Code session."
+        log_error "Open a SEPARATE terminal to approve."
+        exit 1
+    fi
+
+    # Check process lineage for Claude Code
+    if is_claude_descendant; then
+        log_error "BLOCKED: Cannot approve from within Claude Code process tree."
+        log_error "Open a SEPARATE terminal to approve."
+        exit 1
+    fi
+}
 
 # Get current timestamp
 timestamp() {
@@ -75,24 +131,129 @@ has_ralph_completed() {
     fi
 }
 
+# Check if plan has AI Developer Ready approval
+# Returns: 0 (true) if approved, 1 (false) otherwise
+has_ai_ready_approval() {
+    local file="$1"
+    grep -q "| AI Developer Ready | yes |" "$file" 2>/dev/null
+}
+
+# Update AI Developer Ready fields in Status Header
+update_ai_ready_status() {
+    local file="$1"
+    local reviewer="$2"
+    local iteration="$3"
+    local ts date
+    ts=$(timestamp)
+    date=$(datestamp)
+
+    # Update AI Developer Ready fields
+    sed -i '' "s/| AI Developer Ready | .* |/| AI Developer Ready | yes |/" "$file"
+    sed -i '' "s/| AI Developer Ready By | .* |/| AI Developer Ready By | ${reviewer} |/" "$file"
+    sed -i '' "s/| AI Developer Ready Date | .* |/| AI Developer Ready Date | ${date} |/" "$file"
+    sed -i '' "s/| AI Developer Ready Iteration | .* |/| AI Developer Ready Iteration | ${iteration} |/" "$file"
+
+    # Update Last Updated
+    sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
+}
+
+# Update Implementation Verification fields in Status Header
+update_verification_status() {
+    local file="$1"
+    local reviewer="$2"
+    local ts date
+    ts=$(timestamp)
+    date=$(datestamp)
+
+    # Update Implementation Verification fields
+    sed -i '' "s/| Implementation Verified | .* |/| Implementation Verified | yes |/" "$file"
+    sed -i '' "s/| Implementation Verified By | .* |/| Implementation Verified By | ${reviewer} |/" "$file"
+    sed -i '' "s/| Implementation Verified Date | .* |/| Implementation Verified Date | ${date} |/" "$file"
+
+    # Update Last Updated
+    sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
+}
+
+# Add AI Developer Ready approval stamp to plan file
+add_ai_ready_stamp() {
+    local file="$1"
+    local reviewer="$2"
+    local date="$3"
+    local iteration="$4"
+
+    # Create stamp content in a temp file (avoids awk multiline issues)
+    local stamp_file
+    stamp_file=$(mktemp)
+    cat > "$stamp_file" << EOF
+
+### AI Developer Ready Approval
+
+**Reviewer**: ${reviewer}
+**Date**: ${date}
+**Iteration**: ${iteration} (FINAL)
+**Status**: APPROVED
+
+---
+EOF
+
+    # Find the line number of first --- after ### Progress Log
+    local progress_line separator_line
+    progress_line=$(grep -n "^### Progress Log" "$file" | head -1 | cut -d: -f1)
+
+    if [[ -n "$progress_line" ]]; then
+        # Find first --- after Progress Log
+        separator_line=$(tail -n +"$progress_line" "$file" | grep -n "^---$" | head -1 | cut -d: -f1)
+        if [[ -n "$separator_line" ]]; then
+            separator_line=$((progress_line + separator_line - 1))
+            # Insert stamp after the separator
+            head -n "$separator_line" "$file" > "${file}.tmp"
+            cat "$stamp_file" >> "${file}.tmp"
+            tail -n +"$((separator_line + 1))" "$file" >> "${file}.tmp"
+            mv "${file}.tmp" "$file"
+        fi
+    fi
+
+    rm -f "$stamp_file"
+}
+
 # Update Ralph Review fields in Status Header
+# If fields don't exist, adds them after Approver row
 update_ralph_status() {
     local file="$1"
     local status="$2"  # required / completed / not-required
     local ts
     ts=$(timestamp)
-
-    # Update Ralph Review field
-    if grep -q "| Ralph Review |" "$file"; then
-        sed -i '' "s/| Ralph Review | .* |/| Ralph Review | ${status} |/" "$file"
+    local date_val="-"
+    if [[ "$status" == "completed" ]]; then
+        date_val=$(datestamp)
     fi
 
-    # Update Ralph Date field
-    if grep -q "| Ralph Date |" "$file"; then
-        if [[ "$status" == "completed" ]]; then
-            sed -i '' "s/| Ralph Date | .* |/| Ralph Date | $(datestamp) |/" "$file"
+    # Check if Ralph Review field exists
+    if grep -q "| Ralph Review |" "$file"; then
+        # Update existing field
+        sed -i '' "s/| Ralph Review | .* |/| Ralph Review | ${status} |/" "$file"
+    else
+        # Add Ralph Review field after Approver row
+        if grep -q "| Approver |" "$file"; then
+            sed -i '' "/| Approver |/a\\
+| Ralph Review | ${status} |" "$file"
+            log_warn "Added missing Ralph Review field to Status Header"
         else
-            sed -i '' "s/| Ralph Date | .* |/| Ralph Date | - |/" "$file"
+            log_error "Cannot find Approver row to insert Ralph Review field"
+            return 1
+        fi
+    fi
+
+    # Check if Ralph Date field exists
+    if grep -q "| Ralph Date |" "$file"; then
+        # Update existing field
+        sed -i '' "s/| Ralph Date | .* |/| Ralph Date | ${date_val} |/" "$file"
+    else
+        # Add Ralph Date field after Ralph Review row
+        if grep -q "| Ralph Review |" "$file"; then
+            sed -i '' "/| Ralph Review |/a\\
+| Ralph Date | ${date_val} |" "$file"
+            log_warn "Added missing Ralph Date field to Status Header"
         fi
     fi
 
@@ -264,6 +425,14 @@ add_status_header() {
 | Execution Approved | no |
 | Execution Approved By | - |
 | Execution Started | - |
+| AI Developer Ready | no |
+| AI Developer Ready By | - |
+| AI Developer Ready Date | - |
+| AI Developer Ready Iteration | - |
+| Implementation Verified | no |
+| Implementation Verified By | - |
+| Implementation Verified Date | - |
+| Remediation Plan | - |
 
 ### Progress Log
 
@@ -302,6 +471,10 @@ cmd_init() {
     echo "  ${PLANS_DIR}/active/"
     echo "  ${PLANS_DIR}/completed/"
     echo "  ${PLANS_DIR}/abandoned/"
+
+    echo ""
+    log_info "NEXT STEP: Import a plan from ~/.claude/plans:"
+    echo -e "  ${GREEN}$SCRIPT_PATH import ~/.claude/plans/<plan-name>.md${NC}"
 }
 
 cmd_import() {
@@ -323,7 +496,7 @@ cmd_import() {
     done
 
     if [[ -z "$source" ]]; then
-        log_error "Usage: plan-ops.sh import <source-file> [--name <description>]"
+        log_error "Usage: $SCRIPT_PATH import <source-file> [--name <description>]"
         exit 1
     fi
 
@@ -332,11 +505,15 @@ cmd_import() {
         exit 1
     fi
 
+    # Convert source to absolute path
+    source=$(to_absolute "$source")
+
     # Generate destination filename
     if [[ -z "$name" ]]; then
         name=$(basename "$source" .md)
     fi
-    local dest="${PLANS_DIR}/drafts/$(datestamp)-${name}.md"
+    local dest
+    dest=$(to_absolute "${PLANS_DIR}/drafts/$(datestamp)-${name}.md")
 
     # Copy the file
     cp "$source" "$dest"
@@ -353,6 +530,18 @@ cmd_import() {
     cleanup_claude_plans
 
     log_info "Import complete: $dest"
+
+    # Show next step based on phase count
+    local phase_count
+    phase_count=$(count_phases "$dest")
+    echo ""
+    if [[ "$phase_count" -ge 2 ]]; then
+        log_info "NEXT STEP: This is a multi-phase plan. Start Ralph Loop review:"
+        echo -e "  ${GREEN}$SCRIPT_PATH ralph $dest${NC}"
+    else
+        log_info "NEXT STEP: This is a single-phase plan. Promote directly:"
+        echo -e "  ${GREEN}$SCRIPT_PATH promote $dest --approver \"Your Name\"${NC}"
+    fi
 }
 
 cmd_ralph() {
@@ -374,7 +563,7 @@ cmd_ralph() {
     done
 
     if [[ -z "$plan_file" ]]; then
-        log_error "Usage: plan-ops.sh ralph <plan-file> [--mark-complete]"
+        log_error "Usage: $SCRIPT_PATH ralph <plan-file> [--mark-complete]"
         exit 1
     fi
 
@@ -382,6 +571,9 @@ cmd_ralph() {
         log_error "Plan file not found: $plan_file"
         exit 1
     fi
+
+    # Convert to absolute path for output messages
+    plan_file=$(to_absolute "$plan_file")
 
     # Verify plan is in drafts
     if [[ "$plan_file" != *"/drafts/"* ]]; then
@@ -395,11 +587,17 @@ cmd_ralph() {
     plan_basename=$(basename "$plan_file")
 
     if [[ "$mark_complete" == "true" ]]; then
+        # Block AI from marking Ralph as complete
+        verify_interactive_terminal
+
         # Mark Ralph Loop as completed
         update_ralph_status "$plan_file" "completed"
         update_status "$plan_file" "draft" "Ralph Loop review completed"
         log_info "Marked Ralph Loop review as completed for: $plan_file"
-        log_info "Plan can now be promoted with: ./tools/plan-ops.sh promote $plan_file --approver <name>"
+
+        echo ""
+        log_info "NEXT STEP: Promote the plan to active:"
+        echo -e "  ${GREEN}$SCRIPT_PATH promote $plan_file --approver \"Your Name\"${NC}"
     else
         # Show Ralph Loop command to run
         echo ""
@@ -408,23 +606,28 @@ cmd_ralph() {
 
         if [[ "$phase_count" -lt 2 ]]; then
             log_warn "This is a single-phase plan. Ralph Loop review is NOT required."
-            log_info "You can promote directly with: ./tools/plan-ops.sh promote $plan_file --approver <name>"
+            echo ""
+            log_info "NEXT STEP: Promote the plan directly:"
+            echo -e "  ${GREEN}$SCRIPT_PATH promote $plan_file --approver \"Your Name\"${NC}"
             return 0
         fi
 
         echo ""
         log_info "Multi-phase plan detected. Ralph Loop review is REQUIRED before promotion."
         echo ""
-        echo "Run this command to start Ralph Loop review:"
+        log_info "STEP 1: Run this command in Claude Code to start Ralph Loop review:"
         echo ""
         echo -e "${GREEN}/ralph-loop:ralph-loop \"review ${plan_file} and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\"${NC}"
         echo ""
-        log_info "After Ralph Loop completes, mark it done with:"
-        echo "  ./tools/plan-ops.sh ralph $plan_file --mark-complete"
+        log_info "STEP 2: After Ralph Loop completes, mark it done:"
+        echo -e "  ${GREEN}$SCRIPT_PATH ralph $plan_file --mark-complete${NC}"
     fi
 }
 
 cmd_promote() {
+    # Block AI from running this command
+    verify_interactive_terminal
+
     local plan_file="${1:-}"
     local approver=""
     local skip_ralph=false
@@ -448,7 +651,7 @@ cmd_promote() {
     done
 
     if [[ -z "$plan_file" ]]; then
-        log_error "Usage: plan-ops.sh promote <plan-file> --approver <name>"
+        log_error "Usage: $SCRIPT_PATH promote <plan-file> --approver <name>"
         exit 1
     fi
 
@@ -461,6 +664,9 @@ cmd_promote() {
         log_error "Plan file not found: $plan_file"
         exit 1
     fi
+
+    # Convert to absolute path for output messages
+    plan_file=$(to_absolute "$plan_file")
 
     # Check Ralph Loop requirement for multi-phase plans
     local needs_ralph
@@ -476,10 +682,10 @@ cmd_promote() {
         log_error "Ralph Loop review has NOT been completed for this plan."
         echo ""
         echo "To start Ralph Loop review, run:"
-        echo "  ./tools/plan-ops.sh ralph $plan_file"
+        echo "  $SCRIPT_PATH ralph $plan_file"
         echo ""
         echo "After review completes, mark it done:"
-        echo "  ./tools/plan-ops.sh ralph $plan_file --mark-complete"
+        echo "  $SCRIPT_PATH ralph $plan_file --mark-complete"
         echo ""
         echo "Then retry promotion."
         exit 1
@@ -493,7 +699,8 @@ cmd_promote() {
 
     local basename
     basename=$(basename "$plan_file")
-    local dest="${PLANS_DIR}/active/${basename}"
+    local dest
+    dest=$(to_absolute "${PLANS_DIR}/active/${basename}")
 
     # Move file
     mv "$plan_file" "$dest"
@@ -505,13 +712,87 @@ cmd_promote() {
     cleanup_claude_plans
 
     log_info "Promoted to active: $dest"
+
+    echo ""
+    log_info "NEXT STEP: Mark as AI Developer Ready after reviewing for AI concerns:"
+    echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $dest --reviewer \"Your Name\"${NC}"
+}
+
+cmd_ai_ready() {
+    # Block AI from running this command
+    verify_interactive_terminal
+
+    local plan_file="${1:-}"
+    local reviewer=""
+    local iteration=1
+
+    # Parse arguments
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --reviewer) reviewer="$2"; shift 2 ;;
+            --iteration) iteration="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    # Validation
+    if [[ -z "$plan_file" ]]; then
+        log_error "Usage: $SCRIPT_PATH ai-ready <plan-file> --reviewer <name>"
+        exit 1
+    fi
+    if [[ -z "$reviewer" ]]; then
+        log_error "Reviewer required: --reviewer <name>"
+        exit 1
+    fi
+    if [[ ! -f "$plan_file" ]]; then
+        log_error "Plan file not found: $plan_file"
+        exit 1
+    fi
+
+    # Convert to absolute path for output messages
+    plan_file=$(to_absolute "$plan_file")
+
+    # Enforce active/ folder requirement
+    if [[ "$plan_file" != *"/active/"* ]]; then
+        log_error "Can only mark plans in active/ as AI Developer Ready"
+        log_error "This plan is in: $(dirname "$plan_file")"
+        echo ""
+        log_error "Plans must be promoted to active/ before AI Developer Ready review."
+        echo "Run: $SCRIPT_PATH promote <plan> --approver <name>"
+        exit 1
+    fi
+
+    # Check if already approved
+    if has_ai_ready_approval "$plan_file"; then
+        log_warn "Plan is already marked AI Developer Ready"
+        exit 0
+    fi
+
+    # Update Status Header
+    update_ai_ready_status "$plan_file" "$reviewer" "$iteration"
+
+    # Add approval stamp
+    add_ai_ready_stamp "$plan_file" "$reviewer" "$(datestamp)" "$iteration"
+
+    # Update progress log
+    update_status "$plan_file" "active" "AI Developer Ready approved by ${reviewer} (iteration ${iteration})"
+
+    echo ""
+    log_info "Marked as AI Developer Ready: $plan_file"
+    log_info "Reviewer: $reviewer"
+    log_info "Iteration: $iteration (FINAL)"
+
+    echo ""
+    log_info "NEXT STEP: Request execution approval (AI runs this, then you approve in separate terminal):"
+    echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
 }
 
 cmd_execute() {
     local plan_file="${1:-}"
 
     if [[ -z "$plan_file" ]]; then
-        log_error "Usage: plan-ops.sh execute <plan-file>"
+        log_error "Usage: $SCRIPT_PATH execute <plan-file>"
         exit 1
     fi
 
@@ -520,10 +801,26 @@ cmd_execute() {
         exit 1
     fi
 
+    # Convert to absolute path for output messages
+    plan_file=$(to_absolute "$plan_file")
+
     # Verify plan is in active/ folder
     if [[ "$plan_file" != *"/active/"* ]]; then
         log_error "Can only execute plans in active/ folder"
         log_error "This plan is not in active/: $plan_file"
+        exit 1
+    fi
+
+    # Check AI Developer Ready approval (HARD REQUIREMENT)
+    if ! has_ai_ready_approval "$plan_file"; then
+        log_error "BLOCKED: Plan has not been marked AI Developer Ready."
+        echo ""
+        log_error "Before execution, a human must review this plan for AI implementation concerns."
+        echo ""
+        echo "To mark as AI Developer Ready, run:"
+        echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $plan_file --reviewer \"Your Name\"${NC}"
+        echo ""
+        echo "See: standards/enforcement/ai-developer-ready-checklist.md"
         exit 1
     fi
 
@@ -538,12 +835,11 @@ cmd_execute() {
 
         log_error "BLOCKED: Execution requires human approval."
         echo ""
-        echo "A human must approve execution in a SEPARATE TERMINAL:"
+        log_info "STEP 1: A human must approve execution in a SEPARATE TERMINAL:"
+        echo -e "  ${GREEN}$SCRIPT_PATH approve-execute ${request_id} --approver \"Your Name\"${NC}"
         echo ""
-        echo -e "  ${GREEN}./tools/plan-ops.sh approve-execute ${request_id} --approver \"Your Name\"${NC}"
-        echo ""
-        echo "Then retry this command:"
-        echo "  ./tools/plan-ops.sh execute $plan_file"
+        log_info "STEP 2: Then retry this command:"
+        echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
         echo ""
         log_warn "Approval expires in ${EXECUTION_EXPIRY_MINUTES} minutes."
         exit 1
@@ -554,14 +850,20 @@ cmd_execute() {
     update_status "$plan_file" "active" "Execution approved, starting tim-loop"
 
     echo ""
-    log_info "Execution APPROVED. Run this command to start:"
+    log_info "Execution APPROVED!"
+    echo ""
+    log_info "STEP 1: Run this command in Claude Code to start implementation:"
     echo ""
     echo -e "${GREEN}/tim-loop \"implement ${plan_file}. you are not done until all iterations and phases of the plan are complete.\"${NC}"
     echo ""
-    log_info "When complete, run: ./tools/plan-ops.sh complete $plan_file"
+    log_info "STEP 2: When tim-loop completes successfully, mark the plan as complete:"
+    echo -e "  ${GREEN}$SCRIPT_PATH complete $plan_file${NC}"
 }
 
 cmd_approve_execute() {
+    # Block AI from running this command
+    verify_interactive_terminal
+
     local request_id="${1:-}"
     local approver=""
 
@@ -580,7 +882,7 @@ cmd_approve_execute() {
     done
 
     if [[ -z "$request_id" ]]; then
-        log_error "Usage: plan-ops.sh approve-execute <request-id> --approver <name>"
+        log_error "Usage: $SCRIPT_PATH approve-execute <request-id> --approver <name>"
         exit 1
     fi
 
@@ -612,11 +914,11 @@ cmd_approve_execute() {
 
     if [[ "$req_expiry" < "$now" ]]; then
         log_error "Request has EXPIRED."
-        log_error "AI must create a new request with: ./tools/plan-ops.sh execute <plan>"
+        log_error "AI must create a new request with: $SCRIPT_PATH execute <plan>"
         exit 1
     fi
 
-    # Get plan file for display
+    # Get plan file for display (already stored as absolute path)
     local plan_file
     plan_file=$(grep '"plan_file"' "$request_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
@@ -632,15 +934,17 @@ cmd_approve_execute() {
     echo ""
     log_info "APPROVED execution for: $plan_file"
     log_info "Approved by: $approver"
+
     echo ""
-    log_info "AI can now retry: ./tools/plan-ops.sh execute $plan_file"
+    log_info "NEXT STEP: AI can now retry execute to get the tim-loop command:"
+    echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
 }
 
 cmd_complete() {
     local plan_file="${1:-}"
 
     if [[ -z "$plan_file" ]]; then
-        log_error "Usage: plan-ops.sh complete <plan-file>"
+        log_error "Usage: $SCRIPT_PATH complete <plan-file>"
         exit 1
     fi
 
@@ -649,9 +953,13 @@ cmd_complete() {
         exit 1
     fi
 
+    # Convert to absolute path
+    plan_file=$(to_absolute "$plan_file")
+
     local basename
     basename=$(basename "$plan_file")
-    local dest="${PLANS_DIR}/completed/${basename}"
+    local dest
+    dest=$(to_absolute "${PLANS_DIR}/completed/${basename}")
 
     # Move file
     mv "$plan_file" "$dest"
@@ -660,6 +968,10 @@ cmd_complete() {
     update_status "$dest" "completed" "All phases completed, verification passed"
 
     log_info "Completed: $dest"
+
+    echo ""
+    log_info "Plan lifecycle complete! To see all completed plans:"
+    echo -e "  ${GREEN}$SCRIPT_PATH list completed${NC}"
 }
 
 cmd_abandon() {
@@ -681,7 +993,7 @@ cmd_abandon() {
     done
 
     if [[ -z "$plan_file" ]]; then
-        log_error "Usage: plan-ops.sh abandon <plan-file> [--reason <reason>]"
+        log_error "Usage: $SCRIPT_PATH abandon <plan-file> [--reason <reason>]"
         exit 1
     fi
 
@@ -690,9 +1002,13 @@ cmd_abandon() {
         exit 1
     fi
 
+    # Convert to absolute path
+    plan_file=$(to_absolute "$plan_file")
+
     local basename
     basename=$(basename "$plan_file")
-    local dest="${PLANS_DIR}/abandoned/${basename}"
+    local dest
+    dest=$(to_absolute "${PLANS_DIR}/abandoned/${basename}")
 
     # Move file
     mv "$plan_file" "$dest"
@@ -701,6 +1017,10 @@ cmd_abandon() {
     update_status "$dest" "abandoned" "Abandoned: ${reason}"
 
     log_info "Abandoned: $dest"
+
+    echo ""
+    log_info "Plan abandoned. To see all abandoned plans:"
+    echo -e "  ${GREEN}$SCRIPT_PATH list abandoned${NC}"
 }
 
 cmd_cleanup_drafts() {
@@ -817,6 +1137,13 @@ COMMANDS:
         Move plan from drafts to active (requires human approver)
         BLOCKED for multi-phase plans until Ralph Loop review is completed
 
+    ai-ready <plan-file> --reviewer <name> [--iteration <n>]
+        Mark plan as AI Developer Ready after human review
+        - Only works on active/ plans (must promote first)
+        - Required before execute will succeed
+        - Adds approval stamp to plan file
+        See: standards/enforcement/ai-developer-ready-checklist.md
+
     execute <plan-file>
         Request execution approval for an active plan
         First call: Creates approval request, BLOCKS until approved
@@ -897,6 +1224,7 @@ case "${1:-help}" in
     import) cmd_import "${@:2}" ;;
     ralph) cmd_ralph "${@:2}" ;;
     promote) cmd_promote "${@:2}" ;;
+    ai-ready) cmd_ai_ready "${@:2}" ;;
     execute) cmd_execute "${@:2}" ;;
     approve-execute) cmd_approve_execute "${@:2}" ;;
     complete) cmd_complete "${@:2}" ;;
@@ -906,7 +1234,7 @@ case "${1:-help}" in
     help|--help|-h) cmd_help ;;
     *)
         log_error "Unknown command: $1"
-        echo "Run './tools/plan-ops.sh help' for usage."
+        echo "Run '$SCRIPT_PATH help' for usage."
         exit 1
         ;;
 esac
