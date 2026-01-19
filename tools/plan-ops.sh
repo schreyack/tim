@@ -223,6 +223,18 @@ datestamp() {
     date "+%Y-%m-%d"
 }
 
+# Insert a line after a pattern in a file (more reliable than sed -a on macOS)
+# Usage: insert_line_after "pattern" "new line content" "file"
+insert_line_after() {
+    local pattern="$1"
+    local new_line="$2"
+    local file="$3"
+    awk -v pat="$pattern" -v line="$new_line" '
+        { print }
+        $0 ~ pat && !done { print line; done=1 }
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+}
+
 # Count phases in a plan file (detects multi-phase plans)
 # Returns: number of phases found
 count_phases() {
@@ -298,8 +310,7 @@ update_ai_ready_status() {
             sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$file"
         else
             # Add after anchor field
-            sed -i '' "/| ${anchor_field} |/a\\
-| ${field} | ${value} |" "$file"
+            insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$file"
             log_warn "Added missing ${field} field to Status Header"
         fi
     }
@@ -346,8 +357,7 @@ update_verification_status() {
         if grep -q "| ${field} |" "$target_file"; then
             sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$target_file"
         else
-            sed -i '' "/| ${anchor_field} |/a\\
-| ${field} | ${value} |" "$target_file"
+            insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$target_file"
             log_warn "Added missing ${field} field to Status Header"
         fi
     }
@@ -422,8 +432,7 @@ update_ralph_status() {
     else
         # Add Ralph Review field after Approver row
         if grep -q "| Approver |" "$file"; then
-            sed -i '' "/| Approver |/a\\
-| Ralph Review | ${status} |" "$file"
+            insert_line_after "| Approver |" "| Ralph Review | ${status} |" "$file"
             log_warn "Added missing Ralph Review field to Status Header"
         else
             log_error "Cannot find Approver row to insert Ralph Review field"
@@ -438,8 +447,7 @@ update_ralph_status() {
     else
         # Add Ralph Date field after Ralph Review row
         if grep -q "| Ralph Review |" "$file"; then
-            sed -i '' "/| Ralph Review |/a\\
-| Ralph Date | ${date_val} |" "$file"
+            insert_line_after "| Ralph Review |" "| Ralph Date | ${date_val} |" "$file"
             log_warn "Added missing Ralph Date field to Status Header"
         fi
     fi
@@ -1120,8 +1128,7 @@ update_execution_status() {
         if grep -q "| ${field} |" "$target_file"; then
             sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$target_file"
         else
-            sed -i '' "/| ${anchor_field} |/a\\
-| ${field} | ${value} |" "$target_file"
+            insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$target_file"
             log_warn "Added missing ${field} field to Status Header"
         fi
     }
@@ -1238,8 +1245,7 @@ ensure_status_header_fields() {
         if ! grep -q "| ${field_name} |" "$file"; then
             # Add field after anchor
             if grep -q "| ${anchor_field} |" "$file"; then
-                sed -i '' "/| ${anchor_field} |/a\\
-| ${field_name} | ${default_value} |" "$file"
+                insert_line_after "| ${anchor_field} |" "| ${field_name} | ${default_value} |" "$file"
                 added_fields+=("$field_name")
             fi
         fi
@@ -1247,19 +1253,23 @@ ensure_status_header_fields() {
 
     # Check for Progress Log section
     if ! grep -q "### Progress Log" "$file"; then
-        # Find the last field row and add Progress Log after it
+        # Find the last table row and add Progress Log section after it
+        # Using awk for multi-line insertion
         local last_field_line
         last_field_line=$(grep -n "^| " "$file" | tail -1 | cut -d: -f1)
         if [[ -n "$last_field_line" ]]; then
-            sed -i '' "${last_field_line}a\\
-\\
-### Progress Log\\
-\\
-| Timestamp | Stage | Event |\\
-|-----------|-------|-------|\\
-| ${ts} | draft | Plan imported |\\
-\\
----" "$file"
+            local progress_section="
+### Progress Log
+
+| Timestamp | Stage | Event |
+|-----------|-------|-------|
+| ${ts} | draft | Plan imported |
+
+---"
+            awk -v n="$last_field_line" -v text="$progress_section" '
+                NR == n { print; print text; next }
+                { print }
+            ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
             added_fields+=("Progress Log")
         fi
     fi
