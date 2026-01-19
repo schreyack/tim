@@ -23,6 +23,8 @@ EXECUTION_EXPIRY_MINUTES=15
 
 # Resolve script's absolute path (works even when called via symlink)
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+# Resolve design_standards root directory (parent of tools/)
+DESIGN_STANDARDS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -797,7 +799,8 @@ wizard_step_ai_ready() {
 
     echo ""
     echo "Run this command in Claude Code to review for AI implementation concerns:"
-    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE for AI implementation concerns using standards/enforcement/ai-developer-ready-checklist.md. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\""
+    local checklist="${DESIGN_STANDARDS_DIR}/standards/enforcement/ai-developer-ready-checklist.md"
+    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE for AI implementation concerns using ${checklist}. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\""
     show_command "$cmd"
     echo -n "Press Enter when Ralph Loop completes..."
     read -r </dev/tty
