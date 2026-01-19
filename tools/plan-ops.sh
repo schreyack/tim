@@ -570,8 +570,17 @@ get_plan_state() {
             # Ralph Review: required (needs loop) | completed (done) | not-required (skip)
             if [[ "$ralph_review" == "required" ]]; then
                 echo "ralph"
+            elif [[ "$ralph_review" == "completed" || "$ralph_review" == "not-required" ]]; then
+                echo "promote"
             else
-                echo "promote"  # completed or not-required
+                # Ralph Review field missing or empty - check if multi-phase
+                local needs_ralph
+                needs_ralph=$(requires_ralph "$plan_file")
+                if [[ "$needs_ralph" == "true" ]]; then
+                    echo "ralph"
+                else
+                    echo "promote"
+                fi
             fi
             ;;
         active)
@@ -848,6 +857,11 @@ wizard_step_import() {
 
 wizard_step_ralph() {
     print_step_header "ralph" "Ralph Loop Review (multi-phase plan)"
+
+    # Ensure Ralph Review field exists and is set to "required"
+    if ! grep -q "| Ralph Review | required |" "$WIZARD_PLAN_FILE"; then
+        update_ralph_status "$WIZARD_PLAN_FILE" "required"
+    fi
 
     echo ""
     echo "Run this command in Claude Code:"
