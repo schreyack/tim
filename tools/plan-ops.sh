@@ -1264,13 +1264,56 @@ cmd_import() {
         exit 1
     fi
 
-    if [[ ! -f "$source" ]]; then
-        log_error "Source file not found: $source"
-        exit 1
+    # Try to resolve the source - first as literal path, then by searching
+    if [[ -f "$source" ]]; then
+        # File exists at given path - convert to absolute
+        source=$(to_absolute "$source")
+    else
+        # File not found - try to resolve by name (searches plans/ and ~/.claude/plans/)
+        local resolved
+        resolved=$(resolve_plan_path "$source" 2>/dev/null) || true
+        if [[ -n "$resolved" && -f "$resolved" ]]; then
+            source="$resolved"
+        else
+            log_error "Source file not found: $source"
+            log_info "Searched in: current directory, $PLANS_DIR/*, $CLAUDE_PLANS_DIR"
+            exit 1
+        fi
     fi
 
-    # Convert source to absolute path
-    source=$(to_absolute "$source")
+    # Check if file is already in plans/drafts/ (already imported)
+    if [[ "$source" == *"/plans/drafts/"* ]]; then
+        log_info "Plan is already in drafts folder: $source"
+        echo ""
+
+        # Check current state and provide next steps
+        local state
+        state=$(get_plan_state "$source")
+
+        case "$state" in
+            ralph)
+                local phase_count
+                phase_count=$(count_phases "$source")
+                log_info "This is a multi-phase plan (${phase_count} phases). Ralph Loop review is required."
+                echo ""
+                log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
+                echo -e "  ${GREEN}$SCRIPT_PATH wizard $source${NC}"
+                ;;
+            promote)
+                log_info "Plan is ready for promotion to active."
+                echo ""
+                log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
+                echo -e "  ${GREEN}$SCRIPT_PATH wizard $source${NC}"
+                ;;
+            *)
+                log_info "Current state: $state"
+                echo ""
+                log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
+                echo -e "  ${GREEN}$SCRIPT_PATH wizard $source${NC}"
+                ;;
+        esac
+        exit 0
+    fi
 
     # Generate destination filename
     if [[ -z "$name" ]]; then
@@ -1301,17 +1344,18 @@ cmd_import() {
 
     log_info "Import complete: $dest"
 
-    # Show next step based on phase count
+    # Show next step - always recommend wizard
     local phase_count
     phase_count=$(count_phases "$dest")
     echo ""
     if [[ "$phase_count" -ge 2 ]]; then
-        log_info "NEXT STEP: This is a multi-phase plan. Start Ralph Loop review:"
-        echo -e "  ${GREEN}$SCRIPT_PATH ralph $dest${NC}"
+        log_info "This is a multi-phase plan (${phase_count} phases). Ralph Loop review is required."
     else
-        log_info "NEXT STEP: This is a single-phase plan. Promote directly:"
-        echo -e "  ${GREEN}$SCRIPT_PATH promote $dest --approver \"Your Name\"${NC}"
+        log_info "This is a single-phase plan. Can be promoted directly."
     fi
+    echo ""
+    log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
+    echo -e "  ${GREEN}$SCRIPT_PATH wizard $dest${NC}"
 }
 
 cmd_ralph() {
