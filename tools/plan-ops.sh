@@ -157,6 +157,7 @@ has_ai_ready_approval() {
 }
 
 # Update AI Developer Ready fields in Status Header
+# Adds fields if they don't exist
 update_ai_ready_status() {
     local file="$1"
     local reviewer="$2"
@@ -165,17 +166,48 @@ update_ai_ready_status() {
     ts=$(timestamp)
     date=$(datestamp)
 
-    # Update AI Developer Ready fields
-    sed -i '' "s/| AI Developer Ready | .* |/| AI Developer Ready | yes |/" "$file"
-    sed -i '' "s/| AI Developer Ready By | .* |/| AI Developer Ready By | ${reviewer} |/" "$file"
-    sed -i '' "s/| AI Developer Ready Date | .* |/| AI Developer Ready Date | ${date} |/" "$file"
-    sed -i '' "s/| AI Developer Ready Iteration | .* |/| AI Developer Ready Iteration | ${iteration} |/" "$file"
+    # Find the best anchor field (last existing field before AI Developer Ready section)
+    local anchor=""
+    for candidate in "Execution Started" "Execution Approved By" "Execution Approved" "Ralph Date" "Ralph Review" "Approver"; do
+        if grep -q "| ${candidate} |" "$file"; then
+            anchor="$candidate"
+            break
+        fi
+    done
+
+    if [[ -z "$anchor" ]]; then
+        log_error "Cannot find anchor field in Status Header to add AI Developer Ready fields"
+        return 1
+    fi
+
+    # Helper to add or update a field
+    # Usage: add_or_update_field "field_name" "value" "anchor_field"
+    add_or_update_field() {
+        local field="$1"
+        local value="$2"
+        local anchor_field="$3"
+        if grep -q "| ${field} |" "$file"; then
+            sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$file"
+        else
+            # Add after anchor field
+            sed -i '' "/| ${anchor_field} |/a\\
+| ${field} | ${value} |" "$file"
+            log_warn "Added missing ${field} field to Status Header"
+        fi
+    }
+
+    # Add/update fields in order (each anchors to the previous, starting from found anchor)
+    add_or_update_field "AI Developer Ready" "yes" "$anchor"
+    add_or_update_field "AI Developer Ready By" "${reviewer}" "AI Developer Ready"
+    add_or_update_field "AI Developer Ready Date" "${date}" "AI Developer Ready By"
+    add_or_update_field "AI Developer Ready Iteration" "${iteration}" "AI Developer Ready Date"
 
     # Update Last Updated
     sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
 }
 
 # Update Implementation Verification fields in Status Header
+# Adds fields if they don't exist
 update_verification_status() {
     local file="$1"
     local reviewer="$2"
@@ -183,10 +215,39 @@ update_verification_status() {
     ts=$(timestamp)
     date=$(datestamp)
 
-    # Update Implementation Verification fields
-    sed -i '' "s/| Implementation Verified | .* |/| Implementation Verified | yes |/" "$file"
-    sed -i '' "s/| Implementation Verified By | .* |/| Implementation Verified By | ${reviewer} |/" "$file"
-    sed -i '' "s/| Implementation Verified Date | .* |/| Implementation Verified Date | ${date} |/" "$file"
+    # Find the best anchor field
+    local anchor=""
+    for candidate in "AI Developer Ready Iteration" "AI Developer Ready Date" "AI Developer Ready By" "AI Developer Ready" "Execution Started" "Ralph Date" "Approver"; do
+        if grep -q "| ${candidate} |" "$file"; then
+            anchor="$candidate"
+            break
+        fi
+    done
+
+    if [[ -z "$anchor" ]]; then
+        log_error "Cannot find anchor field in Status Header to add Implementation Verification fields"
+        return 1
+    fi
+
+    # Helper to add or update a field
+    _add_or_update_field() {
+        local field="$1"
+        local value="$2"
+        local anchor_field="$3"
+        local target_file="$4"
+        if grep -q "| ${field} |" "$target_file"; then
+            sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$target_file"
+        else
+            sed -i '' "/| ${anchor_field} |/a\\
+| ${field} | ${value} |" "$target_file"
+            log_warn "Added missing ${field} field to Status Header"
+        fi
+    }
+
+    # Add/update fields in order
+    _add_or_update_field "Implementation Verified" "yes" "$anchor" "$file"
+    _add_or_update_field "Implementation Verified By" "${reviewer}" "Implementation Verified" "$file"
+    _add_or_update_field "Implementation Verified Date" "${date}" "Implementation Verified By" "$file"
 
     # Update Last Updated
     sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
@@ -735,8 +796,14 @@ wizard_step_execute_request() {
     fi
 
     # Update execution status in plan
-    update_execution_status "$WIZARD_PLAN_FILE" "$approval"
-    update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"
+    if ! update_execution_status "$WIZARD_PLAN_FILE" "$approval"; then
+        log_error "Failed to update execution status"
+        return
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"; then
+        log_error "Failed to update progress log"
+        return
+    fi
     log_info "Execution APPROVED!"
 }
 
@@ -767,8 +834,14 @@ wizard_step_execute_approve() {
         return
     fi
 
-    update_execution_status "$WIZARD_PLAN_FILE" "$approval"
-    update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"
+    if ! update_execution_status "$WIZARD_PLAN_FILE" "$approval"; then
+        log_error "Failed to update execution status"
+        return
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"; then
+        log_error "Failed to update progress log"
+        return
+    fi
     log_info "Execution APPROVED!"
 }
 
@@ -790,8 +863,14 @@ wizard_step_tim_loop() {
         # Mark implementation as verified so state transitions to 'complete'
         local reviewer
         reviewer=$(prompt_for_name "Enter verifier name")
-        update_verification_status "$WIZARD_PLAN_FILE" "$reviewer"
-        update_status "$WIZARD_PLAN_FILE" "active" "Implementation verified by ${reviewer}"
+        if ! update_verification_status "$WIZARD_PLAN_FILE" "$reviewer"; then
+            log_error "Failed to update verification status"
+            exit 1
+        fi
+        if ! update_status "$WIZARD_PLAN_FILE" "active" "Implementation verified by ${reviewer}"; then
+            log_error "Failed to update progress log"
+            exit 1
+        fi
         log_info "Implementation marked as verified."
     else
         log_warn "Tim Loop not completed. Run the wizard again when ready."
@@ -823,6 +902,7 @@ wizard_step_complete() {
 # =============================================================================
 
 # Update execution status in plan's Status Header
+# Adds fields if they don't exist
 update_execution_status() {
     local plan_file="$1"
     local approval_file="$2"
@@ -833,22 +913,46 @@ update_execution_status() {
     local approver
     approver=$(grep '"approved_by"' "$approval_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
-    # Update Execution fields
-    if grep -q "| Execution Approved |" "$plan_file"; then
-        sed -i '' "s/| Execution Approved | .* |/| Execution Approved | yes |/" "$plan_file"
+    # Find the best anchor field
+    local anchor=""
+    for candidate in "Ralph Date" "Ralph Review" "Approver"; do
+        if grep -q "| ${candidate} |" "$plan_file"; then
+            anchor="$candidate"
+            break
+        fi
+    done
+
+    if [[ -z "$anchor" ]]; then
+        log_error "Cannot find anchor field in Status Header to add Execution fields"
+        return 1
     fi
-    if grep -q "| Execution Approved By |" "$plan_file"; then
-        sed -i '' "s/| Execution Approved By | .* |/| Execution Approved By | ${approver} |/" "$plan_file"
-    fi
-    if grep -q "| Execution Started |" "$plan_file"; then
-        sed -i '' "s/| Execution Started | .* |/| Execution Started | ${ts} |/" "$plan_file"
-    fi
+
+    # Helper to add or update a field
+    _add_or_update_exec_field() {
+        local field="$1"
+        local value="$2"
+        local anchor_field="$3"
+        local target_file="$4"
+        if grep -q "| ${field} |" "$target_file"; then
+            sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$target_file"
+        else
+            sed -i '' "/| ${anchor_field} |/a\\
+| ${field} | ${value} |" "$target_file"
+            log_warn "Added missing ${field} field to Status Header"
+        fi
+    }
+
+    # Add/update fields in order
+    _add_or_update_exec_field "Execution Approved" "yes" "$anchor" "$plan_file"
+    _add_or_update_exec_field "Execution Approved By" "${approver}" "Execution Approved" "$plan_file"
+    _add_or_update_exec_field "Execution Started" "${ts}" "Execution Approved By" "$plan_file"
 
     # Update Last Updated
     sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$plan_file"
 }
 
 # Update the Status Header in a plan file
+# Returns 1 if required fields are missing
 update_status() {
     local file="$1"
     local stage="$2"
@@ -856,6 +960,16 @@ update_status() {
     local approver="${4:-}"
     local ts
     ts=$(timestamp)
+
+    # Verify required fields exist
+    if ! grep -q "| Stage |" "$file"; then
+        log_error "Status Header missing required 'Stage' field in: $file"
+        return 1
+    fi
+    if ! grep -q "| Last Updated |" "$file"; then
+        log_error "Status Header missing required 'Last Updated' field in: $file"
+        return 1
+    fi
 
     # Update Stage field
     sed -i '' "s/| Stage | .* |/| Stage | ${stage} |/" "$file"
@@ -865,7 +979,11 @@ update_status() {
 
     # Update Approver if provided
     if [[ -n "$approver" ]]; then
-        sed -i '' "s/| Approver | .* |/| Approver | ${approver} |/" "$file"
+        if grep -q "| Approver |" "$file"; then
+            sed -i '' "s/| Approver | .* |/| Approver | ${approver} |/" "$file"
+        else
+            log_warn "Status Header missing 'Approver' field, skipping update"
+        fi
     fi
 
     # Append to Progress Log (find the table and add a row before the next ---)
@@ -1003,8 +1121,14 @@ cmd_import() {
     if [[ -z "$name" ]]; then
         name=$(basename "$source" .md)
     fi
+
+    # If name already has a date prefix (YYYY-MM-DD-), use it as-is; otherwise prepend today's date
     local dest
-    dest=$(to_absolute "${PLANS_DIR}/drafts/$(datestamp)-${name}.md")
+    if [[ "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}- ]]; then
+        dest=$(to_absolute "${PLANS_DIR}/drafts/${name}.md")
+    else
+        dest=$(to_absolute "${PLANS_DIR}/drafts/$(datestamp)-${name}.md")
+    fi
 
     # Copy the file
     cp "$source" "$dest"
@@ -1082,8 +1206,14 @@ cmd_ralph() {
         verify_interactive_terminal
 
         # Mark Ralph Loop as completed
-        update_ralph_status "$plan_file" "completed"
-        update_status "$plan_file" "draft" "Ralph Loop review completed"
+        if ! update_ralph_status "$plan_file" "completed"; then
+            log_error "Failed to update Ralph status"
+            exit 1
+        fi
+        if ! update_status "$plan_file" "draft" "Ralph Loop review completed"; then
+            log_error "Failed to update progress log"
+            exit 1
+        fi
         log_info "Marked Ralph Loop review as completed for: $plan_file"
 
         echo ""
@@ -1199,7 +1329,10 @@ cmd_promote() {
     mv "$plan_file" "$dest"
 
     # Update status
-    update_status "$dest" "active" "Approved by ${approver}, promoted to active" "$approver"
+    if ! update_status "$dest" "active" "Approved by ${approver}, promoted to active" "$approver"; then
+        log_error "Failed to update status after promotion"
+        exit 1
+    fi
 
     # Cleanup claude plans
     cleanup_claude_plans
@@ -1270,13 +1403,19 @@ cmd_ai_ready() {
     fi
 
     # Update Status Header
-    update_ai_ready_status "$plan_file" "$reviewer" "$iteration"
+    if ! update_ai_ready_status "$plan_file" "$reviewer" "$iteration"; then
+        log_error "Failed to update AI Developer Ready status"
+        exit 1
+    fi
 
     # Add approval stamp
     add_ai_ready_stamp "$plan_file" "$reviewer" "$(datestamp)" "$iteration"
 
     # Update progress log
-    update_status "$plan_file" "active" "AI Developer Ready approved by ${reviewer} (iteration ${iteration})"
+    if ! update_status "$plan_file" "active" "AI Developer Ready approved by ${reviewer} (iteration ${iteration})"; then
+        log_error "Failed to update progress log"
+        exit 1
+    fi
 
     echo ""
     log_info "Marked as AI Developer Ready: $plan_file"
@@ -1346,8 +1485,14 @@ cmd_execute() {
     fi
 
     # Valid approval found - output tim-loop command
-    update_execution_status "$plan_file" "$approval"
-    update_status "$plan_file" "active" "Execution approved, starting tim-loop"
+    if ! update_execution_status "$plan_file" "$approval"; then
+        log_error "Failed to update execution status"
+        exit 1
+    fi
+    if ! update_status "$plan_file" "active" "Execution approved, starting tim-loop"; then
+        log_error "Failed to update progress log"
+        exit 1
+    fi
 
     echo ""
     log_info "Execution APPROVED!"
@@ -1467,7 +1612,10 @@ cmd_complete() {
     mv "$plan_file" "$dest"
 
     # Update status
-    update_status "$dest" "completed" "All phases completed, verification passed"
+    if ! update_status "$dest" "completed" "All phases completed, verification passed"; then
+        log_error "Failed to update status after completion"
+        exit 1
+    fi
 
     log_info "Completed: $dest"
 
@@ -1518,7 +1666,10 @@ cmd_abandon() {
     mv "$plan_file" "$dest"
 
     # Update status
-    update_status "$dest" "abandoned" "Abandoned: ${reason}"
+    if ! update_status "$dest" "abandoned" "Abandoned: ${reason}"; then
+        log_error "Failed to update status after abandonment"
+        exit 1
+    fi
 
     log_info "Abandoned: $dest"
 

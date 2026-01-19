@@ -112,7 +112,7 @@ class AsyncTestClient:
 
             transport = ASGITransport(app=self.app)
             async with AsyncClient(
-                transport=transport, base_url=self.base_url
+                transport=transport, base_url=self.base_url, timeout=30.0
             ) as client:
                 yield client
         finally:
