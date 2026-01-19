@@ -1238,7 +1238,7 @@ cmd_init() {
 
     echo ""
     log_info "NEXT STEP: Import a plan from ~/.claude/plans:"
-    echo -e "  ${GREEN}$SCRIPT_PATH import ~/.claude/plans/<plan-name>.md${NC}"
+    show_command "$SCRIPT_PATH import ~/.claude/plans/<plan-name>.md"
 }
 
 cmd_import() {
@@ -1295,23 +1295,16 @@ cmd_import() {
                 local phase_count
                 phase_count=$(count_phases "$source")
                 log_info "This is a multi-phase plan (${phase_count} phases). Ralph Loop review is required."
-                echo ""
-                log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
-                echo -e "  ${GREEN}$SCRIPT_PATH wizard $source${NC}"
                 ;;
             promote)
                 log_info "Plan is ready for promotion to active."
-                echo ""
-                log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
-                echo -e "  ${GREEN}$SCRIPT_PATH wizard $source${NC}"
                 ;;
             *)
                 log_info "Current state: $state"
-                echo ""
-                log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
-                echo -e "  ${GREEN}$SCRIPT_PATH wizard $source${NC}"
                 ;;
         esac
+        log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
+        show_command "$SCRIPT_PATH wizard $source"
         exit 0
     fi
 
@@ -1353,9 +1346,8 @@ cmd_import() {
     else
         log_info "This is a single-phase plan. Can be promoted directly."
     fi
-    echo ""
     log_info "NEXT STEP: Use the wizard to continue the plan lifecycle:"
-    echo -e "  ${GREEN}$SCRIPT_PATH wizard $dest${NC}"
+    show_command "$SCRIPT_PATH wizard $dest"
 }
 
 cmd_ralph() {
@@ -1415,9 +1407,8 @@ cmd_ralph() {
         fi
         log_info "Marked Ralph Loop review as completed for: $plan_file"
 
-        echo ""
         log_info "NEXT STEP: Promote the plan to active:"
-        echo -e "  ${GREEN}$SCRIPT_PATH promote $plan_file --approver \"Your Name\"${NC}"
+        show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
     else
         # Show Ralph Loop command to run
         echo ""
@@ -1426,9 +1417,8 @@ cmd_ralph() {
 
         if [[ "$phase_count" -lt 2 ]]; then
             log_warn "This is a single-phase plan. Ralph Loop review is NOT required."
-            echo ""
             log_info "NEXT STEP: Promote the plan directly:"
-            echo -e "  ${GREEN}$SCRIPT_PATH promote $plan_file --approver \"Your Name\"${NC}"
+            show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
             return 0
         fi
 
@@ -1436,9 +1426,7 @@ cmd_ralph() {
         log_info "Multi-phase plan detected. Ralph Loop review is REQUIRED before promotion."
         echo ""
         log_info "STEP 1 of 2: Run this command in Claude Code to start Ralph Loop review:"
-        echo ""
-        echo -e "${GREEN}/ralph-loop:ralph-loop \"review ${plan_file} and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\"${NC}"
-        echo ""
+        show_command "/ralph-loop:ralph-loop \"review ${plan_file} and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\""
         log_info "STEP 2 of 2: After Ralph Loop completes, mark it done:"
         echo -e "  ${GREEN}$SCRIPT_PATH ralph $plan_file --mark-complete${NC}"
     fi
@@ -1595,9 +1583,8 @@ cmd_ai_ready() {
     # Check if already approved
     if has_ai_ready_approval "$plan_file"; then
         log_warn "Plan is already marked AI Developer Ready"
-        echo ""
         log_info "NEXT STEP: Continue with the wizard to request execution approval:"
-        echo -e "  ${GREEN}$SCRIPT_PATH wizard $plan_file${NC}"
+        show_command "$SCRIPT_PATH wizard $plan_file"
         exit 0
     fi
 
@@ -1621,9 +1608,8 @@ cmd_ai_ready() {
     log_info "Reviewer: $reviewer"
     log_info "Iteration: $iteration (FINAL)"
 
-    echo ""
     log_info "NEXT STEP: Continue with the wizard to request execution approval:"
-    echo -e "  ${GREEN}$SCRIPT_PATH wizard $plan_file${NC}"
+    show_command "$SCRIPT_PATH wizard $plan_file"
 }
 
 cmd_execute() {
@@ -1779,9 +1765,8 @@ cmd_approve_execute() {
     log_info "APPROVED execution for: $plan_file"
     log_info "Approved by: $approver"
 
-    echo ""
     log_info "NEXT STEP: Continue with the wizard to get the tim-loop command:"
-    echo -e "  ${GREEN}$SCRIPT_PATH wizard $plan_file${NC}"
+    show_command "$SCRIPT_PATH wizard $plan_file"
 }
 
 cmd_complete() {
