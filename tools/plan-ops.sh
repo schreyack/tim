@@ -943,7 +943,7 @@ cmd_approve_execute() {
     log_info "Approved by: $approver"
 
     echo ""
-    log_info "NEXT STEP: AI can now retry execute to get the tim-loop command:"
+    log_info "NEXT STEP: Run execute again to get the tim-loop command:"
     echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
 }
 
