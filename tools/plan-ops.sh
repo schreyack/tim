@@ -1552,8 +1552,8 @@ cmd_ai_ready() {
     if has_ai_ready_approval "$plan_file"; then
         log_warn "Plan is already marked AI Developer Ready"
         echo ""
-        log_info "NEXT STEP: Request execution approval (AI runs this, then you approve in separate terminal):"
-        echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
+        log_info "NEXT STEP: Continue with the wizard to request execution approval:"
+        echo -e "  ${GREEN}$SCRIPT_PATH wizard $plan_file${NC}"
         exit 0
     fi
 
@@ -1578,8 +1578,8 @@ cmd_ai_ready() {
     log_info "Iteration: $iteration (FINAL)"
 
     echo ""
-    log_info "NEXT STEP: Request execution approval (AI runs this, then you approve in separate terminal):"
-    echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
+    log_info "NEXT STEP: Continue with the wizard to request execution approval:"
+    echo -e "  ${GREEN}$SCRIPT_PATH wizard $plan_file${NC}"
 }
 
 cmd_execute() {
@@ -1736,8 +1736,8 @@ cmd_approve_execute() {
     log_info "Approved by: $approver"
 
     echo ""
-    log_info "NEXT STEP: Run execute again to get the tim-loop command:"
-    echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
+    log_info "NEXT STEP: Continue with the wizard to get the tim-loop command:"
+    echo -e "  ${GREEN}$SCRIPT_PATH wizard $plan_file${NC}"
 }
 
 cmd_complete() {
