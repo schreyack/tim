@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # plan-ops.sh - TIM Plan Lifecycle Management
-# Usage: ./tools/plan-ops.sh <command> [args]
+# Usage: $SCRIPT_PATH <command> [args]
 #
 # Commands:
 #   init              Initialize plan folder structure
@@ -225,13 +225,14 @@ datestamp() {
 
 # Insert a line after a pattern in a file (more reliable than sed -a on macOS)
 # Usage: insert_line_after "pattern" "new line content" "file"
+# Note: Uses literal string matching (not regex) to handle pipes in markdown tables
 insert_line_after() {
     local pattern="$1"
     local new_line="$2"
     local file="$3"
     awk -v pat="$pattern" -v line="$new_line" '
         { print }
-        $0 ~ pat && !done { print line; done=1 }
+        index($0, pat) && !done { print line; done=1 }
     ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }
 
@@ -606,7 +607,7 @@ get_plan_state() {
                 fi
             fi
             ;;
-        active)
+        active|in_progress)
             if [[ "$ai_ready" != "yes" ]]; then
                 echo "ai-ready"
             elif [[ "$exec_approved" != "yes" ]]; then
@@ -940,7 +941,15 @@ cmd_wizard() {
                 if [[ "$WIZARD_PLAN_FILE" == *"/plans/"* ]]; then
                     log_info "Adding Status Header to plan..."
                     add_status_header "$WIZARD_PLAN_FILE" "Unknown"
-                    state=$(get_plan_state "$WIZARD_PLAN_FILE")
+                    ensure_status_header_fields "$WIZARD_PLAN_FILE"
+                    local new_state
+                    new_state=$(get_plan_state "$WIZARD_PLAN_FILE")
+                    if [[ "$new_state" == "unknown" ]]; then
+                        log_error "Plan has Status Header but Stage field is invalid or missing."
+                        log_error "Please check the Status Header in: $WIZARD_PLAN_FILE"
+                        exit 1
+                    fi
+                    state="$new_state"
                     continue
                 else
                     log_error "Plan has no Status Header and is not in plans/ folder"
@@ -2198,11 +2207,11 @@ cmd_list() {
 }
 
 cmd_help() {
-    cat << 'EOF'
+    cat << EOF
 plan-ops.sh - TIM Plan Lifecycle Management
 
 USAGE:
-    ./tools/plan-ops.sh <command> [arguments]
+    $SCRIPT_PATH <command> [arguments]
 
 COMMANDS:
     init
@@ -2265,37 +2274,37 @@ COMMANDS:
 RALPH LOOP WORKFLOW:
     Multi-phase plans require Ralph Loop review before promotion:
 
-    1. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+    1. $SCRIPT_PATH ralph plans/drafts/my-plan.md
        (Shows the Ralph Loop command to run)
 
     2. Run the displayed /ralph-loop command in Claude Code
 
-    3. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+    3. $SCRIPT_PATH ralph plans/drafts/my-plan.md --mark-complete
        (Marks review as done)
 
-    4. ./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
+    4. $SCRIPT_PATH promote plans/drafts/my-plan.md --approver "Name"
        (Now promotion is allowed)
 
 EXECUTION WORKFLOW (HARD ENFORCED):
     Active plans require human approval before execution:
 
-    1. AI runs: ./tools/plan-ops.sh execute plans/active/my-plan.md
+    1. AI runs: $SCRIPT_PATH execute plans/active/my-plan.md
        → BLOCKED, creates approval request, outputs request ID
 
     2. HUMAN runs in SEPARATE TERMINAL:
-       ./tools/plan-ops.sh approve-execute <request-id> --approver "Name"
+       $SCRIPT_PATH approve-execute <request-id> --approver "Name"
 
-    3. AI retries: ./tools/plan-ops.sh execute plans/active/my-plan.md
+    3. AI retries: $SCRIPT_PATH execute plans/active/my-plan.md
        → Outputs /tim-loop command
 
     4. Run the /tim-loop command to execute the plan
 
-    5. ./tools/plan-ops.sh complete plans/active/my-plan.md
+    5. $SCRIPT_PATH complete plans/active/my-plan.md
 
 WIZARD WORKFLOW:
     The wizard guides you through the entire plan lifecycle:
 
-    ./tools/plan-ops.sh wizard <plan-file>
+    $SCRIPT_PATH wizard <plan-file>
 
     The wizard will:
     1. Detect current state (import, ralph, promote, etc.)
@@ -2305,21 +2314,21 @@ WIZARD WORKFLOW:
     5. Continue until plan reaches completed state
 
     Use --status to check state without entering the wizard:
-    ./tools/plan-ops.sh wizard <plan-file> --status
+    $SCRIPT_PATH wizard <plan-file> --status
 
 EXAMPLES:
-    ./tools/plan-ops.sh init
-    ./tools/plan-ops.sh import ~/.claude/plans/xyz.md --name "feature-auth"
-    ./tools/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md
-    ./tools/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md --mark-complete
-    ./tools/plan-ops.sh promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
-    ./tools/plan-ops.sh execute plans/active/2025-01-16-feature-auth.md
-    ./tools/plan-ops.sh approve-execute abc123 --approver "Tim"
-    ./tools/plan-ops.sh complete plans/active/2025-01-16-feature-auth.md
-    ./tools/plan-ops.sh abandon plans/drafts/old-plan.md --reason "Requirements changed"
-    ./tools/plan-ops.sh list active
-    ./tools/plan-ops.sh wizard ~/.claude/plans/new-plan.md
-    ./tools/plan-ops.sh wizard plans/active/my-plan.md --status
+    $SCRIPT_PATH init
+    $SCRIPT_PATH import ~/.claude/plans/xyz.md --name "feature-auth"
+    $SCRIPT_PATH ralph plans/drafts/2025-01-16-feature-auth.md
+    $SCRIPT_PATH ralph plans/drafts/2025-01-16-feature-auth.md --mark-complete
+    $SCRIPT_PATH promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
+    $SCRIPT_PATH execute plans/active/2025-01-16-feature-auth.md
+    $SCRIPT_PATH approve-execute abc123 --approver "Tim"
+    $SCRIPT_PATH complete plans/active/2025-01-16-feature-auth.md
+    $SCRIPT_PATH abandon plans/drafts/old-plan.md --reason "Requirements changed"
+    $SCRIPT_PATH list active
+    $SCRIPT_PATH wizard ~/.claude/plans/new-plan.md
+    $SCRIPT_PATH wizard plans/active/my-plan.md --status
 
 ENVIRONMENT:
     PLANS_DIR   Override default plans directory (default: plans)
