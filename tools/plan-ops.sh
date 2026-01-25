@@ -778,107 +778,88 @@ strip_ansi() {
 # Ensures the project has the necessary permissions to run /tim-loop
 ensure_tim_loop_permissions() {
     local project_dir="${1:-.}"
-    local settings_file="${project_dir}/.claude/settings.local.json"
-    local required_permission='Bash(~/.claude/commands/scripts/*)'
 
-    # Check if .claude directory exists
-    if [[ ! -d "${project_dir}/.claude" ]]; then
-        mkdir -p "${project_dir}/.claude"
-        log_info "Created ${project_dir}/.claude directory"
+    # Check if tim-loop is installed as a plugin (preferred method)
+    # Plugin permissions are handled via allowed-tools in the command frontmatter
+    if [[ -f "$HOME/.claude/plugins/installed_plugins.json" ]]; then
+        if grep -q 'tim-loop@' "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null; then
+            # Plugin handles its own permissions - no project settings needed
+            return 0
+        fi
     fi
 
-    # Check if settings file exists
+    # Check for legacy symlink installation
+    if [[ ! -f "$HOME/.claude/commands/tim-loop.md" ]] && \
+       [[ ! -f "$HOME/.claude/commands/scripts/tim-loop-setup.sh" ]]; then
+        # Neither plugin nor symlinks - tim-loop not installed
+        echo ""
+        log_warn "Tim-loop is not installed."
+        echo ""
+        echo "Install via Claude Code plugin system:"
+        echo "  1. Register the tim-design-standards marketplace"
+        echo "  2. Install the tim-loop plugin"
+        echo ""
+        echo "Or visit: https://github.com/schreyack/design_standards"
+        echo ""
+        return 1
+    fi
+
+    # Legacy symlink installation - ensure permissions exist
+    local settings_file="${project_dir}/.claude/settings.local.json"
+
+    if [[ ! -d "${project_dir}/.claude" ]]; then
+        mkdir -p "${project_dir}/.claude"
+    fi
+
     if [[ ! -f "$settings_file" ]]; then
-        # Create minimal settings file with tim-loop permissions
         cat > "$settings_file" << 'EOF'
 {
   "permissions": {
     "allow": [
-      "Skill(tim-loop)",
-      "Bash(~/.claude/commands/scripts/*)",
-      "Bash(\"$HOME/.claude/commands/scripts/tim-loop-setup.sh\":*)"
+      "Bash(~/.claude/commands/scripts/*)"
     ]
   }
 }
 EOF
-        log_info "Created $settings_file with tim-loop permissions"
+        log_info "Created $settings_file with legacy tim-loop permissions"
         return 0
     fi
 
-    # Check if tim-loop bash permission already exists (check for either pattern)
-    if grep -q 'Bash(~/.claude/commands/scripts/\*)' "$settings_file" 2>/dev/null || \
-       grep -q 'Bash("\$HOME/.claude/commands/scripts/tim-loop-setup.sh"' "$settings_file" 2>/dev/null; then
-        return 0  # Already configured
+    # Check if legacy permission exists
+    if grep -q 'Bash(~/.claude/commands/scripts/\*)' "$settings_file" 2>/dev/null; then
+        return 0
     fi
 
-    # Permission not found - offer to add it
+    # Offer to add legacy permission
     echo ""
-    log_warn "Tim-loop permissions not found in project settings."
+    log_warn "Legacy tim-loop permissions not found."
     echo ""
-    echo "The /tim-loop command requires this permission in .claude/settings.local.json:"
-    echo -e "  ${GREEN}\"Bash(~/.claude/commands/scripts/*)\"${NC}"
+    echo "Consider upgrading to the tim-loop plugin for easier management."
     echo ""
-    echo -n "Add this permission automatically? [Y/n] "
+    echo -n "Add legacy permission to settings? [Y/n] "
     read -r response </dev/tty
 
     if [[ ! "$response" =~ ^[Nn] ]]; then
-        # Add permission using python for reliable JSON manipulation
-        if command -v python3 &>/dev/null; then
-            python3 << PYTHON_EOF
+        python3 << PYTHON_EOF
 import json
-import sys
-
 settings_file = "$settings_file"
 try:
     with open(settings_file, 'r') as f:
         data = json.load(f)
 except:
     data = {}
-
-# Ensure permissions.allow exists
 if 'permissions' not in data:
     data['permissions'] = {}
 if 'allow' not in data['permissions']:
     data['permissions']['allow'] = []
-
-# Add required permissions if not present
-required = [
-    'Skill(tim-loop)',
-    'Bash(~/.claude/commands/scripts/*)',
-    'Bash("$HOME/.claude/commands/scripts/tim-loop-setup.sh":*)'
-]
-for perm in required:
-    if perm not in data['permissions']['allow']:
-        data['permissions']['allow'].insert(0, perm)
-
+perm = 'Bash(~/.claude/commands/scripts/*)'
+if perm not in data['permissions']['allow']:
+    data['permissions']['allow'].insert(0, perm)
 with open(settings_file, 'w') as f:
     json.dump(data, f, indent=2)
-
-print("OK")
 PYTHON_EOF
-            log_info "Added tim-loop permissions to $settings_file"
-            echo ""
-            log_warn "IMPORTANT: Restart Claude Code for the new permissions to take effect."
-            echo -n "Press Enter after restarting Claude Code..."
-            read -r </dev/tty
-        else
-            log_error "python3 not found. Please add the permission manually."
-            echo ""
-            echo "Add this to .claude/settings.local.json in the permissions.allow array:"
-            echo -e "  ${GREEN}\"Bash(~/.claude/commands/scripts/*)\"${NC}"
-            echo ""
-            echo -n "Press Enter when done..."
-            read -r </dev/tty
-        fi
-    else
-        echo ""
-        log_warn "Skipped. /tim-loop may fail without this permission."
-        echo ""
-        echo "To add manually, edit .claude/settings.local.json and add to permissions.allow:"
-        echo -e "  ${GREEN}\"Bash(~/.claude/commands/scripts/*)\"${NC}"
-        echo ""
-        echo -n "Press Enter to continue anyway..."
-        read -r </dev/tty
+        log_info "Added legacy permission to $settings_file"
+        log_warn "Restart Claude Code for permissions to take effect."
     fi
 }
 
@@ -1021,6 +1002,9 @@ wizard_step_import() {
 
 wizard_step_ralph() {
     print_step_header "ralph" "Ralph Loop Review (multi-phase plan)"
+
+    # Ensure all required Status Header fields exist (including Approver)
+    ensure_status_header_fields "$WIZARD_PLAN_FILE"
 
     # Ensure Ralph Review field exists and is set to "required" (use regex for variable whitespace)
     if ! grep -qE "\| Ralph Review[[:space:]]*\|[[:space:]]*required[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
@@ -1195,36 +1179,21 @@ wizard_step_tim_loop() {
         has_prompt_manager=true
     fi
 
-    echo ""
+    if [[ "$has_prompt_manager" == "true" ]]; then
+        echo ""
+        log_info "OPTIONAL: Save prompt for compaction recovery (run BEFORE tim-loop):"
+        show_command "./tools/tim-loop-prompt-manager.sh save \"implement $WIZARD_PLAN_FILE with full TIM compliance\""
+        echo ""
+    fi
+
     echo "Run this command in Claude Code:"
-    local cmd="/tim-loop \"implement $WIZARD_PLAN_FILE.
-
-FIRST: Save this prompt for compaction recovery:
-Run: ./tools/tim-loop-prompt-manager.sh save \"\$(cat << 'PROMPT_EOF'
-implement $WIZARD_PLAN_FILE with full TIM compliance
-PROMPT_EOF
-)\"
-
-REQUIREMENTS:
-- Complete ALL iterations and phases of the plan
-- ALL code MUST be TIM Project compliant:
-  * Type safety: mypy --strict (Python) or tsc --strict (TypeScript)
-  * Test coverage: 90% minimum with meaningful tests
-  * No TODOs, placeholders, or NotImplementedError
-  * No secrets in code
-  * File size: 400 lines max, function size: 50 lines max
-  * Use shared libraries (tim-lib / @tim/lib) for common patterns
-  * Follow TIM coding standards (see CLAUDE.md)
-
-WHEN COMPLETE: Clear saved prompt:
-Run: ./tools/tim-loop-prompt-manager.sh clear
-
-You are NOT DONE until all phases complete AND code is TIM-compliant.\""
+    local cmd="/tim-loop --implement $WIZARD_PLAN_FILE"
     show_command "$cmd"
 
     if [[ "$has_prompt_manager" == "true" ]]; then
         echo ""
-        log_info "Prompt preservation is available. If context compacts, the prompt will be reinjected."
+        log_info "AFTER completion: Clear saved prompt:"
+        show_command "./tools/tim-loop-prompt-manager.sh clear"
     fi
 
     echo -n "Press Enter when Tim Loop completes..."
@@ -1846,6 +1815,9 @@ cmd_ralph() {
         # Block AI from marking Ralph as complete
         verify_interactive_terminal
 
+        # Ensure all required Status Header fields exist (including Approver)
+        ensure_status_header_fields "$plan_file"
+
         # Mark Ralph Loop as completed
         if ! update_ralph_status "$plan_file" "completed"; then
             log_error "Failed to update Ralph status"
@@ -2136,32 +2108,28 @@ cmd_execute() {
     echo ""
     log_info "Execution APPROVED!"
     echo ""
+
+    # Check for prompt manager
+    local project_dir
+    project_dir=$(dirname "$(dirname "$(dirname "$plan_file")")")
+    local prompt_manager="${project_dir}/tools/tim-loop-prompt-manager.sh"
+
+    if [[ -x "$prompt_manager" ]]; then
+        log_info "OPTIONAL: Save prompt for compaction recovery (run BEFORE tim-loop):"
+        echo -e "  ${GREEN}./tools/tim-loop-prompt-manager.sh save \"implement ${plan_file} with full TIM compliance\"${NC}"
+        echo ""
+    fi
+
     log_info "STEP 1 of 2: Run this command in Claude Code to start implementation:"
+    echo -e "  ${GREEN}/tim-loop --implement ${plan_file}${NC}"
     echo ""
-    echo -e "${GREEN}/tim-loop \"implement ${plan_file}.
 
-FIRST: Save this prompt for compaction recovery:
-Run: ./tools/tim-loop-prompt-manager.sh save \\\"\\\$(cat << 'PROMPT_EOF'
-implement ${plan_file} with full TIM compliance
-PROMPT_EOF
-)\\\"
+    if [[ -x "$prompt_manager" ]]; then
+        log_info "AFTER completion: Clear saved prompt:"
+        echo -e "  ${GREEN}./tools/tim-loop-prompt-manager.sh clear${NC}"
+        echo ""
+    fi
 
-REQUIREMENTS:
-- Complete ALL iterations and phases of the plan
-- ALL code MUST be TIM Project compliant:
-  * Type safety: mypy --strict (Python) or tsc --strict (TypeScript)
-  * Test coverage: 90% minimum with meaningful tests
-  * No TODOs, placeholders, or NotImplementedError
-  * No secrets in code
-  * File size: 400 lines max, function size: 50 lines max
-  * Use shared libraries (tim-lib / @tim/lib) for common patterns
-  * Follow TIM coding standards (see CLAUDE.md)
-
-WHEN COMPLETE: Clear saved prompt:
-Run: ./tools/tim-loop-prompt-manager.sh clear
-
-You are NOT DONE until all phases complete AND code is TIM-compliant.\"${NC}"
-    echo ""
     log_info "STEP 2 of 2: When tim-loop completes successfully, mark the plan as complete:"
     echo -e "  ${GREEN}$SCRIPT_PATH complete $plan_file${NC}"
 }
