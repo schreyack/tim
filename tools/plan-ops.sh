@@ -226,14 +226,19 @@ datestamp() {
 
 # Insert a line after a pattern in a file (more reliable than sed -a on macOS)
 # Usage: insert_line_after "pattern" "new line content" "file"
-# Note: Uses literal string matching (not regex) to handle pipes in markdown tables
+# Note: Uses regex matching to handle variable whitespace in markdown tables
+# Pattern should be like "| Field |" - whitespace around field name is handled automatically
 insert_line_after() {
     local pattern="$1"
     local new_line="$2"
     local file="$3"
-    awk -v pat="$pattern" -v line="$new_line" '
+    # Convert pattern like "| Field |" to regex that handles whitespace
+    # e.g., "| Approver |" becomes regex matching "| Approver" followed by spaces and "|"
+    local field_name
+    field_name=$(echo "$pattern" | sed 's/^|[[:space:]]*//; s/[[:space:]]*|$//')
+    awk -v field="$field_name" -v line="$new_line" '
         { print }
-        index($0, pat) && !done { print line; done=1 }
+        /\|[[:space:]]*'"$field_name"'[[:space:]]*\|/ && !done { print line; done=1 }
     ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }
 
@@ -264,7 +269,8 @@ requires_ralph() {
 # Returns: "true" if Ralph Review: completed, "false" otherwise
 has_ralph_completed() {
     local file="$1"
-    if grep -q "| Ralph Review | completed |" "$file" 2>/dev/null; then
+    # Use regex to handle variable whitespace in markdown tables
+    if grep -qE "\| Ralph Review[[:space:]]*\|[[:space:]]*completed[[:space:]]*\|" "$file" 2>/dev/null; then
         echo "true"
     else
         echo "false"
@@ -275,7 +281,8 @@ has_ralph_completed() {
 # Returns: 0 (true) if approved, 1 (false) otherwise
 has_ai_ready_approval() {
     local file="$1"
-    grep -q "| AI Developer Ready | yes |" "$file" 2>/dev/null
+    # Use regex to handle variable whitespace in markdown tables
+    grep -qE "\| AI Developer Ready[[:space:]]*\|[[:space:]]*yes[[:space:]]*\|" "$file" 2>/dev/null
 }
 
 # Update AI Developer Ready fields in Status Header
@@ -289,9 +296,10 @@ update_ai_ready_status() {
     date=$(datestamp)
 
     # Find the best anchor field (last existing field before AI Developer Ready section)
+    # Use regex to handle variable whitespace in markdown tables
     local anchor=""
     for candidate in "Execution Started" "Execution Approved By" "Execution Approved" "Ralph Date" "Ralph Review" "Approver"; do
-        if grep -q "| ${candidate} |" "$file"; then
+        if grep -qE "\| ${candidate}[[:space:]]*\|" "$file"; then
             anchor="$candidate"
             break
         fi
@@ -308,7 +316,8 @@ update_ai_ready_status() {
         local field="$1"
         local value="$2"
         local anchor_field="$3"
-        if grep -q "| ${field} |" "$file"; then
+        # Use regex to handle variable whitespace in markdown tables
+        if grep -qE "\| ${field}[[:space:]]*\|" "$file"; then
             # Pattern handles variable whitespace in markdown tables
             sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$file"
         else
@@ -337,10 +346,10 @@ update_verification_status() {
     ts=$(timestamp)
     date=$(datestamp)
 
-    # Find the best anchor field
+    # Find the best anchor field (use regex to handle variable whitespace)
     local anchor=""
     for candidate in "AI Developer Ready Iteration" "AI Developer Ready Date" "AI Developer Ready By" "AI Developer Ready" "Execution Started" "Ralph Date" "Approver"; do
-        if grep -q "| ${candidate} |" "$file"; then
+        if grep -qE "\| ${candidate}[[:space:]]*\|" "$file"; then
             anchor="$candidate"
             break
         fi
@@ -351,13 +360,13 @@ update_verification_status() {
         return 1
     fi
 
-    # Helper to add or update a field
+    # Helper to add or update a field (use regex to handle variable whitespace)
     _add_or_update_field() {
         local field="$1"
         local value="$2"
         local anchor_field="$3"
         local target_file="$4"
-        if grep -q "| ${field} |" "$target_file"; then
+        if grep -qE "\| ${field}[[:space:]]*\|" "$target_file"; then
             # Pattern handles variable whitespace in markdown tables
             sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$target_file"
         else
@@ -429,13 +438,13 @@ update_ralph_status() {
         date_val=$(datestamp)
     fi
 
-    # Check if Ralph Review field exists
-    if grep -q "| Ralph Review |" "$file"; then
+    # Check if Ralph Review field exists (use regex to handle variable whitespace)
+    if grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
         # Update existing field (pattern handles variable whitespace)
         sed -i '' "s/| Ralph Review[[:space:]]*|[^|]*|/| Ralph Review | ${status} |/" "$file"
     else
         # Add Ralph Review field after Approver row
-        if grep -q "| Approver |" "$file"; then
+        if grep -qE "\| Approver[[:space:]]*\|" "$file"; then
             insert_line_after "| Approver |" "| Ralph Review | ${status} |" "$file"
             log_warn "Added missing Ralph Review field to Status Header"
         else
@@ -444,13 +453,13 @@ update_ralph_status() {
         fi
     fi
 
-    # Check if Ralph Date field exists
-    if grep -q "| Ralph Date |" "$file"; then
+    # Check if Ralph Date field exists (use regex to handle variable whitespace)
+    if grep -qE "\| Ralph Date[[:space:]]*\|" "$file"; then
         # Update existing field (pattern handles variable whitespace)
         sed -i '' "s/| Ralph Date[[:space:]]*|[^|]*|/| Ralph Date | ${date_val} |/" "$file"
     else
         # Add Ralph Date field after Ralph Review row
-        if grep -q "| Ralph Review |" "$file"; then
+        if grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
             insert_line_after "| Ralph Review |" "| Ralph Date | ${date_val} |" "$file"
             log_warn "Added missing Ralph Date field to Status Header"
         fi
@@ -1013,8 +1022,8 @@ wizard_step_import() {
 wizard_step_ralph() {
     print_step_header "ralph" "Ralph Loop Review (multi-phase plan)"
 
-    # Ensure Ralph Review field exists and is set to "required"
-    if ! grep -q "| Ralph Review | required |" "$WIZARD_PLAN_FILE"; then
+    # Ensure Ralph Review field exists and is set to "required" (use regex for variable whitespace)
+    if ! grep -qE "\| Ralph Review[[:space:]]*\|[[:space:]]*required[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
         update_ralph_status "$WIZARD_PLAN_FILE" "required"
     fi
 
@@ -1416,10 +1425,10 @@ update_execution_status() {
     local approver
     approver=$(grep '"approved_by"' "$approval_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
-    # Find the best anchor field
+    # Find the best anchor field (use regex to handle variable whitespace)
     local anchor=""
     for candidate in "Ralph Date" "Ralph Review" "Approver"; do
-        if grep -q "| ${candidate} |" "$plan_file"; then
+        if grep -qE "\| ${candidate}[[:space:]]*\|" "$plan_file"; then
             anchor="$candidate"
             break
         fi
@@ -1430,13 +1439,13 @@ update_execution_status() {
         return 1
     fi
 
-    # Helper to add or update a field
+    # Helper to add or update a field (use regex to handle variable whitespace)
     _add_or_update_exec_field() {
         local field="$1"
         local value="$2"
         local anchor_field="$3"
         local target_file="$4"
-        if grep -q "| ${field} |" "$target_file"; then
+        if grep -qE "\| ${field}[[:space:]]*\|" "$target_file"; then
             # Pattern handles variable whitespace in markdown tables
             sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$target_file"
         else
@@ -1464,12 +1473,12 @@ update_status() {
     local ts
     ts=$(timestamp)
 
-    # Verify required fields exist
-    if ! grep -q "| Stage |" "$file"; then
+    # Verify required fields exist (use regex to handle variable whitespace)
+    if ! grep -qE "\| Stage[[:space:]]*\|" "$file"; then
         log_error "Status Header missing required 'Stage' field in: $file"
         return 1
     fi
-    if ! grep -q "| Last Updated |" "$file"; then
+    if ! grep -qE "\| Last Updated[[:space:]]*\|" "$file"; then
         log_error "Status Header missing required 'Last Updated' field in: $file"
         return 1
     fi
@@ -1482,7 +1491,7 @@ update_status() {
 
     # Update Approver if provided
     if [[ -n "$approver" ]]; then
-        if grep -q "| Approver |" "$file"; then
+        if grep -qE "\| Approver[[:space:]]*\|" "$file"; then
             sed -i '' "s/| Approver[[:space:]]*|[^|]*|/| Approver | ${approver} |/" "$file"
         else
             log_warn "Status Header missing 'Approver' field, skipping update"
@@ -1553,10 +1562,10 @@ ensure_status_header_fields() {
         default_value=$(echo "$field_spec" | cut -d'|' -f2)
         anchor_field=$(echo "$field_spec" | cut -d'|' -f3)
 
-        # Check if field exists
-        if ! grep -q "| ${field_name} |" "$file"; then
+        # Check if field exists (use regex to handle variable whitespace)
+        if ! grep -qE "\| ${field_name}[[:space:]]*\|" "$file"; then
             # Add field after anchor
-            if grep -q "| ${anchor_field} |" "$file"; then
+            if grep -qE "\| ${anchor_field}[[:space:]]*\|" "$file"; then
                 insert_line_after "| ${anchor_field} |" "| ${field_name} | ${default_value} |" "$file"
                 added_fields+=("$field_name")
             fi
