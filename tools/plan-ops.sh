@@ -1223,8 +1223,27 @@ You are NOT DONE until all phases complete AND code is TIM-compliant.\""
     fi
 }
 
+# Find the most recent remediation plan in drafts/
+# Returns: path to remediation plan if found, empty otherwise
+find_remediation_plan() {
+    local plans_dir="${1:-$PLANS_DIR}"
+    local drafts_dir="${plans_dir}/drafts"
+
+    if [[ ! -d "$drafts_dir" ]]; then
+        return
+    fi
+
+    # Find most recent file with "remediation" in the name (created in last 30 min)
+    local recent_file
+    recent_file=$(find "$drafts_dir" -maxdepth 1 -name "*remediation*.md" -type f -mmin -30 2>/dev/null | head -1)
+
+    if [[ -n "$recent_file" ]]; then
+        echo "$recent_file"
+    fi
+}
+
 # Run optional verification tim-loop
-# Returns: 0 if verification passed or skipped, 1 if verification failed
+# Returns: 0 if verification passed or skipped, 1 if verification failed (with remediation plan offered)
 run_verification_tim_loop() {
     local plan_file="$1"
     local prompt_text="${2:-Run verification tim-loop? [y/N] }"
@@ -1245,9 +1264,10 @@ run_verification_tim_loop() {
         return 0  # Skipped, treat as success
     fi
 
-    # Determine project directory from plan file path
-    local project_dir
-    project_dir=$(dirname "$(dirname "$(dirname "$plan_file")")")
+    # Determine project directory and plans directory from plan file path
+    local project_dir plans_dir
+    plans_dir=$(get_plans_dir_from_path "$plan_file")
+    project_dir=$(dirname "$plans_dir")
 
     # Ensure tim-loop permissions are configured
     ensure_tim_loop_permissions "$project_dir"
@@ -1278,17 +1298,15 @@ PHASE 3 - TIM RULES VERIFICATION:
 
 PHASE 4 - GAP REMEDIATION:
 If ANY gaps are found:
-1. Create a detailed remediation plan
-2. Implement the fixes
-3. Repeat verification
+1. Create a detailed remediation plan in ${plans_dir}/drafts/ with 'remediation' in filename
+2. The remediation plan MUST include proper Status Header (use plan-ops.sh format)
+3. DO NOT implement the remediation - it requires approval workflow first
+4. Output verification status as FAILED
 
-CRITICAL: You are NOT DONE until:
-- 100% of original intent is implemented
-- All code is functional (not stubbed)
-- All TIM rules pass
-- No deferred/TODO items remain
-
-Iterate with NO LIMIT until this is achieved.\""
+CRITICAL:
+- If gaps found: Create remediation plan, report FAILED, and EXIT
+- If no gaps: Report PASSED
+- The remediation plan will go through its own approval workflow before implementation\""
     show_command "$cmd"
     echo -n "Press Enter when verification tim-loop completes..."
     read -r </dev/tty
@@ -1299,7 +1317,35 @@ Iterate with NO LIMIT until this is achieved.\""
     read -r verification_passed </dev/tty
 
     if [[ ! "$verification_passed" =~ ^[Yy] ]]; then
-        log_warn "Verification not passed. Run the wizard again when remediation is complete."
+        log_warn "Verification FAILED - gaps were found."
+        echo ""
+
+        # Look for remediation plan
+        local remediation_plan
+        remediation_plan=$(find_remediation_plan "$plans_dir")
+
+        if [[ -n "$remediation_plan" ]]; then
+            log_info "Found remediation plan: $(basename "$remediation_plan")"
+            echo ""
+            echo "The remediation plan must go through the full approval workflow before implementation."
+            echo ""
+            echo -n "Start wizard on remediation plan? [Y/n] "
+            read -r start_remediation </dev/tty
+
+            if [[ ! "$start_remediation" =~ ^[Nn] ]]; then
+                echo ""
+                log_info "Starting wizard on remediation plan..."
+                echo ""
+                # Recursive call to wizard with the remediation plan
+                WIZARD_PLAN_FILE="$remediation_plan"
+                cmd_wizard "$remediation_plan"
+                exit 0  # Exit after remediation wizard completes
+            fi
+        else
+            log_warn "No remediation plan found in ${plans_dir}/drafts/"
+            log_info "Check if tim-loop created a remediation plan and run wizard on it manually."
+        fi
+
         return 1
     fi
 
