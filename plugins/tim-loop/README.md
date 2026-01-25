@@ -6,6 +6,9 @@ Tim Loop is a Claude Code plugin that implements a four-phase workflow for AI-dr
 
 ## Table of Contents
 
+- [Why Tim Loop Exists](#why-tim-loop-exists)
+- [What Makes This Approach Novel](#what-makes-this-approach-novel)
+- [The Two Components](#the-two-components)
 - [Overview](#overview)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -19,6 +22,181 @@ Tim Loop is a Claude Code plugin that implements a four-phase workflow for AI-dr
 - [Cleanup](#cleanup)
 - [File Structure](#file-structure)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Why Tim Loop Exists
+
+AI coding assistants have a fundamental problem: **they lose track of what they're doing**.
+
+Three things cause this:
+
+1. **Context compaction** - When the conversation gets too long, older context is summarized and details are lost. The AI forgets critical requirements, architectural decisions, or the original goal entirely.
+
+2. **Premature completion** - AI naturally wants to wrap up. It will declare "done" when code compiles, even if half the requirements are missing or tests don't exist.
+
+3. **Deflection and excuses** - When confronted with problems (code quality violations, test failures), AI will rationalize why it's "not my responsibility" or "out of scope."
+
+Tim Loop solves all three with **hooks that enforce accountability**.
+
+---
+
+## What Makes This Approach Novel
+
+Most solutions to AI context loss focus on **retrieval** - archiving context and searching for it later. Tim Loop takes a different approach: **direct prompt reinjection**.
+
+### Comparison with Other Approaches
+
+| Approach | How It Works | Limitation |
+|----------|--------------|------------|
+| **Archive + Search** (e.g., c0ntextKeeper) | Saves context to database, AI queries via MCP tools | AI must know to search; can miss critical context |
+| **Periodic Refresh** (e.g., UserPromptSubmit hooks) | Reinjects context every N prompts | Doesn't target compaction; wastes tokens on every prompt |
+| **Rolling Summaries** (e.g., Factory.ai) | Maintains compressed summaries of conversation | Summaries lose precision; "behavioral drift" |
+| **Tim Loop's PreCompact** | Reinjects **exact original task prompt** during compaction | Full fidelity preserved |
+
+### Key Innovations
+
+**1. Exact Prompt Preservation**
+
+When context compaction occurs, Tim Loop's PreCompact hook reinjects the *exact* original task prompt - not a summary, not a retrieval query, but the precise instructions. The AI continues with full fidelity to the original goal.
+
+```
+=== ORIGINAL TASK (reinjected after context compaction) ===
+[exact prompt preserved, character-for-character]
+=== END ORIGINAL TASK ===
+```
+
+**2. Verification Loop That Cannot Be Bypassed**
+
+Tim Loop intercepts Claude's attempt to exit and checks for two things:
+- Did Claude output the completion promise? (`<promise>COMPLETE</promise>`)
+- Does the plan have `<!-- VERIFIED: YES -->`?
+
+If either is missing, the prompt is re-injected and Claude continues. **There is no way for AI to prematurely exit.** The loop continues until verification passes or max iterations are reached.
+
+**3. Excuse Detection as a Hard Gate**
+
+The Stop hook scans Claude's output for deflection patterns:
+- "The file was already over the limit"
+- "This isn't part of my scope"
+- "I didn't cause this violation"
+
+When detected, completion is **blocked**. Claude cannot finish until issues are addressed. This eliminates a major failure mode where AI rationalizes incomplete work.
+
+**4. Human-Gated Plan Approval**
+
+Through integration with plan-ops.sh, Tim Loop enforces:
+- **AI Developer Ready approval** - Human verifies plan is unambiguous before AI implements
+- **Execution approval** - Human authorizes implementation (tokens expire after 15 minutes)
+- **No bypass flags** - AI cannot auto-approve itself; approval requires interactive terminal
+
+**5. Session-Isolated State**
+
+Each Tim Loop session has isolated state files. Multiple concurrent sessions in different projects don't interfere. The PreCompact hook uses session IDs to reinject the correct prompt to the correct session.
+
+### Why This Matters
+
+From Anthropic's own research and industry consensus:
+
+> "Most agent failures are not model failures anymore, they are **context failures**."
+
+Tim Loop addresses context failures at three levels:
+1. **Preservation** - Original task survives context compaction
+2. **Accountability** - AI cannot deflect or make excuses
+3. **Verification** - Loop continues until 100% complete
+
+---
+
+## The Two Components
+
+Tim Loop works as a system of two tools that handle different concerns:
+
+### Tim Loop (this plugin)
+
+**What it does:** Executes AI development tasks with guaranteed completion.
+
+- Creates and follows structured plans
+- Loops until 100% of objectives are verified complete
+- Preserves original task across context compaction
+- Enforces code quality and blocks excuses
+- Runs as a Claude Code plugin via `/tim-loop` command
+
+**When to use:** When you have a task that needs to be fully completed, not abandoned at 80%.
+
+### Plan-Ops (`tools/plan-ops.sh`)
+
+**What it does:** Manages the plan lifecycle with human approval gates.
+
+- Organizes plans in `drafts/` → `active/` → `completed/` folders
+- Enforces Ralph Loop review for multi-phase plans
+- Requires human approval before AI can implement
+- Tracks plan status with structured metadata
+- Runs as a shell script in any terminal
+
+**When to use:** When you want formal plan management with human oversight.
+
+### How They Work Together
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      PLAN LIFECYCLE                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. DRAFT          2. REVIEW         3. ACTIVE        4. DONE   │
+│  ┌─────────┐       ┌─────────┐       ┌─────────┐      ┌──────┐  │
+│  │ Create  │──────▶│ Ralph   │──────▶│ Approve │─────▶│ Done │  │
+│  │ Plan    │       │ Review  │       │ Execute │      │      │  │
+│  └─────────┘       └─────────┘       └─────────┘      └──────┘  │
+│       │                 │                 │               │      │
+│       ▼                 ▼                 ▼               ▼      │
+│  plan-ops.sh       plan-ops.sh       plan-ops.sh    plan-ops.sh │
+│  import            ralph             ai-ready        complete   │
+│                    promote           approve-execute            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    IMPLEMENTATION LOOP                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│          /tim-loop --implement plans/active/my-plan.md          │
+│                              │                                   │
+│                              ▼                                   │
+│                    ┌─────────────────┐                          │
+│                    │   IMPLEMENT     │                          │
+│                    │   (execute plan)│                          │
+│                    └────────┬────────┘                          │
+│                             │                                    │
+│                             ▼                                    │
+│                    ┌─────────────────┐                          │
+│                    │    VERIFY       │◀─────────────────┐       │
+│                    │ (100% complete?)│                  │       │
+│                    └────────┬────────┘                  │       │
+│                             │                           │       │
+│              ┌──────────────┴──────────────┐           │       │
+│              ▼                              ▼           │       │
+│        ┌──────────┐                  ┌──────────┐      │       │
+│        │   YES    │                  │    NO    │──────┘       │
+│        │ Complete │                  │  (loop)  │               │
+│        └──────────┘                  └──────────┘               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Typical workflow:**
+
+1. **Create plan** - Run `/tim-loop --plan "add feature X"` or let Claude create a plan
+2. **Import** - `plan-ops.sh import ~/.claude/plans/my-plan.md`
+3. **Review** - `plan-ops.sh ralph plans/drafts/my-plan.md` (for multi-phase plans)
+4. **Promote** - `plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"`
+5. **AI Ready** - `plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"`
+6. **Execute** - `plan-ops.sh execute plans/active/my-plan.md` then approve in separate terminal
+7. **Implement** - `/tim-loop --implement plans/active/my-plan.md`
+8. **Complete** - `plan-ops.sh complete plans/active/my-plan.md`
+
+Or use the wizard for guided flow: `/tim-loop --wizard plans/active/my-plan.md`
+
+---
 
 ## Overview
 
@@ -407,12 +585,55 @@ Plans must meet these criteria before `--implement` will work:
 
 Tim Loop includes a PreCompact hook that preserves the original task prompt when Claude Code compacts context (removes older messages to stay within token limits).
 
+### The Problem It Solves
+
+When Claude's context window fills up, older messages are summarized to make room. This can cause:
+- Loss of original task requirements
+- Forgetting architectural decisions made earlier
+- "Behavioral drift" where Claude deviates from the plan
+
+Most solutions (archive + search, rolling summaries) lose fidelity. Tim Loop's approach is different: **reinject the exact original prompt**.
+
 ### How It Works
 
-1. At tim-loop start, the original prompt is saved to a session-specific file
+1. At tim-loop start, the original prompt is saved to a session-specific file (`~/.claude/.tim-loop-prompt-{session_id}`)
 2. When context compaction occurs, the PreCompact hook fires
-3. The hook injects the original prompt as a system message
-4. Claude continues with full awareness of the original task
+3. The hook returns JSON with `systemMessage` containing the original prompt
+4. Claude receives the exact prompt and continues with full awareness of the original task
+
+```
+=== ORIGINAL TASK (reinjected after context compaction) ===
+
+The following is the original task prompt. Context was compacted but
+this task remains active. Continue working on this task:
+
+[exact original prompt, preserved character-for-character]
+
+=== END ORIGINAL TASK ===
+```
+
+### Verifying It Works
+
+The hook logs every invocation to `~/.claude/.tim-loop-reinject.log`:
+
+```bash
+# Check the log
+cat ~/.claude/.tim-loop-reinject.log
+```
+
+You'll see entries like:
+```
+[2026-01-25 08:00:00] REINJECT: session=31790 prompt_length=28698
+[2026-01-25 08:15:30] SKIP: no prompt for session 12345
+[2026-01-25 08:20:00] SKIP: fallback session ID (no valid session)
+```
+
+**Log entry meanings:**
+| Entry | Meaning |
+|-------|---------|
+| `REINJECT` | Successfully reinjected prompt for session |
+| `SKIP: no prompt` | Session exists but no saved prompt (not a tim-loop session) |
+| `SKIP: fallback session ID` | Couldn't determine session ID |
 
 ### Configuration
 
@@ -435,6 +656,14 @@ The PreCompact hook is defined in `hooks/hooks.json` and registered automaticall
   }
 }
 ```
+
+### Session Isolation
+
+Each tim-loop session has its own prompt file:
+- Session 31790 → `~/.claude/.tim-loop-prompt-31790`
+- Session 45123 → `~/.claude/.tim-loop-prompt-45123`
+
+This means multiple concurrent tim-loops in different projects don't interfere with each other. The PreCompact hook uses the session ID to reinject the correct prompt.
 
 ### Prompt Manager Tool
 

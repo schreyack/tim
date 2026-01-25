@@ -129,6 +129,11 @@ cmd_cleanup() {
 
 # PreCompact hook mode - outputs JSON for Claude Code
 cmd_hook() {
+    # Debug logging (writes to stderr, captured to log file)
+    local log_file="${PROMPT_DIR}/.tim-loop-reinject.log"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
     # First, clean up stale files
     cmd_cleanup 2>/dev/null || true
 
@@ -138,6 +143,7 @@ cmd_hook() {
 
     if [[ "$session_id" == fallback-* ]]; then
         # No valid session ID, can't safely reinject
+        echo "[$timestamp] SKIP: fallback session ID (no valid session)" >> "$log_file"
         echo '{}'
         return 0
     fi
@@ -148,9 +154,14 @@ cmd_hook() {
 
     if [[ -z "$prompt" ]]; then
         # No prompt saved for this session
+        echo "[$timestamp] SKIP: no prompt for session $session_id" >> "$log_file"
         echo '{}'
         return 0
     fi
+
+    # Log successful reinjection
+    local prompt_len=${#prompt}
+    echo "[$timestamp] REINJECT: session=$session_id prompt_length=$prompt_len" >> "$log_file"
 
     # Output JSON with systemMessage for reinjection
     # Using jq for proper JSON escaping

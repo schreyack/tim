@@ -111,6 +111,78 @@ EXCUSE_PATTERNS = [
         description="Claiming issues are outside implemented code",
         example="not in the code I implemented"
     ),
+    # Patterns 17-28: Additional bypass coverage
+    ExcusePattern(
+        pattern=r"(?:originated|stems?|came)\s+(?:from|in)\s+(?:legacy|prior|previous)",
+        description="Synonym for pre-existing attribution",
+        example="originated in legacy work"
+    ),
+    ExcusePattern(
+        pattern=r"predates?\s+(?:my|the|these)\s+(?:changes|modifications|work)",
+        description="Claiming issue predates current work",
+        example="predates my changes"
+    ),
+    ExcusePattern(
+        pattern=r"(?:existed|was\s+present)\s+(?:before|prior\s+to)\s+(?:my|the)",
+        description="Claiming pre-existence of issue",
+        example="existed before my modifications"
+    ),
+    ExcusePattern(
+        pattern=r"(?:isn't|is\s+not)\s+(?:within|in)\s+(?:the\s+)?scope",
+        description="Claiming something is not in scope",
+        example="isn't in scope"
+    ),
+    ExcusePattern(
+        pattern=r"(?:separate|follow-?up|future)\s+(?:effort|task|ticket|work|pr)",
+        description="Deferring to future work",
+        example="follow-up task"
+    ),
+    ExcusePattern(
+        pattern=r"(?:this\s+is|it's)\s+(?:just\s+)?technical\s+debt",
+        description="Blaming technical debt",
+        example="this is technical debt"
+    ),
+    ExcusePattern(
+        pattern=r"i\s+(?:barely|hardly)\s+(?:touched|changed|modified)",
+        description="Minimizing own involvement",
+        example="I barely touched"
+    ),
+    ExcusePattern(
+        pattern=r"(?:shouldn't|should\s+not)\s+(?:fix|change|refactor)",
+        description="Claiming obligation not to fix",
+        example="shouldn't fix"
+    ),
+    ExcusePattern(
+        pattern=r"(?:someone\s+else's?|another\s+team's?)\s+(?:responsibility|issue)",
+        description="Blaming other teams or people",
+        example="another team's responsibility"
+    ),
+    ExcusePattern(
+        pattern=r"(?:cleanup|refactoring)\s+(?:would|should)\s+be\s+(?:a\s+)?separate",
+        description="Deferring cleanup to separate effort",
+        example="cleanup would be separate"
+    ),
+    ExcusePattern(
+        pattern=r"(?:leave|leaving)\s+(?:it|this)\s+(?:as-?is|alone|for\s+now)",
+        description="Explicitly not taking action",
+        example="leave it as-is"
+    ),
+    ExcusePattern(
+        pattern=r"(?:outside|not)\s+(?:my|our)\s+(?:area|domain|expertise)",
+        description="Claiming domain boundaries",
+        example="outside my area"
+    ),
+]
+
+# Mitigation patterns that indicate the speaker took corrective action
+# When these appear shortly after an excuse pattern, it's not deflection
+MITIGATION_PATTERNS = [
+    r"(?:but\s+)?(?:I'll|I\s+will|I'm\s+going\s+to)\s+(?:fix|address|resolve|refactor)",
+    r"(?:so\s+)?I\s+(?:fixed|addressed|resolved|refactored)",
+    r"I(?:'m|\s+am)\s+fixing\s+(?:it|this|that)",
+    r"fixing\s+(?:it|this|that)\s+(?:now|anyway|regardless)",
+    r"(?:but\s+)?I\s+(?:went\s+ahead\s+and|also)\s+(?:fixed|refactored)",
+    r"I\s+(?:addressed|handled|took\s+care\s+of)\s+(?:it|this|that)",
 ]
 
 
@@ -167,25 +239,44 @@ def extract_assistant_text(transcript: list[dict]) -> str:
     return "\n".join(texts)
 
 
+def has_mitigation_nearby(text: str, match_end: int, window: int = 150) -> bool:
+    """Check if mitigation phrase appears within window after the match.
+
+    If the speaker followed up an excuse-like phrase with corrective action,
+    it's not deflection - they're taking responsibility.
+    """
+    context = text[match_end:match_end + window]
+    for pattern in MITIGATION_PATTERNS:
+        if re.search(pattern, context, re.IGNORECASE):
+            return True
+    return False
+
+
 def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
-    """Find all excuse patterns in text with matched context."""
+    """Find all excuse patterns in text with matched context.
+
+    Checks for nearby mitigation phrases to reduce false positives.
+    If the speaker followed up with corrective action, skip flagging.
+    """
     found = []
 
     for excuse in EXCUSE_PATTERNS:
         pattern = re.compile(excuse.pattern, re.IGNORECASE | re.MULTILINE)
-        matches = pattern.findall(text)
-        if matches:
-            # Find the surrounding context for the match
-            for match in pattern.finditer(text):
-                start = max(0, match.start() - 50)
-                end = min(len(text), match.end() + 50)
-                context = text[start:end].replace('\n', ' ').strip()
-                if start > 0:
-                    context = "..." + context
-                if end < len(text):
-                    context = context + "..."
-                found.append((excuse, context))
-                break  # One example per pattern is enough
+        for match in pattern.finditer(text):
+            # Check if mitigation phrase follows - if so, not deflection
+            if has_mitigation_nearby(text, match.end()):
+                continue
+
+            # Build context around the match
+            start = max(0, match.start() - 50)
+            end = min(len(text), match.end() + 50)
+            context = text[start:end].replace('\n', ' ').strip()
+            if start > 0:
+                context = "..." + context
+            if end < len(text):
+                context = context + "..."
+            found.append((excuse, context))
+            break  # One example per pattern is enough
 
     return found
 
