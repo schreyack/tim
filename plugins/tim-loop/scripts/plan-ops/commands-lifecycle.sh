@@ -28,6 +28,28 @@ cmd_init() {
 
     log_info "Created: ${PLANS_DIR}/{drafts,active,completed,abandoned}/"
     echo ""
+
+    # Show PATH setup instructions
+    local bin_dir="${DESIGN_STANDARDS_DIR}/bin"
+    echo "========================================"
+    log_info "PATH SETUP (optional but recommended)"
+    echo "========================================"
+    echo ""
+    echo "Add plan-ops to your PATH to run it from anywhere:"
+    echo ""
+    echo "  # Add to ~/.bashrc or ~/.zshrc:"
+    echo -e "  ${GREEN}export PATH=\"${bin_dir}:\$PATH\"${NC}"
+    echo ""
+    echo "  # Then reload your shell or run:"
+    echo -e "  ${GREEN}source ~/.bashrc${NC}  # or source ~/.zshrc"
+    echo ""
+    echo "  # After setup, you can run:"
+    echo -e "  ${GREEN}plan-ops import ...${NC}"
+    echo -e "  ${GREEN}plan-ops wizard ...${NC}"
+    echo ""
+    echo "========================================"
+    echo ""
+
     log_info "NEXT STEP: Import a plan from ~/.claude/plans:"
     show_command "$SCRIPT_PATH import ~/.claude/plans/<plan-name>.md"
 }

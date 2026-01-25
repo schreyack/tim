@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# plan-ops - Wrapper script for plan-ops.sh
+# Add this directory to your PATH to run plan-ops from anywhere.
+#
+# Usage: plan-ops <command> [args]
+# Example: plan-ops init
+#          plan-ops list
+#          plan-ops wizard
+
+set -euo pipefail
+
+# Resolve the actual script location (works even through symlinks)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLAN_OPS_SCRIPT="${SCRIPT_DIR}/../plugins/tim-loop/scripts/plan-ops.sh"
+
+if [[ ! -f "$PLAN_OPS_SCRIPT" ]]; then
+    echo "ERROR: plan-ops.sh not found at: $PLAN_OPS_SCRIPT" >&2
+    echo "Make sure you're using the bin/ directory from design_standards." >&2
+    exit 1
+fi
+
+exec "$PLAN_OPS_SCRIPT" "$@"

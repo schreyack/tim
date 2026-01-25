@@ -260,7 +260,7 @@ Single-phase plans can be promoted directly without Ralph Loop.
 │  1. Create multi-phase plan in drafts/                          │
 │           │                                                     │
 │           ▼                                                     │
-│  2. ./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md           │
+│  2. plan-ops ralph plans/drafts/my-plan.md           │
 │     (Outputs the Ralph Loop command to run)                     │
 │           │                                                     │
 │           ▼                                                     │
@@ -268,12 +268,12 @@ Single-phase plans can be promoted directly without Ralph Loop.
 │     (Iterates until DONEDONE or max iterations)                 │
 │           │                                                     │
 │           ▼                                                     │
-│  4. ./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md           │
+│  4. plan-ops ralph plans/drafts/my-plan.md           │
 │        --mark-complete                                          │
 │     (Updates Ralph Review: completed)                           │
 │           │                                                     │
 │           ▼                                                     │
-│  5. ./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md         │
+│  5. plan-ops promote plans/drafts/my-plan.md         │
 │        --approver "Name"                                        │
 │     (Promotion now allowed)                                     │
 │                                                                 │
@@ -317,18 +317,18 @@ Active plans **MUST** be executed via `/tim-loop` with human approval. This is a
 │              PLAN EXECUTION WORKFLOW (HARD ENFORCED)             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  1. AI: ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md     │
+│  1. AI: plan-ops execute plans/active/my-plan.md     │
 │     → Creates approval request, outputs request ID              │
 │     → BLOCKED - no tim-loop command yet                         │
 │           │                                                     │
 │           ▼                                                     │
 │  2. HUMAN (separate terminal):                                  │
-│     ./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id>            │
+│     plan-ops approve-execute <request-id>            │
 │        --approver "Name"                                        │
 │     → Validates and approves request                            │
 │           │                                                     │
 │           ▼                                                     │
-│  3. AI: ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md     │
+│  3. AI: plan-ops execute plans/active/my-plan.md     │
 │     → Finds valid approval                                      │
 │     → Outputs tim-loop command                                  │
 │           │                                                     │
@@ -336,7 +336,7 @@ Active plans **MUST** be executed via `/tim-loop` with human approval. This is a
 │  4. Run the /tim-loop command to execute the plan               │
 │           │                                                     │
 │           ▼                                                     │
-│  5. ./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/my-plan.md        │
+│  5. plan-ops complete plans/active/my-plan.md        │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -376,7 +376,7 @@ AI developers make different mistakes than humans:
 
 ```bash
 # After promoting to active/, human reviews for AI concerns:
-./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"
+plan-ops ai-ready plans/active/my-plan.md --reviewer "Name"
 ```
 
 This is a **HARD REQUIREMENT**. Both `execute` and `tim-loop --implement` will fail without this approval.
@@ -560,46 +560,54 @@ Phase 3: Implement (parallel where possible)
 
 ---
 
-## Automation: plan-ops.sh
+## Automation: plan-ops
 
-Use `plan-ops.sh` for lifecycle operations:
+To run `plan-ops` from anywhere, add the design_standards `bin/` directory to your PATH:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc:
+export PATH="/path/to/design_standards/bin:$PATH"
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+Use `plan-ops` for lifecycle operations:
 
 ```bash
 # Initialize folder structure
-./plugins/tim-loop/scripts/plan-ops.sh init
+plan-ops init
 
 # Import from ~/.claude/plans (copies + deletes original)
-./plugins/tim-loop/scripts/plan-ops.sh import ~/.claude/plans/xxx.md --name "project-feature"
+plan-ops import ~/.claude/plans/xxx.md --name "project-feature"
 
 # Start Ralph Loop review (shows command to run)
-./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md
+plan-ops ralph plans/drafts/my-plan.md
 
 # Mark Ralph Loop as complete (after running /ralph-loop)
-./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+plan-ops ralph plans/drafts/my-plan.md --mark-complete
 
 # Promote draft to active (blocked for multi-phase without ralph)
-./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Tim"
+plan-ops promote plans/drafts/my-plan.md --approver "Tim"
 
 # Request execution approval (first call creates request, blocks)
-./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
+plan-ops execute plans/active/my-plan.md
 
 # Human approves execution in separate terminal
-./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Tim"
+plan-ops approve-execute <request-id> --approver "Tim"
 
 # Retry execute after approval (outputs tim-loop command)
-./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
+plan-ops execute plans/active/my-plan.md
 
 # Complete an active plan
-./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/my-plan.md
+plan-ops complete plans/active/my-plan.md
 
 # Abandon a plan
-./plugins/tim-loop/scripts/plan-ops.sh abandon plans/drafts/my-plan.md --reason "Requirements changed"
+plan-ops abandon plans/drafts/my-plan.md --reason "Requirements changed"
 
 # Cleanup stale drafts
-./plugins/tim-loop/scripts/plan-ops.sh cleanup-drafts --older-than 30d
+plan-ops cleanup-drafts --older-than 30d
 
 # List plans by stage
-./plugins/tim-loop/scripts/plan-ops.sh list [drafts|active|completed|abandoned|all]
+plan-ops list [drafts|active|completed|abandoned|all]
 ```
 
 ---
@@ -608,13 +616,13 @@ Use `plan-ops.sh` for lifecycle operations:
 
 | Action | Command |
 |--------|---------|
-| Start new project | `./plugins/tim-loop/scripts/plan-ops.sh init` |
-| Import Claude's plan | `./plugins/tim-loop/scripts/plan-ops.sh import ~/.claude/plans/xxx.md --name "desc"` |
-| Start Ralph review | `./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/plan.md` |
-| Complete Ralph review | `./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/plan.md --mark-complete` |
-| Approve plan | `./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/plan.md --approver "Name"` |
-| Request execution | `./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/plan.md` |
-| Approve execution (human) | `./plugins/tim-loop/scripts/plan-ops.sh approve-execute <id> --approver "Name"` |
-| Finish plan | `./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/plan.md` |
-| Cancel plan | `./plugins/tim-loop/scripts/plan-ops.sh abandon plans/*/plan.md --reason "why"` |
-| View all plans | `./plugins/tim-loop/scripts/plan-ops.sh list all` |
+| Start new project | `plan-ops init` |
+| Import Claude's plan | `plan-ops import ~/.claude/plans/xxx.md --name "desc"` |
+| Start Ralph review | `plan-ops ralph plans/drafts/plan.md` |
+| Complete Ralph review | `plan-ops ralph plans/drafts/plan.md --mark-complete` |
+| Approve plan | `plan-ops promote plans/drafts/plan.md --approver "Name"` |
+| Request execution | `plan-ops execute plans/active/plan.md` |
+| Approve execution (human) | `plan-ops approve-execute <id> --approver "Name"` |
+| Finish plan | `plan-ops complete plans/active/plan.md` |
+| Cancel plan | `plan-ops abandon plans/*/plan.md --reason "why"` |
+| View all plans | `plan-ops list all` |

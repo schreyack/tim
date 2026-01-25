@@ -322,6 +322,29 @@ The first time you run `/tim-loop` in a project, it automatically creates the `.
 
 Plan-ops commands are run directly from the plugin (no project-local copy needed).
 
+### Adding plan-ops to PATH (Recommended)
+
+To run `plan-ops` from any directory without the full path, add the `bin/` directory to your PATH:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc:
+export PATH="$HOME/.claude/plugins/marketplaces/tim-design-standards/bin:$PATH"
+
+# Reload your shell
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+After setup, you can run plan-ops commands directly:
+
+```bash
+plan-ops init
+plan-ops import ~/.claude/plans/my-plan.md
+plan-ops wizard plans/drafts/my-plan.md
+plan-ops list
+```
+
+The `plan-ops init` command will also display these instructions.
+
 ## Usage
 
 From within Claude Code:
