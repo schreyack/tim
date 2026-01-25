@@ -775,7 +775,7 @@ strip_ansi() {
 }
 
 # Check and configure tim-loop permissions in Claude Code settings
-# Ensures the project has the necessary permissions to run /tim-loop
+# Ensures the project has the necessary permissions to run /tim-loop:tim-loop
 ensure_tim_loop_permissions() {
     local project_dir="${1:-.}"
 
@@ -1187,7 +1187,7 @@ wizard_step_tim_loop() {
     fi
 
     echo "Run this command in Claude Code:"
-    local cmd="/tim-loop --implement $WIZARD_PLAN_FILE"
+    local cmd="/tim-loop:tim-loop --implement $WIZARD_PLAN_FILE"
     show_command "$cmd"
 
     if [[ "$has_prompt_manager" == "true" ]]; then
@@ -1274,7 +1274,7 @@ run_verification_tim_loop() {
 
     echo ""
     echo "Run this command in Claude Code:"
-    local cmd="/tim-loop \"VERIFICATION AUDIT for $plan_file
+    local cmd="/tim-loop:tim-loop \"VERIFICATION AUDIT for $plan_file
 
 Your task is to verify that this plan was FULLY implemented with NO shortcuts.
 
@@ -2121,7 +2121,7 @@ cmd_execute() {
     fi
 
     log_info "STEP 1 of 2: Run this command in Claude Code to start implementation:"
-    echo -e "  ${GREEN}/tim-loop --implement ${plan_file}${NC}"
+    echo -e "  ${GREEN}/tim-loop:tim-loop --implement ${plan_file}${NC}"
     echo ""
 
     if [[ -x "$prompt_manager" ]]; then
@@ -2633,9 +2633,9 @@ EXECUTION WORKFLOW (HARD ENFORCED):
        $SCRIPT_PATH approve-execute <request-id> --approver "Name"
 
     3. AI retries: $SCRIPT_PATH execute plans/active/my-plan.md
-       → Outputs /tim-loop command
+       → Outputs /tim-loop:tim-loop command
 
-    4. Run the /tim-loop command to execute the plan
+    4. Run the /tim-loop:tim-loop command to execute the plan
 
     5. $SCRIPT_PATH complete plans/active/my-plan.md
 
