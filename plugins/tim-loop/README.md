@@ -359,7 +359,7 @@ The PreCompact hook is defined in `hooks/hooks.json` and registered automaticall
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/../../../tools/tim-loop-prompt-manager.sh hook"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook"
           }
         ]
       }
@@ -370,26 +370,29 @@ The PreCompact hook is defined in `hooks/hooks.json` and registered automaticall
 
 ### Prompt Manager Tool
 
-The `tools/tim-loop-prompt-manager.sh` script manages prompt files:
+The `scripts/tim-loop-prompt-manager.sh` script (bundled with the plugin) manages prompt files:
 
 ```bash
+# These commands are typically run automatically by tim-loop
+# Manual usage (from plugin directory):
+
 # Save prompt for current session
-./tools/tim-loop-prompt-manager.sh save "task prompt..."
+./scripts/tim-loop-prompt-manager.sh save "task prompt..."
 
 # Save prompt from file
-./tools/tim-loop-prompt-manager.sh save-file prompt.txt
+./scripts/tim-loop-prompt-manager.sh save-file prompt.txt
 
 # Get saved prompt
-./tools/tim-loop-prompt-manager.sh get
+./scripts/tim-loop-prompt-manager.sh get
 
 # Clear saved prompt
-./tools/tim-loop-prompt-manager.sh clear
+./scripts/tim-loop-prompt-manager.sh clear
 
 # Clean up stale prompts (>24h)
-./tools/tim-loop-prompt-manager.sh cleanup
+./scripts/tim-loop-prompt-manager.sh cleanup
 
 # Run as PreCompact hook (outputs JSON)
-./tools/tim-loop-prompt-manager.sh hook
+./scripts/tim-loop-prompt-manager.sh hook
 ```
 
 ## Cleanup
@@ -426,13 +429,14 @@ Tim Loop automatically cleans up:
 ```
 plugins/tim-loop/
 ├── .claude-plugin/
-│   └── plugin.json           # Plugin metadata (name, description, author)
+│   └── plugin.json           # Plugin metadata (name, description, author, version)
 ├── commands/
 │   └── tim-loop.md           # Skill definition (command syntax, allowed tools)
 ├── scripts/
 │   ├── tim-loop-setup.sh     # Main setup script (parses args, creates state, registers hooks)
 │   ├── tim-loop-hook.sh      # Stop hook (checks completion, re-injects prompt)
-│   └── tim-loop-permission-hook.sh  # PreToolUse hook (auto-approve when enabled)
+│   ├── tim-loop-permission-hook.sh  # PreToolUse hook (auto-approve when enabled)
+│   └── tim-loop-prompt-manager.sh   # PreCompact hook (preserves prompt across compaction)
 ├── hooks/
 │   └── hooks.json            # PreCompact hook configuration
 └── README.md                 # This file
@@ -500,7 +504,7 @@ The verification logic checks for `<!-- VERIFIED: YES -->` in the plan file. Ens
 The PreCompact hook should preserve the prompt. Check:
 
 1. Plugin hooks.json is properly installed
-2. `tools/tim-loop-prompt-manager.sh` exists and is executable
+2. `scripts/tim-loop-prompt-manager.sh` exists in the plugin folder and is executable
 3. Session ID is being passed correctly
 
 ### Max iterations reached

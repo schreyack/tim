@@ -10,7 +10,7 @@
     {
       "name": "tim-loop",
       "description": "Goal in, working code out: iterative convergence with verification loop. Four-phase workflow: Plan -> Review -> Implement -> Verify.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": {
         "name": "TIM",
         "email": "tim@example.com"

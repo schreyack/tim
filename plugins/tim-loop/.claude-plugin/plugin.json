@@ -1,6 +1,6 @@
 {
   "name": "tim-loop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Goal in, working code out: iterative convergence with verification loop. Four-phase workflow: Plan -> Review -> Implement -> Verify with 100% completion requirement.",
   "author": {
     "name": "Tim Schreyack",
