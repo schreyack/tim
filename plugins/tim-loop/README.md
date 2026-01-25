@@ -349,11 +349,15 @@ The `plan-ops init` command will also display these instructions.
 
 From within Claude Code:
 
-> **Best Practice:** Always clear context before starting. Copy-paste both lines:
-> ```
-> /clear
-> /tim-loop "your task"
-> ```
+### IMPORTANT: Always Clear Context First
+
+**Run `/clear` before starting any loop command.** This prevents leftover context and hooks from previous sessions from interfering.
+
+```
+/clear
+```
+
+Then paste your tim-loop command:
 
 ```bash
 # Full workflow (recommended for most tasks)

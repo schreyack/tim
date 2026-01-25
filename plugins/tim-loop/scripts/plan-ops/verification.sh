@@ -144,7 +144,7 @@ run_verification_tim_loop() {
     ensure_tim_loop_permissions "$project_dir"
 
     echo ""
-    echo "Run this command in Claude Code:"
+    echo "Run /clear first, then paste this command in Claude Code:"
     local cmd="/tim-loop:tim-loop \"VERIFICATION AUDIT for $plan_file
 
 Your task is to verify that this plan was FULLY implemented with NO shortcuts.

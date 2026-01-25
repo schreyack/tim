@@ -99,7 +99,7 @@ cmd_ralph() {
         echo ""
         log_info "Multi-phase plan detected. Ralph Loop review is REQUIRED before promotion."
         echo ""
-        log_info "STEP 1 of 2: Run this command in Claude Code to start Ralph Loop review:"
+        log_info "STEP 1 of 2: Run /clear first, then paste this command in Claude Code:"
         show_command "/ralph-loop:ralph-loop \"review ${plan_file} and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\""
         log_info "STEP 2 of 2: After Ralph Loop completes, mark it done:"
         echo -e "  ${GREEN}$SCRIPT_PATH ralph $plan_file --mark-complete${NC}"
@@ -272,7 +272,7 @@ cmd_execute() {
         "$prompt_manager" save "implement ${plan_file} with full TIM compliance" 2>/dev/null || true
     fi
 
-    log_info "STEP 1 of 2: Run this command in Claude Code to start implementation:"
+    log_info "STEP 1 of 2: Run /clear first, then paste this command in Claude Code:"
     echo -e "  ${GREEN}/tim-loop:tim-loop --implement ${plan_file}${NC}"
     echo ""
 

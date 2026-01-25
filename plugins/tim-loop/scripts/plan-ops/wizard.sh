@@ -200,7 +200,7 @@ wizard_step_ralph() {
     fi
 
     echo ""
-    echo "Run this command in Claude Code:"
+    echo "Run /clear first, then paste this command in Claude Code:"
     local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\""
     show_command "$cmd"
     echo -n "Press Enter when Ralph Loop completes..."
@@ -248,7 +248,7 @@ wizard_step_ai_ready() {
     fi
 
     echo ""
-    echo "Run this command in Claude Code to review for AI implementation concerns:"
+    echo "Run /clear first, then paste this command in Claude Code:"
     local checklist="${DESIGN_STANDARDS_DIR}/standards/enforcement/ai-developer-ready-checklist.md"
     local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE for AI implementation concerns using ${checklist}. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\""
     show_command "$cmd"
@@ -369,7 +369,7 @@ wizard_step_tim_loop() {
         "$prompt_manager" save "implement $WIZARD_PLAN_FILE with full TIM compliance" 2>/dev/null || true
     fi
 
-    echo "Run this command in Claude Code:"
+    echo "Run /clear first, then paste this command in Claude Code:"
     local cmd="/tim-loop:tim-loop --implement $WIZARD_PLAN_FILE"
     show_command "$cmd"
 
