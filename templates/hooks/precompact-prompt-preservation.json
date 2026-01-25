@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Add this to your .claude/settings.local.json to enable prompt preservation across compaction",
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./tools/tim-loop-prompt-manager.sh hook"
+          }
+        ]
+      }
+    ]
+  }
+}

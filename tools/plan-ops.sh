@@ -1179,9 +1179,22 @@ wizard_step_tim_loop() {
     # Ensure tim-loop permissions are configured
     ensure_tim_loop_permissions "$project_dir"
 
+    # Check if prompt manager exists for prompt preservation
+    local prompt_manager="${project_dir}/tools/tim-loop-prompt-manager.sh"
+    local has_prompt_manager=false
+    if [[ -x "$prompt_manager" ]]; then
+        has_prompt_manager=true
+    fi
+
     echo ""
     echo "Run this command in Claude Code:"
     local cmd="/tim-loop \"implement $WIZARD_PLAN_FILE.
+
+FIRST: Save this prompt for compaction recovery:
+Run: ./tools/tim-loop-prompt-manager.sh save \"\$(cat << 'PROMPT_EOF'
+implement $WIZARD_PLAN_FILE with full TIM compliance
+PROMPT_EOF
+)\"
 
 REQUIREMENTS:
 - Complete ALL iterations and phases of the plan
@@ -1194,8 +1207,17 @@ REQUIREMENTS:
   * Use shared libraries (tim-lib / @tim/lib) for common patterns
   * Follow TIM coding standards (see CLAUDE.md)
 
+WHEN COMPLETE: Clear saved prompt:
+Run: ./tools/tim-loop-prompt-manager.sh clear
+
 You are NOT DONE until all phases complete AND code is TIM-compliant.\""
     show_command "$cmd"
+
+    if [[ "$has_prompt_manager" == "true" ]]; then
+        echo ""
+        log_info "Prompt preservation is available. If context compacts, the prompt will be reinjected."
+    fi
+
     echo -n "Press Enter when Tim Loop completes..."
     read -r </dev/tty
 
@@ -2109,6 +2131,12 @@ cmd_execute() {
     echo ""
     echo -e "${GREEN}/tim-loop \"implement ${plan_file}.
 
+FIRST: Save this prompt for compaction recovery:
+Run: ./tools/tim-loop-prompt-manager.sh save \\\"\\\$(cat << 'PROMPT_EOF'
+implement ${plan_file} with full TIM compliance
+PROMPT_EOF
+)\\\"
+
 REQUIREMENTS:
 - Complete ALL iterations and phases of the plan
 - ALL code MUST be TIM Project compliant:
@@ -2119,6 +2147,9 @@ REQUIREMENTS:
   * File size: 400 lines max, function size: 50 lines max
   * Use shared libraries (tim-lib / @tim/lib) for common patterns
   * Follow TIM coding standards (see CLAUDE.md)
+
+WHEN COMPLETE: Clear saved prompt:
+Run: ./tools/tim-loop-prompt-manager.sh clear
 
 You are NOT DONE until all phases complete AND code is TIM-compliant.\"${NC}"
     echo ""
