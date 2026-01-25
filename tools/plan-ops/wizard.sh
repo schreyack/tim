@@ -1,0 +1,397 @@
+#!/usr/bin/env bash
+# plan-ops/wizard.sh - Wizard orchestration
+# Part of plan-ops.sh modular refactor
+#
+# Dependencies: core.sh, search.sh, security.sh, status.sh, approval.sh, verification.sh
+# Exports: cmd_wizard, wizard_step_import, wizard_step_ralph, wizard_step_promote,
+#          wizard_step_ai_ready, wizard_step_execute_request, wizard_step_execute_approve,
+#          wizard_step_tim_loop, wizard_step_complete
+#
+# This file is sourced by plan-ops.sh, not executed directly.
+# shellcheck source=plan-ops/core.sh
+# shellcheck source=plan-ops/search.sh
+# shellcheck source=plan-ops/status.sh
+
+# Guard against direct execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "ERROR: This module must be sourced, not executed directly" >&2
+    exit 1
+fi
+
+# =============================================================================
+# WIZARD COMMAND AND STEP FUNCTIONS
+# =============================================================================
+
+cmd_wizard() {
+    local plan_file="${1:-}"
+    local status_only=false
+
+    # Parse --status flag
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --status) status_only=true; shift ;;
+            *) shift ;;
+        esac
+    done
+
+    # Validation
+    if [[ -z "$plan_file" ]]; then
+        log_error "Usage: $SCRIPT_PATH wizard <plan-name-or-path> [--status]"
+        log_info "Examples:"
+        log_info "  $SCRIPT_PATH wizard new-ui-front-page"
+        log_info "  $SCRIPT_PATH wizard ~/.claude/plans/my-plan.md"
+        exit 1
+    fi
+
+    # Resolve plan name or path to absolute path
+    WIZARD_PLAN_FILE=$(resolve_plan_path "$plan_file") || exit 1
+
+    # Get current state
+    local state
+    state=$(get_plan_state "$WIZARD_PLAN_FILE")
+
+    # Status-only mode - show status and exit without entering interactive wizard
+    if [[ "$status_only" == "true" ]]; then
+        show_plan_status "$WIZARD_PLAN_FILE" "$state"
+        exit 0
+    fi
+
+    # Ctrl+C handler for graceful exit
+    trap 'echo ""; log_warn "Wizard cancelled. Run again to resume."; exit 1' INT
+
+    # Header
+    echo ""
+    echo "=== Plan Wizard ==="
+    echo "Plan: $WIZARD_PLAN_FILE"
+
+    # Check if plan is already completed - offer verification step
+    if [[ "$state" == "done" ]]; then
+        echo ""
+        log_info "This plan is already marked as completed."
+        run_verification_tim_loop "$WIZARD_PLAN_FILE" "Run verification tim-loop on completed plan? [y/N] "
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${GREEN}✓ Plan lifecycle complete!${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        return
+    fi
+
+    # Main wizard loop - continues until plan is completed
+    while [[ "$state" != "done" ]]; do
+        case "$state" in
+            import)          wizard_step_import ;;
+            ralph)           wizard_step_ralph ;;
+            promote)         wizard_step_promote ;;
+            ai-ready)        wizard_step_ai_ready ;;
+            execute-request) wizard_step_execute_request ;;
+            execute-approve) wizard_step_execute_approve ;;
+            tim-loop)        wizard_step_tim_loop ;;
+            complete)        wizard_step_complete ;;
+            not-found)
+                log_error "Plan file not found: $WIZARD_PLAN_FILE"
+                exit 1
+                ;;
+            abandoned)
+                log_warn "Plan was abandoned. Cannot continue."
+                exit 0
+                ;;
+            unknown)
+                # Try to add Status Header for files in plans/ folder
+                if [[ "$WIZARD_PLAN_FILE" == *"/plans/"* ]]; then
+                    log_info "Adding Status Header to plan..."
+                    add_status_header "$WIZARD_PLAN_FILE" "Unknown"
+                    ensure_status_header_fields "$WIZARD_PLAN_FILE"
+                    local new_state
+                    new_state=$(get_plan_state "$WIZARD_PLAN_FILE")
+                    if [[ "$new_state" == "unknown" ]]; then
+                        log_error "Plan has Status Header but Stage field is invalid or missing."
+                        log_error "Please check the Status Header in: $WIZARD_PLAN_FILE"
+                        exit 1
+                    fi
+                    state="$new_state"
+                    continue
+                else
+                    log_error "Plan has no Status Header and is not in plans/ folder"
+                    exit 1
+                fi
+                ;;
+        esac
+
+        # Refresh state after each step (path may have changed due to move)
+        state=$(get_plan_state "$WIZARD_PLAN_FILE")
+    done
+
+    # Success - plan reached completed state
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${GREEN}✓ Plan lifecycle complete!${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+wizard_step_import() {
+    print_step_header "import" "Import plan to drafts folder"
+
+    local name
+    echo -n "Enter a short name for this plan (press Enter for default): "
+    read -r name </dev/tty
+    [[ -z "$name" ]] && name=$(basename "$WIZARD_PLAN_FILE" .md)
+
+    echo ""
+    echo "Importing plan..."
+
+    # Call existing import command and capture output
+    local output
+    output=$(cmd_import "$WIZARD_PLAN_FILE" --name "$name" 2>&1) || true
+    echo "$output"
+
+    # Extract new path from output (strip ANSI codes first)
+    local clean_output new_path
+    clean_output=$(strip_ansi "$output")
+    new_path=$(echo "$clean_output" | grep "Copied to:" | sed 's/.*Copied to: //' | xargs)
+    if [[ -n "$new_path" && -f "$new_path" ]]; then
+        WIZARD_PLAN_FILE="$new_path"
+        log_info "Updated path: $WIZARD_PLAN_FILE"
+    fi
+}
+
+wizard_step_ralph() {
+    print_step_header "ralph" "Ralph Loop Review (multi-phase plan)"
+
+    # Ensure all required Status Header fields exist (including Approver)
+    ensure_status_header_fields "$WIZARD_PLAN_FILE"
+
+    # Ensure Ralph Review field exists and is set to "required" (use regex for variable whitespace)
+    if ! grep -qE "\| Ralph Review[[:space:]]*\|[[:space:]]*required[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
+        update_ralph_status "$WIZARD_PLAN_FILE" "required"
+    fi
+
+    echo ""
+    echo "Run this command in Claude Code:"
+    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\""
+    show_command "$cmd"
+    echo -n "Press Enter when Ralph Loop completes..."
+    read -r </dev/tty
+
+    echo ""
+    echo "Marking Ralph Loop complete..."
+
+    # cmd_ralph --mark-complete calls verify_interactive_terminal, which will pass
+    # since wizard runs interactively
+    cmd_ralph "$WIZARD_PLAN_FILE" --mark-complete
+}
+
+wizard_step_promote() {
+    print_step_header "promote" "Promote to active"
+
+    local name
+    name=$(prompt_for_name "Enter approver name")
+
+    echo ""
+    echo "Promoting plan..."
+
+    # cmd_promote calls verify_interactive_terminal, which will pass since wizard runs interactively
+    cmd_promote "$WIZARD_PLAN_FILE" --approver "$name"
+
+    # Update path after move (drafts -> active)
+    local basename
+    basename=$(basename "$WIZARD_PLAN_FILE")
+    local plans_dir
+    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+    local new_path="${plans_dir}/active/${basename}"
+    if [[ -f "$new_path" ]]; then
+        WIZARD_PLAN_FILE="$new_path"
+        log_info "Updated path: $WIZARD_PLAN_FILE"
+    fi
+}
+
+wizard_step_ai_ready() {
+    print_step_header "ai-ready" "AI Developer Ready Review"
+
+    # Check if already approved - skip step if so
+    if has_ai_ready_approval "$WIZARD_PLAN_FILE"; then
+        log_info "Plan is already marked AI Developer Ready. Continuing..."
+        return 0
+    fi
+
+    echo ""
+    echo "Run this command in Claude Code to review for AI implementation concerns:"
+    local checklist="${DESIGN_STANDARDS_DIR}/standards/enforcement/ai-developer-ready-checklist.md"
+    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE for AI implementation concerns using ${checklist}. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\""
+    show_command "$cmd"
+    echo -n "Press Enter when Ralph Loop completes..."
+    read -r </dev/tty
+
+    echo ""
+    echo "Marking as AI Developer Ready..."
+    local name
+    name=$(prompt_for_name "Enter reviewer name")
+
+    # Use helper directly to avoid cmd_ai_ready's exit calls
+    if ! update_ai_ready_status "$WIZARD_PLAN_FILE" "$name"; then
+        log_error "Failed to update AI Developer Ready status"
+        return 1
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "AI Developer Ready approved by ${name}"; then
+        log_error "Failed to update progress log"
+        return 1
+    fi
+    log_info "AI Developer Ready approval recorded."
+}
+
+wizard_step_execute_request() {
+    print_step_header "execute" "Execution Approval"
+
+    echo "Creating execution request..."
+
+    # Use helper function directly (don't call cmd_execute which exits)
+    local request_id
+    request_id=$(create_execution_request "$WIZARD_PLAN_FILE")
+
+    echo ""
+    echo "Request ID: $request_id"
+    echo ""
+    echo "Run this command in a SEPARATE TERMINAL to approve:"
+    local cmd="$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\""
+    show_command "$cmd"
+    echo -n "Press Enter when approved..."
+    read -r </dev/tty
+
+    # Verify approval succeeded before continuing
+    local approval
+    approval=$(find_valid_approval "$WIZARD_PLAN_FILE")
+    if [[ -z "$approval" ]]; then
+        log_error "Approval not found or expired. Please approve and try again."
+        # Don't exit - let the wizard loop retry (state will still be execute-request or execute-approve)
+        return
+    fi
+
+    # Update execution status in plan
+    if ! update_execution_status "$WIZARD_PLAN_FILE" "$approval"; then
+        log_error "Failed to update execution status"
+        return
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"; then
+        log_error "Failed to update progress log"
+        return
+    fi
+    log_info "Execution APPROVED!"
+}
+
+wizard_step_execute_approve() {
+    print_step_header "execute" "Execution Approval (pending request found)"
+
+    # Find the pending request
+    local request_file
+    request_file=$(find_pending_request "$WIZARD_PLAN_FILE")
+    local request_id
+    request_id=$(basename "$request_file" .json)
+
+    echo ""
+    echo "Found pending approval request: $request_id"
+    echo ""
+    echo "Run this command in a SEPARATE TERMINAL to approve:"
+    local cmd="$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\""
+    show_command "$cmd"
+    echo -n "Press Enter when approved..."
+    read -r </dev/tty
+
+    # Verify approval
+    local approval
+    approval=$(find_valid_approval "$WIZARD_PLAN_FILE")
+    if [[ -z "$approval" ]]; then
+        log_error "Approval not found or expired. Please approve and try again."
+        # Don't exit - let the wizard loop retry
+        return
+    fi
+
+    if ! update_execution_status "$WIZARD_PLAN_FILE" "$approval"; then
+        log_error "Failed to update execution status"
+        return
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"; then
+        log_error "Failed to update progress log"
+        return
+    fi
+    log_info "Execution APPROVED!"
+}
+
+wizard_step_tim_loop() {
+    print_step_header "tim-loop" "Run Tim Loop Implementation"
+
+    # Determine project directory from plan file path
+    # Go up from plans/active/ to find project root
+    local project_dir
+    project_dir=$(dirname "$(dirname "$(dirname "$WIZARD_PLAN_FILE")")")
+
+    # Ensure tim-loop permissions are configured
+    ensure_tim_loop_permissions "$project_dir"
+
+    # Check if prompt manager exists for prompt preservation
+    local prompt_manager="${project_dir}/tools/tim-loop-prompt-manager.sh"
+    local has_prompt_manager=false
+    if [[ -x "$prompt_manager" ]]; then
+        has_prompt_manager=true
+        # Save prompt automatically for compaction recovery
+        "$prompt_manager" save "implement $WIZARD_PLAN_FILE with full TIM compliance" 2>/dev/null || true
+    fi
+
+    echo "Run this command in Claude Code:"
+    local cmd="/tim-loop:tim-loop --implement $WIZARD_PLAN_FILE"
+    show_command "$cmd"
+
+    echo -n "Press Enter when Tim Loop completes..."
+    read -r </dev/tty
+
+    echo ""
+    echo "Did Tim Loop complete successfully? (y/n)"
+    echo -n "> "
+    read -r response </dev/tty
+
+    if [[ "$response" =~ ^[Yy] ]]; then
+        # Mark implementation as verified so state transitions to 'complete'
+        local reviewer
+        reviewer=$(prompt_for_name "Enter verifier name")
+        if ! update_verification_status "$WIZARD_PLAN_FILE" "$reviewer"; then
+            log_error "Failed to update verification status"
+            exit 1
+        fi
+        if ! update_status "$WIZARD_PLAN_FILE" "active" "Implementation verified by ${reviewer}"; then
+            log_error "Failed to update progress log"
+            exit 1
+        fi
+        log_info "Implementation marked as verified."
+        # Clear saved prompt now that tim-loop is complete
+        if [[ "$has_prompt_manager" == "true" ]]; then
+            "$prompt_manager" clear 2>/dev/null || true
+        fi
+    else
+        log_warn "Tim Loop not completed. Run the wizard again when ready."
+        exit 0
+    fi
+}
+
+wizard_step_complete() {
+    print_step_header "complete" "Mark plan complete"
+
+    # Optional verification tim-loop step
+    if ! run_verification_tim_loop "$WIZARD_PLAN_FILE" "Run verification tim-loop before marking complete? [y/N] "; then
+        exit 0
+    fi
+
+    echo ""
+    echo "Marking plan complete..."
+
+    # cmd_complete moves the file and updates status
+    cmd_complete "$WIZARD_PLAN_FILE"
+
+    # Update path after move (active -> completed)
+    local basename
+    basename=$(basename "$WIZARD_PLAN_FILE")
+    local plans_dir
+    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+    local new_path="${plans_dir}/completed/${basename}"
+    if [[ -f "$new_path" ]]; then
+        WIZARD_PLAN_FILE="$new_path"
+    fi
+}

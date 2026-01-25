@@ -123,9 +123,11 @@ Tim Loop works as a system of two tools that handle different concerns:
 
 **When to use:** When you have a task that needs to be fully completed, not abandoned at 80%.
 
-### Plan-Ops (`tools/plan-ops.sh`)
+### Plan-Ops (auto-installed to `./tools/plan-ops.sh`)
 
 **What it does:** Manages the plan lifecycle with human approval gates.
+
+**Note:** Plan-ops is automatically copied to your project on first `/tim-loop` run. Run it from your terminal (not Claude Code) for human approval workflows.
 
 - Organizes plans in `drafts/` → `active/` → `completed/` folders
 - Enforces Ralph Loop review for multi-phase plans
@@ -310,9 +312,36 @@ After installation, verify it works:
 
 You should see the help text with available options.
 
+### Project Initialization
+
+The first time you run `/tim-loop` in a project, it automatically:
+
+1. Creates `./tools/plan-ops.sh` - Plan lifecycle management script
+2. Creates `./plans/` folder structure:
+   - `drafts/` - Plans being designed
+   - `active/` - Approved plans under implementation
+   - `completed/` - Successfully executed plans
+   - `abandoned/` - Cancelled plans
+
+**To update plan-ops.sh** (after plugin updates):
+```bash
+/tim-loop --reinit --dry-run "update"
+```
+
+**To skip auto-initialization:**
+```bash
+/tim-loop --no-init "your task"
+```
+
 ## Usage
 
 From within Claude Code:
+
+> **Best Practice:** Always clear context before starting. Copy-paste both lines:
+> ```
+> /clear
+> /tim-loop "your task"
+> ```
 
 ```bash
 # Full workflow (recommended for most tasks)
