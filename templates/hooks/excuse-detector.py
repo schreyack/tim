@@ -42,7 +42,7 @@ EXCUSE_PATTERNS = [
         example="This wasn't part of my changes"
     ),
     ExcusePattern(
-        pattern=r"pre-existing\s+(?:issue|problem|violation|structure|code)",
+        pattern=r"pre-existing\s+(?:issue|problem|violation|structure|code|bug|error|test)",
         description="Blaming pre-existing state",
         example="The pre-existing structure is what exceeds the limit"
     ),
@@ -55,6 +55,11 @@ EXCUSE_PATTERNS = [
         pattern=r"i\s+(?:didn't|did\s+not)\s+(?:cause|create|introduce)\s+(?:this|the)",
         description="Denying causation",
         example="I didn't cause this violation"
+    ),
+    ExcusePattern(
+        pattern=r"not\s+caused\s+by\s+(?:my|the|our)\s+(?:changes|edits|modifications|work)",
+        description="Denying causation (passive form)",
+        example="not caused by my changes"
     ),
     ExcusePattern(
         pattern=r"already\s+(?:over|exceeded|exceeds|violated)\s+(?:the\s+)?(?:limit|threshold)",
@@ -95,6 +100,16 @@ EXCUSE_PATTERNS = [
         pattern=r"not\s+(?:related|relevant)\s+to\s+(?:my|the|current)",
         description="Claiming irrelevance",
         example="This is not related to my current changes"
+    ),
+    ExcusePattern(
+        pattern=r"(?:in|are)\s+unrelated\s+(?:\w+\s+)*(?:functionality|code|test|area|module|component)",
+        description="Claiming failures are in unrelated code",
+        example="failures are in unrelated login functionality"
+    ),
+    ExcusePattern(
+        pattern=r"not\s+in\s+(?:the\s+)?(?:\w+\s+)*(?:code|workflow|feature|component)\s+I\s+(?:implemented|wrote|added|created)",
+        description="Claiming issues are outside implemented code",
+        example="not in the code I implemented"
     ),
 ]
 
@@ -175,6 +190,32 @@ def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
     return found
 
 
+def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict:
+    """Build the block response for detected excuses."""
+    excuse_details = [
+        f"  - Pattern: {excuse.description}\n    Context: \"{context}\""
+        for excuse, context in excuses_found
+    ]
+    excuse_text = "\n".join(excuse_details)
+
+    return {
+        "decision": "block",
+        "reason": (
+            f"DEFLECTION DETECTED - You attempted to avoid responsibility.\n\n"
+            f"Found {len(excuses_found)} excuse pattern(s):\n{excuse_text}\n\n"
+            f"TIM DESIGN STANDARDS RULE:\n"
+            f"If you touched a file with violations, you MUST fix them.\n"
+            f"No exceptions. No excuses.\n\n"
+            f"Required actions:\n"
+            f"1. Acknowledge the violation without deflection\n"
+            f"2. Fix the issue completely before proceeding\n"
+            f"3. If the fix requires significant refactoring, do it\n"
+            f"4. Do NOT claim pre-existing issues excuse you from fixing\n\n"
+            f"You cannot complete this task until violations are resolved."
+        )
+    }
+
+
 def main():
     """Main hook entry point."""
     try:
@@ -183,7 +224,6 @@ def main():
         print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
         sys.exit(0)
 
-    # Check if we're already in a stop hook continuation to prevent loops
     if hook_input.get("stop_hook_active"):
         sys.exit(0)
 
@@ -191,7 +231,6 @@ def main():
     if not transcript_path:
         sys.exit(0)
 
-    # Read and analyze the transcript
     transcript = read_transcript(transcript_path)
     if not transcript:
         sys.exit(0)
@@ -200,40 +239,10 @@ def main():
     if not assistant_text:
         sys.exit(0)
 
-    # Check for excuse patterns
     excuses_found = find_excuses(assistant_text)
-
     if excuses_found:
-        # Build the violation message
-        excuse_details = []
-        for excuse, context in excuses_found:
-            excuse_details.append(
-                f"  - Pattern: {excuse.description}\n"
-                f"    Context: \"{context}\""
-            )
+        print(json.dumps(build_block_response(excuses_found)))
 
-        excuse_text = "\n".join(excuse_details)
-
-        output = {
-            "decision": "block",
-            "reason": (
-                f"DEFLECTION DETECTED - You attempted to avoid responsibility.\n\n"
-                f"Found {len(excuses_found)} excuse pattern(s):\n{excuse_text}\n\n"
-                f"TIM DESIGN STANDARDS RULE:\n"
-                f"If you touched a file with violations, you MUST fix them.\n"
-                f"No exceptions. No excuses.\n\n"
-                f"Required actions:\n"
-                f"1. Acknowledge the violation without deflection\n"
-                f"2. Fix the issue completely before proceeding\n"
-                f"3. If the fix requires significant refactoring, do it\n"
-                f"4. Do NOT claim pre-existing issues excuse you from fixing\n\n"
-                f"You cannot complete this task until violations are resolved."
-            )
-        }
-        print(json.dumps(output))
-        sys.exit(0)
-
-    # No excuses found, allow completion
     sys.exit(0)
 
 
