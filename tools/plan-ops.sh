@@ -11,6 +11,7 @@ set -euo pipefail
 #   promote           Move plan from drafts to active
 #   execute           Request execution approval for active plan
 #   approve-execute   Human approval for plan execution
+#   fast-track        Skip workflow and go directly to implementation
 #   complete          Move plan from active to completed
 #   abandon           Move plan to abandoned
 #   cleanup-drafts    Remove stale drafts
@@ -308,7 +309,8 @@ update_ai_ready_status() {
         local value="$2"
         local anchor_field="$3"
         if grep -q "| ${field} |" "$file"; then
-            sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$file"
+            # Pattern handles variable whitespace in markdown tables
+            sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$file"
         else
             # Add after anchor field
             insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$file"
@@ -323,7 +325,7 @@ update_ai_ready_status() {
     add_or_update_field "AI Developer Ready Iteration" "${iteration}" "AI Developer Ready Date"
 
     # Update Last Updated
-    sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
 }
 
 # Update Implementation Verification fields in Status Header
@@ -356,7 +358,8 @@ update_verification_status() {
         local anchor_field="$3"
         local target_file="$4"
         if grep -q "| ${field} |" "$target_file"; then
-            sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$target_file"
+            # Pattern handles variable whitespace in markdown tables
+            sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$target_file"
         else
             insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$target_file"
             log_warn "Added missing ${field} field to Status Header"
@@ -369,7 +372,7 @@ update_verification_status() {
     _add_or_update_field "Implementation Verified Date" "${date}" "Implementation Verified By" "$file"
 
     # Update Last Updated
-    sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
 }
 
 # Add AI Developer Ready approval stamp to plan file
@@ -428,8 +431,8 @@ update_ralph_status() {
 
     # Check if Ralph Review field exists
     if grep -q "| Ralph Review |" "$file"; then
-        # Update existing field
-        sed -i '' "s/| Ralph Review | .* |/| Ralph Review | ${status} |/" "$file"
+        # Update existing field (pattern handles variable whitespace)
+        sed -i '' "s/| Ralph Review[[:space:]]*|[^|]*|/| Ralph Review | ${status} |/" "$file"
     else
         # Add Ralph Review field after Approver row
         if grep -q "| Approver |" "$file"; then
@@ -443,8 +446,8 @@ update_ralph_status() {
 
     # Check if Ralph Date field exists
     if grep -q "| Ralph Date |" "$file"; then
-        # Update existing field
-        sed -i '' "s/| Ralph Date | .* |/| Ralph Date | ${date_val} |/" "$file"
+        # Update existing field (pattern handles variable whitespace)
+        sed -i '' "s/| Ralph Date[[:space:]]*|[^|]*|/| Ralph Date | ${date_val} |/" "$file"
     else
         # Add Ralph Date field after Ralph Review row
         if grep -q "| Ralph Review |" "$file"; then
@@ -454,7 +457,7 @@ update_ralph_status() {
     fi
 
     # Update Last Updated
-    sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
 }
 
 # Generate a random request ID
@@ -1166,7 +1169,20 @@ wizard_step_tim_loop() {
 
     echo ""
     echo "Run this command in Claude Code:"
-    local cmd="/tim-loop \"implement $WIZARD_PLAN_FILE. you are not done until all iterations and phases of the plan are complete.\""
+    local cmd="/tim-loop \"implement $WIZARD_PLAN_FILE.
+
+REQUIREMENTS:
+- Complete ALL iterations and phases of the plan
+- ALL code MUST be TIM Project compliant:
+  * Type safety: mypy --strict (Python) or tsc --strict (TypeScript)
+  * Test coverage: 90% minimum with meaningful tests
+  * No TODOs, placeholders, or NotImplementedError
+  * No secrets in code
+  * File size: 400 lines max, function size: 50 lines max
+  * Use shared libraries (tim-lib / @tim/lib) for common patterns
+  * Follow TIM coding standards (see CLAUDE.md)
+
+You are NOT DONE until all phases complete AND code is TIM-compliant.\""
     show_command "$cmd"
     echo -n "Press Enter when Tim Loop completes..."
     read -r </dev/tty
@@ -1198,6 +1214,82 @@ wizard_step_tim_loop() {
 wizard_step_complete() {
     print_step_header "complete" "Mark plan complete"
 
+    # Optional verification tim-loop step
+    echo ""
+    echo "Before marking complete, you can optionally run a verification tim-loop."
+    echo "This will:"
+    echo "  - Review the original intent of the plan"
+    echo "  - Check if it was actually implemented"
+    echo "  - Verify TIM Project rules were followed"
+    echo "  - Create remediation plans if gaps are found"
+    echo "  - Iterate until fully complete (no stubs, no deferred work)"
+    echo ""
+    echo -n "Run verification tim-loop? [y/N] "
+    read -r run_verification </dev/tty
+
+    if [[ "$run_verification" =~ ^[Yy] ]]; then
+        # Determine project directory from plan file path
+        local project_dir
+        project_dir=$(dirname "$(dirname "$(dirname "$WIZARD_PLAN_FILE")")")
+
+        # Ensure tim-loop permissions are configured
+        ensure_tim_loop_permissions "$project_dir"
+
+        echo ""
+        echo "Run this command in Claude Code:"
+        local cmd="/tim-loop \"VERIFICATION AUDIT for $WIZARD_PLAN_FILE
+
+Your task is to verify that this plan was FULLY implemented with NO shortcuts.
+
+PHASE 1 - INTENT REVIEW:
+1. Read the plan file completely
+2. Extract the ORIGINAL INTENT - what was this plan supposed to accomplish?
+3. List all explicit requirements and deliverables
+
+PHASE 2 - IMPLEMENTATION AUDIT:
+1. For each requirement/deliverable, find the actual implementation
+2. Check: Is the code REAL and FUNCTIONAL, or stubbed/placeholder?
+3. Check: Are there any TODO comments, NotImplementedError, 'pass' statements?
+4. Check: Is anything marked as 'future work' or 'deferred'?
+
+PHASE 3 - TIM RULES VERIFICATION:
+1. Verify type safety (mypy --strict / tsc --strict passes)
+2. Verify test coverage (90% minimum, tests actually test the functionality)
+3. Verify no secrets in code
+4. Verify file size limits (400 lines max)
+5. Verify no bypass flags or shortcuts
+
+PHASE 4 - GAP REMEDIATION:
+If ANY gaps are found:
+1. Create a detailed remediation plan
+2. Implement the fixes
+3. Repeat verification
+
+CRITICAL: You are NOT DONE until:
+- 100% of original intent is implemented
+- All code is functional (not stubbed)
+- All TIM rules pass
+- No deferred/TODO items remain
+
+Iterate with NO LIMIT until this is achieved.\""
+        show_command "$cmd"
+        echo -n "Press Enter when verification tim-loop completes..."
+        read -r </dev/tty
+
+        echo ""
+        echo "Did the verification tim-loop complete successfully with all checks passing? (y/n)"
+        echo -n "> "
+        read -r verification_passed </dev/tty
+
+        if [[ ! "$verification_passed" =~ ^[Yy] ]]; then
+            log_warn "Verification not passed. Run the wizard again when remediation is complete."
+            exit 0
+        fi
+
+        log_info "Verification passed!"
+    fi
+
+    echo ""
     echo "Marking plan complete..."
 
     # cmd_complete moves the file and updates status
@@ -1251,7 +1343,8 @@ update_execution_status() {
         local anchor_field="$3"
         local target_file="$4"
         if grep -q "| ${field} |" "$target_file"; then
-            sed -i '' "s/| ${field} | .* |/| ${field} | ${value} |/" "$target_file"
+            # Pattern handles variable whitespace in markdown tables
+            sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$target_file"
         else
             insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$target_file"
             log_warn "Added missing ${field} field to Status Header"
@@ -1263,8 +1356,8 @@ update_execution_status() {
     _add_or_update_exec_field "Execution Approved By" "${approver}" "Execution Approved" "$plan_file"
     _add_or_update_exec_field "Execution Started" "${ts}" "Execution Approved By" "$plan_file"
 
-    # Update Last Updated
-    sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$plan_file"
+    # Update Last Updated (pattern handles variable whitespace)
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$plan_file"
 }
 
 # Update the Status Header in a plan file
@@ -1287,16 +1380,16 @@ update_status() {
         return 1
     fi
 
-    # Update Stage field
-    sed -i '' "s/| Stage | .* |/| Stage | ${stage} |/" "$file"
+    # Update Stage field (pattern handles variable whitespace in markdown tables)
+    sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | ${stage} |/" "$file"
 
     # Update Last Updated field
-    sed -i '' "s/| Last Updated | .* |/| Last Updated | ${ts} |/" "$file"
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
 
     # Update Approver if provided
     if [[ -n "$approver" ]]; then
         if grep -q "| Approver |" "$file"; then
-            sed -i '' "s/| Approver | .* |/| Approver | ${approver} |/" "$file"
+            sed -i '' "s/| Approver[[:space:]]*|[^|]*|/| Approver | ${approver} |/" "$file"
         else
             log_warn "Status Header missing 'Approver' field, skipping update"
         fi
@@ -1765,9 +1858,13 @@ cmd_promote() {
     plans_dir=$(get_plans_dir_from_path "$plan_file")
     local dest="${plans_dir}/active/${basename}"
 
-    # Ensure destination directory exists and move file
+    # Ensure destination directory exists
     mkdir -p "${plans_dir}/active"
-    mv "$plan_file" "$dest"
+
+    # Only move if source and destination are different
+    if [[ "$plan_file" != "$dest" ]]; then
+        mv "$plan_file" "$dest"
+    fi
 
     # Update status
     if ! update_status "$dest" "active" "Approved by ${approver}, promoted to active" "$approver"; then
@@ -1938,7 +2035,20 @@ cmd_execute() {
     echo ""
     log_info "STEP 1 of 2: Run this command in Claude Code to start implementation:"
     echo ""
-    echo -e "${GREEN}/tim-loop \"implement ${plan_file}. you are not done until all iterations and phases of the plan are complete.\"${NC}"
+    echo -e "${GREEN}/tim-loop \"implement ${plan_file}.
+
+REQUIREMENTS:
+- Complete ALL iterations and phases of the plan
+- ALL code MUST be TIM Project compliant:
+  * Type safety: mypy --strict (Python) or tsc --strict (TypeScript)
+  * Test coverage: 90% minimum with meaningful tests
+  * No TODOs, placeholders, or NotImplementedError
+  * No secrets in code
+  * File size: 400 lines max, function size: 50 lines max
+  * Use shared libraries (tim-lib / @tim/lib) for common patterns
+  * Follow TIM coding standards (see CLAUDE.md)
+
+You are NOT DONE until all phases complete AND code is TIM-compliant.\"${NC}"
     echo ""
     log_info "STEP 2 of 2: When tim-loop completes successfully, mark the plan as complete:"
     echo -e "  ${GREEN}$SCRIPT_PATH complete $plan_file${NC}"
@@ -2020,6 +2130,142 @@ cmd_approve_execute() {
     log_info "Approved by: $approver"
 
     log_info "NEXT STEP: Continue with the wizard to get the tim-loop command:"
+    show_command "$SCRIPT_PATH wizard $plan_file"
+}
+
+cmd_fast_track() {
+    # Block AI from running this command
+    verify_interactive_terminal
+
+    local plan_file="${1:-}"
+    local approver=""
+    local reason=""
+
+    # Parse arguments
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --approver) approver="$2"; shift 2 ;;
+            --reason) reason="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+
+    # Validation
+    if [[ -z "$plan_file" ]]; then
+        log_error "Usage: $SCRIPT_PATH fast-track <plan-file> --approver <name> [--reason <reason>]"
+        exit 1
+    fi
+    if [[ -z "$approver" ]]; then
+        log_error "Approver required: --approver <name>"
+        exit 1
+    fi
+
+    # Resolve plan path (handles ~/.claude/plans/, drafts/, active/, names without paths)
+    plan_file=$(resolve_plan_path "$plan_file") || exit 1
+
+    if [[ ! -f "$plan_file" ]]; then
+        log_error "Plan file not found: $plan_file"
+        exit 1
+    fi
+
+    local ts
+    ts=$(timestamp)
+    local date_stamp
+    date_stamp=$(datestamp)
+
+    echo ""
+    log_info "Fast-tracking plan: $(basename "$plan_file")"
+    log_info "Approver: $approver"
+    [[ -n "$reason" ]] && log_info "Reason: $reason"
+    echo ""
+
+    # Step 1: Import from ~/.claude/plans/ if needed
+    if [[ "$plan_file" == *"/.claude/plans/"* ]]; then
+        log_info "Importing plan from ~/.claude/plans/..."
+        local name
+        name=$(basename "$plan_file" .md)
+        local dest
+        if [[ "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}- ]]; then
+            dest=$(to_absolute "${PLANS_DIR}/drafts/${name}.md")
+        else
+            dest=$(to_absolute "${PLANS_DIR}/drafts/${date_stamp}-${name}.md")
+        fi
+        mkdir -p "${PLANS_DIR}/drafts"
+        cp "$plan_file" "$dest"
+        rm "$plan_file"
+        plan_file="$dest"
+        add_status_header "$plan_file" "Claude"
+        ensure_status_header_fields "$plan_file"
+        log_info "Imported to: $plan_file"
+    fi
+
+    # Step 2: Move from drafts/ to active/ if needed
+    if [[ "$plan_file" == *"/drafts/"* ]]; then
+        log_info "Promoting plan to active/..."
+        local basename
+        basename=$(basename "$plan_file")
+        local plans_dir
+        plans_dir=$(get_plans_dir_from_path "$plan_file")
+        local dest="${plans_dir}/active/${basename}"
+        mkdir -p "${plans_dir}/active"
+        mv "$plan_file" "$dest"
+        plan_file="$dest"
+        log_info "Moved to: $plan_file"
+    fi
+
+    # Ensure Status Header exists and has all required fields
+    add_status_header "$plan_file" "Claude"
+    ensure_status_header_fields "$plan_file"
+
+    # Step 3: Mark Ralph Review as completed (or not-required for single-phase)
+    local ralph_status
+    if [[ "$(requires_ralph "$plan_file")" == "true" ]]; then
+        ralph_status="completed"
+    else
+        ralph_status="not-required"
+    fi
+    update_ralph_status "$plan_file" "$ralph_status"
+    log_info "Ralph Review: $ralph_status"
+
+    # Step 4: Update Stage and Approver (patterns handle variable whitespace)
+    sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | active |/" "$plan_file"
+    sed -i '' "s/| Approver[[:space:]]*|[^|]*|/| Approver | ${approver} |/" "$plan_file"
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$plan_file"
+
+    # Step 5: Mark AI Developer Ready
+    update_ai_ready_status "$plan_file" "$approver" "1"
+    log_info "AI Developer Ready: yes (reviewed by $approver)"
+
+    # Step 6: Create and auto-approve execution request
+    local request_id
+    request_id=$(create_execution_request "$plan_file")
+    local request_file="${EXECUTION_REQUESTS_DIR}/${request_id}.json"
+    local approval_ts
+    approval_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Approve the request
+    sed -i '' 's/"approved": false/"approved": true/' "$request_file"
+    sed -i '' "s/\"approved_by\": null/\"approved_by\": \"${approver}\"/" "$request_file"
+    sed -i '' "s/\"approved_at\": null/\"approved_at\": \"${approval_ts}\"/" "$request_file"
+
+    # Update execution status in plan
+    update_execution_status "$plan_file" "$request_file"
+    log_info "Execution Approved: yes (approved by $approver)"
+
+    # Step 7: Add progress log entry
+    local event_desc="Fast-tracked by ${approver}"
+    [[ -n "$reason" ]] && event_desc="${event_desc}: ${reason}"
+    update_status "$plan_file" "active" "$event_desc"
+
+    # Cleanup claude plans
+    cleanup_claude_plans
+
+    echo ""
+    log_info "Plan fast-tracked successfully!"
+    log_info "All approvals granted."
+    echo ""
+    log_info "NEXT STEP: Run the wizard to continue with implementation:"
     show_command "$SCRIPT_PATH wizard $plan_file"
 }
 
@@ -2248,8 +2494,20 @@ COMMANDS:
         Required before execute will output the tim-loop command
         Approval expires after 15 minutes
 
+    fast-track <plan-file> --approver <name> [--reason <reason>]
+        Skip the normal approval workflow and go directly to implementation
+        - Works with plans in ~/.claude/plans/, drafts/, or active/
+        - Auto-imports from ~/.claude/plans/ if needed
+        - Auto-promotes from drafts/ to active/ if needed
+        - Marks Ralph Review as completed
+        - Marks AI Developer Ready as yes
+        - Auto-approves execution
+        - Outputs the tim-loop command ready to run
+        Use for well-established plans that have been reviewed outside the system
+
     complete <plan-file>
         Move plan from active to completed
+        When run via wizard: offers optional verification tim-loop first
 
     abandon <plan-file> [--reason <reason>]
         Move plan to abandoned with optional reason
@@ -2301,6 +2559,26 @@ EXECUTION WORKFLOW (HARD ENFORCED):
 
     5. $SCRIPT_PATH complete plans/active/my-plan.md
 
+FAST-TRACK WORKFLOW:
+    For well-established plans that have already been reviewed:
+
+    $SCRIPT_PATH fast-track <plan-file> --approver "Name" --reason "reason"
+
+    This single command:
+    - Imports from ~/.claude/plans/ if needed
+    - Promotes from drafts/ to active/ if needed
+    - Marks Ralph Review as completed
+    - Marks AI Developer Ready as yes
+    - Auto-approves execution
+    - Outputs the wizard command to continue (copied to clipboard)
+
+    Then run the wizard to start implementation via tim-loop.
+
+    Use when:
+    - Plan was reviewed in a design meeting
+    - Plan is a straightforward, well-understood change
+    - Human has manually verified the plan is ready for implementation
+
 WIZARD WORKFLOW:
     The wizard guides you through the entire plan lifecycle:
 
@@ -2311,7 +2589,18 @@ WIZARD WORKFLOW:
     2. Show the appropriate command or prompt for input
     3. Wait for external steps (Ralph Loop, approval, Tim Loop)
     4. Track file moves automatically
-    5. Continue until plan reaches completed state
+    5. Offer optional verification tim-loop before marking complete
+    6. Continue until plan reaches completed state
+
+    VERIFICATION TIM-LOOP (optional, at completion):
+    Before marking a plan complete, the wizard offers to run a verification
+    tim-loop that:
+    - Reviews the original intent of the plan
+    - Audits implementation to ensure it matches intent
+    - Verifies TIM Project rules are followed
+    - Checks for stubs, TODOs, deferred work, or cheating
+    - Creates and executes remediation plans if gaps found
+    - Iterates with NO LIMIT until 100% complete
 
     Use --status to check state without entering the wizard:
     $SCRIPT_PATH wizard <plan-file> --status
@@ -2324,6 +2613,7 @@ EXAMPLES:
     $SCRIPT_PATH promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
     $SCRIPT_PATH execute plans/active/2025-01-16-feature-auth.md
     $SCRIPT_PATH approve-execute abc123 --approver "Tim"
+    $SCRIPT_PATH fast-track my-plan.md --approver "Tim" --reason "Already reviewed in design meeting"
     $SCRIPT_PATH complete plans/active/2025-01-16-feature-auth.md
     $SCRIPT_PATH abandon plans/drafts/old-plan.md --reason "Requirements changed"
     $SCRIPT_PATH list active
@@ -2346,6 +2636,7 @@ case "${1:-help}" in
     ai-ready) cmd_ai_ready "${@:2}" ;;
     execute) cmd_execute "${@:2}" ;;
     approve-execute) cmd_approve_execute "${@:2}" ;;
+    fast-track) cmd_fast_track "${@:2}" ;;
     complete) cmd_complete "${@:2}" ;;
     abandon) cmd_abandon "${@:2}" ;;
     cleanup-drafts) cmd_cleanup_drafts "${@:2}" ;;
