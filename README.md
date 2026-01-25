@@ -22,6 +22,39 @@ Authoritative standards for all TIM projects. Defense in depth. Never trust. Alw
 5. Migrate tests using [Test Migration Standard](standards/testing/test-migration.md)
 6. Reach Level 4 (full enforcement) before production
 
+### Tim Loop Plugin & plan-ops
+
+Tim Loop is a Claude Code plugin for AI-driven development with guaranteed completion. It includes `plan-ops` for plan lifecycle management.
+
+**Install the plugin:**
+```bash
+# In Claude Code
+/plugin marketplace add schreyack/design_standards
+/plugin install tim-loop@tim-design-standards
+```
+
+**Add plan-ops to your PATH (one-time setup):**
+```bash
+# 1. Add to your shell config (~/.zshrc or ~/.bashrc)
+export PATH="$HOME/.claude/plugins/marketplaces/tim-design-standards/bin:$PATH"
+
+# 2. Reload your shell
+source ~/.zshrc   # or: source ~/.bashrc
+
+# 3. Verify it works
+plan-ops help
+```
+
+**Now you can run plan-ops from any directory:**
+```bash
+plan-ops init                              # Initialize plans/ folder
+plan-ops import ~/.claude/plans/my-plan.md # Import a plan
+plan-ops wizard plans/drafts/my-plan.md    # Guided workflow
+plan-ops list                              # List all plans
+```
+
+See [plugins/tim-loop/README.md](plugins/tim-loop/README.md) for full documentation.
+
 ## Repository Structure
 
 ```
