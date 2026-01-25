@@ -39,7 +39,7 @@ Plans with 0-1 phases can be promoted directly without Ralph Loop review.
 │     (auto-detects phase count, sets Ralph Review status)        │
 │           │                                                     │
 │           ▼                                                     │
-│  2. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md           │
+│  2. ./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md           │
 │     → If single-phase: "Not required, can promote directly"     │
 │     → If multi-phase: Shows Ralph Loop command to run           │
 │           │                                                     │
@@ -48,12 +48,12 @@ Plans with 0-1 phases can be promoted directly without Ralph Loop review.
 │     (Iterates until DONEDONE promise or max iterations)         │
 │           │                                                     │
 │           ▼                                                     │
-│  4. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md           │
+│  4. ./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md           │
 │        --mark-complete                                          │
 │     (Updates Status Header: Ralph Review = completed)           │
 │           │                                                     │
 │           ▼                                                     │
-│  5. ./tools/plan-ops.sh promote plans/drafts/my-plan.md         │
+│  5. ./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md         │
 │        --approver "Name"                                        │
 │     (Promotion now allowed)                                     │
 │                                                                 │
@@ -67,7 +67,7 @@ Plans with 0-1 phases can be promoted directly without Ralph Loop review.
 ### Start Ralph Loop Review
 
 ```bash
-./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md
 ```
 
 **Output for multi-phase plans:**
@@ -82,7 +82,7 @@ Plans with 0-1 phases can be promoted directly without Ralph Loop review.
 ### Mark Ralph Loop Complete
 
 ```bash
-./tools/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
 ```
 
 Updates the plan's Status Header:
@@ -93,7 +93,7 @@ Updates the plan's Status Header:
 ### Attempt Promotion
 
 ```bash
-./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
+./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
 ```
 
 **If multi-phase and Ralph not completed:**
@@ -207,7 +207,7 @@ Active Implementation
 
 ### plan-ops.sh Enforces the Gate
 
-The `promote` command in `tools/plan-ops.sh`:
+The `promote` command in `plan-ops.sh`:
 1. Counts phases in the plan
 2. Checks Ralph Review status in Status Header
 3. Blocks promotion if multi-phase AND not completed
@@ -249,7 +249,7 @@ The `--skip-ralph` flag only works for single-phase plans. Multi-phase plans hav
 
 Run the Ralph Loop workflow:
 ```bash
-./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md
 # Follow the displayed instructions
 ```
 

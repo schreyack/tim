@@ -15,75 +15,17 @@ source "${SCRIPT_DIR}/tim-loop-cleanup.sh"
 source "${SCRIPT_DIR}/tim-loop-session.sh"
 
 # Path to bundled plan-ops (in plugin's scripts folder)
-BUNDLED_PLAN_OPS="${PLUGIN_ROOT}/scripts/plan-ops.sh"
-BUNDLED_PLAN_OPS_DIR="${PLUGIN_ROOT}/scripts/plan-ops"
+PLAN_OPS_SCRIPT="${PLUGIN_ROOT}/scripts/plan-ops.sh"
 
-# Find plan-ops.sh - prefer project-local, fallback to bundled
-find_plan_ops() {
-    local locations=("${PLAN_OPS_SCRIPT:-}" "./tools/plan-ops.sh" "$BUNDLED_PLAN_OPS")
-    for loc in "${locations[@]}"; do
-        [[ -n "$loc" && -f "$loc" ]] && echo "$loc" && return 0
-    done
-    echo ""
-}
-PLAN_OPS_SCRIPT=$(find_plan_ops)
-
-# Auto-initialize plan-ops if not present in project
-# Copies both plan-ops.sh and the plan-ops/ module directory
-init_plan_ops_if_needed() {
-    local project_plan_ops="./tools/plan-ops.sh"
-    local project_plan_ops_dir="./tools/plan-ops"
-
-    [[ ! -f "$BUNDLED_PLAN_OPS" ]] && echo "Warning: Bundled plan-ops.sh not found" >&2 && return 0
-
-    # Check if needs initialization:
-    # - plan-ops.sh missing OR plan-ops/ dir missing (old single-file version)
-    # - OR --reinit flag set
-    local needs_init=false
-    [[ ! -f "$project_plan_ops" ]] && needs_init=true
-    [[ ! -d "$project_plan_ops_dir" ]] && needs_init=true
-    [[ "$REINIT" == "true" ]] && needs_init=true
-
-    [[ "$needs_init" != "true" ]] && return 0
-
-    if [[ "$REINIT" == "true" ]]; then
-        echo -e "\n═══════════════════════════════════════════════════════════" >&2
-        echo "Tim Loop: Reinitializing plan-ops (--reinit)" >&2
-        echo "═══════════════════════════════════════════════════════════" >&2
-    elif [[ -f "$project_plan_ops" && ! -d "$project_plan_ops_dir" ]]; then
-        echo -e "\n═══════════════════════════════════════════════════════════" >&2
-        echo "Tim Loop: Upgrading plan-ops to modular structure..." >&2
-        echo "═══════════════════════════════════════════════════════════" >&2
-    else
-        echo -e "\n═══════════════════════════════════════════════════════════" >&2
-        echo "Tim Loop: Initializing plan-ops for this project..." >&2
-        echo "═══════════════════════════════════════════════════════════" >&2
-    fi
-
-    mkdir -p ./tools
+# Initialize plans folder structure if not present
+init_plans_folders() {
     for stage in drafts active completed abandoned; do
-        mkdir -p "./plans/${stage}"
-        [[ ! -f "./plans/${stage}/.gitkeep" ]] && touch "./plans/${stage}/.gitkeep"
+        if [[ ! -d "./plans/${stage}" ]]; then
+            mkdir -p "./plans/${stage}"
+            touch "./plans/${stage}/.gitkeep"
+            echo "Created: ./plans/${stage}/" >&2
+        fi
     done
-
-    # Copy main entry point
-    cp "$BUNDLED_PLAN_OPS" "$project_plan_ops" && chmod +x "$project_plan_ops"
-
-    # Copy module directory (removes old modules if present, copies fresh)
-    [[ -d "$project_plan_ops_dir" ]] && rm -rf "$project_plan_ops_dir"
-    if [[ -d "$BUNDLED_PLAN_OPS_DIR" ]]; then
-        cp -r "$BUNDLED_PLAN_OPS_DIR" "$project_plan_ops_dir"
-        echo "Created: ./tools/plan-ops/ (modular structure)" >&2
-    fi
-
-    PLAN_OPS_SCRIPT="$project_plan_ops"
-
-    echo "Created: ./tools/plan-ops.sh" >&2
-    echo "Created: ./plans/{drafts,active,completed,abandoned}/" >&2
-    echo -e "\nPlan-ops commands (run in terminal, not Claude Code):" >&2
-    echo "  ./tools/plan-ops.sh wizard <plan-file>  # Guided workflow" >&2
-    echo "  ./tools/plan-ops.sh help                # Full command list" >&2
-    echo -e "\n═══════════════════════════════════════════════════════════\n" >&2
 }
 
 # Show help
@@ -110,19 +52,17 @@ MODIFIER OPTIONS:
   --max-iterations <n>      Safety limit (default: 30)
   --completion-promise      Phrase signaling completion (default: COMPLETE)
   --dry-run                 Preview prompt without executing
-  --no-init                 Skip auto-initialization of plan-ops.sh
-  --reinit                  Force re-copy of plan-ops.sh (updates to latest)
 
 CLEANUP OPTIONS:
   --cleanup                 Remove orphan state files (>24h old)
   --cleanup-all             Remove ALL state files (use if stuck)
 
-AUTO-INITIALIZATION:
-    On first run, tim-loop automatically:
-    - Copies plan-ops.sh to ./tools/plan-ops.sh
-    - Creates ./plans/{drafts,active,completed,abandoned}/ with .gitkeep
+PLAN-OPS:
+    Tim Loop uses plan-ops.sh bundled in the plugin for plan lifecycle
+    management. Run plan-ops commands directly from the plugin:
 
-    Use --no-init to skip. Use --reinit to update plan-ops.sh.
+    $PLUGIN_ROOT/scripts/plan-ops.sh wizard <plan-file>
+    $PLUGIN_ROOT/scripts/plan-ops.sh help
 
 BEST PRACTICE:
     Always clear context before starting. Copy-paste this block:
@@ -136,7 +76,7 @@ HELP_EOF
 MAX_ITERATIONS=30 COMPLETION_PROMISE="COMPLETE" TASK_PARTS=() DRY_RUN=false
 PLAN_ONLY=false IMPLEMENT_FILE="" NO_REVIEW=false NO_VERIFY=false
 MAX_VERIFY_CYCLES=999999 REVIEW_ITERATIONS=10 AUTO_APPROVE=false
-FORCE_NEW_SESSION=false NO_INIT=false REINIT=false
+FORCE_NEW_SESSION=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -165,8 +105,6 @@ while [[ $# -gt 0 ]]; do
         --review-iterations) REVIEW_ITERATIONS="$2"; shift 2 ;;
         --max-iterations) MAX_ITERATIONS="$2"; shift 2 ;;
         --completion-promise) COMPLETION_PROMISE="$2"; shift 2 ;;
-        --no-init) NO_INIT=true; shift ;;
-        --reinit) REINIT=true; shift ;;
         *) TASK_PARTS+=("$1"); shift ;;
     esac
 done
@@ -174,7 +112,7 @@ done
 # Cleanup and session handling
 cleanup_orphan_state_files 2>/dev/null || true
 handle_existing_session "$FORCE_NEW_SESSION" "$PWD"
-[[ "$NO_INIT" != "true" ]] && init_plan_ops_if_needed
+init_plans_folders
 
 # Join task and validate
 TASK="${TASK_PARTS[*]:-}"

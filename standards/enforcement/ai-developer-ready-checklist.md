@@ -2,7 +2,7 @@
 
 This checklist is used before a plan is approved for AI developer implementation. The goal is to catch issues that AI developers commonly face: ambiguous instructions, hallucination opportunities, over-engineering risks, and incomplete specifications.
 
-**When to use:** Before running `./tools/plan-ops.sh ai-ready <plan> --reviewer <name>`
+**When to use:** Before running `./plugins/tim-loop/scripts/plan-ops.sh ai-ready <plan> --reviewer <name>`
 
 **Who reviews:** A human with understanding of both the codebase and AI developer behavior.
 
@@ -116,7 +116,7 @@ After reviewing all items:
 
 1. **If all items pass:**
    ```bash
-   ./tools/plan-ops.sh ai-ready <plan-file> --reviewer "<Your Name>"
+   ./plugins/tim-loop/scripts/plan-ops.sh ai-ready <plan-file> --reviewer "<Your Name>"
    ```
 
 2. **If items fail:**

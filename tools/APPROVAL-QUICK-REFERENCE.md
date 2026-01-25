@@ -27,12 +27,12 @@ Plans with 2+ phases require Ralph Loop review before promotion.
 
 ```bash
 # Step 1: See the Ralph Loop command to run
-./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md
 
 # Step 2: Run the displayed /ralph-loop command in Claude Code
 
 # Step 3: Mark review complete (human only)
-./tools/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
 ```
 
 **Single-phase plans skip this step.**
@@ -44,7 +44,7 @@ Plans with 2+ phases require Ralph Loop review before promotion.
 Move an approved plan from `drafts/` to `active/`.
 
 ```bash
-./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
+./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
 ```
 
 **Blocked if:** Multi-phase plan hasn't completed Ralph Loop review.
@@ -56,7 +56,7 @@ Move an approved plan from `drafts/` to `active/`.
 Human reviews plan for AI implementation concerns before execution.
 
 ```bash
-./tools/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Your Name"
+./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Your Name"
 ```
 
 **Review checklist:** `standards/enforcement/ai-developer-ready-checklist.md`
@@ -76,18 +76,18 @@ Two-step process requiring separate terminal.
 ### Step 1: AI requests execution (creates approval request)
 ```bash
 # AI runs this - it BLOCKS and outputs a request ID
-./tools/plan-ops.sh execute plans/active/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
 ```
 
 ### Step 2: Human approves in SEPARATE terminal
 ```bash
-./tools/plan-ops.sh approve-execute <request-id> --approver "Your Name"
+./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Your Name"
 ```
 
 ### Step 3: AI retries (now succeeds)
 ```bash
 # AI runs again - now outputs the /tim-loop command
-./tools/plan-ops.sh execute plans/active/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
 ```
 
 **Approval expires after 15 minutes.**
@@ -98,10 +98,10 @@ Two-step process requiring separate terminal.
 
 ```bash
 # Mark as completed
-./tools/plan-ops.sh complete plans/active/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/my-plan.md
 
 # Or abandon with reason
-./tools/plan-ops.sh abandon plans/active/my-plan.md --reason "Requirements changed"
+./plugins/tim-loop/scripts/plan-ops.sh abandon plans/active/my-plan.md --reason "Requirements changed"
 ```
 
 ---
@@ -110,24 +110,24 @@ Two-step process requiring separate terminal.
 
 ```bash
 # 1. Import plan from Claude's default location
-./tools/plan-ops.sh import ~/.claude/plans/xyz.md --name "feature-auth"
+./plugins/tim-loop/scripts/plan-ops.sh import ~/.claude/plans/xyz.md --name "feature-auth"
 
 # 2. For multi-phase plans: Start Ralph Loop
-./tools/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md
 # (Run the displayed /ralph-loop command in Claude Code)
-./tools/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md --mark-complete
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md --mark-complete
 
 # 3. Promote to active
-./tools/plan-ops.sh promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
+./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
 
 # 4. Mark AI Developer Ready
-./tools/plan-ops.sh ai-ready plans/active/2025-01-16-feature-auth.md --reviewer "Tim"
+./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/2025-01-16-feature-auth.md --reviewer "Tim"
 
 # 5. Approve execution (AI requests, human approves in separate terminal)
-./tools/plan-ops.sh approve-execute abc123 --approver "Tim"
+./plugins/tim-loop/scripts/plan-ops.sh approve-execute abc123 --approver "Tim"
 
 # 6. After /tim-loop completes: Mark complete
-./tools/plan-ops.sh complete plans/active/2025-01-16-feature-auth.md
+./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/2025-01-16-feature-auth.md
 ```
 
 ---
@@ -146,6 +146,6 @@ Two-step process requiring separate terminal.
 
 ## See Also
 
-- `./tools/plan-ops.sh help` - Full command documentation
+- `./plugins/tim-loop/scripts/plan-ops.sh help` - Full command documentation
 - `standards/operations/plan-management.md` - Complete plan lifecycle docs
 - `standards/enforcement/ai-developer-ready-checklist.md` - AI review checklist

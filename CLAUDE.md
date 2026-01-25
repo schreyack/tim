@@ -609,15 +609,15 @@ Plans with 2+ phases **cannot be promoted** until Ralph Loop review is completed
 
 ```bash
 # 1. Show Ralph Loop command
-./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md
 
 # 2. Run the displayed /ralph-loop command in Claude Code
 
 # 3. Mark review complete
-./tools/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
 
 # 4. Now promotion is allowed
-./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
+./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
 ```
 
 Single-phase plans can skip Ralph Loop and promote directly.
@@ -628,13 +628,13 @@ Active plans require **human approval** before execution. AI cannot bypass this.
 
 ```bash
 # 1. AI requests execution (creates approval request, BLOCKS)
-./tools/plan-ops.sh execute plans/active/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
 
 # 2. HUMAN approves in separate terminal
-./tools/plan-ops.sh approve-execute <request-id> --approver "Name"
+./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Name"
 
 # 3. AI retries (now outputs tim-loop command)
-./tools/plan-ops.sh execute plans/active/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
 
 # 4. Run the /tim-loop command
 ```
@@ -650,7 +650,7 @@ Before execution, ALL plans require AI Developer Ready approval:
 
 ```bash
 # After promoting to active/, human reviews for AI concerns:
-./tools/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"
+./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"
 ```
 
 This is a HARD REQUIREMENT. Both `execute` and `tim-loop --implement` will fail without this approval.
@@ -695,7 +695,7 @@ See `standards/operations/plan-management.md` for full guidance.
 When Claude Code creates plans in `~/.claude/plans/`, use the import command:
 
 ```bash
-./tools/plan-ops.sh import ~/.claude/plans/<plan-name>.md --name "description"
+./plugins/tim-loop/scripts/plan-ops.sh import ~/.claude/plans/<plan-name>.md --name "description"
 ```
 
 This automatically:
@@ -746,7 +746,7 @@ Every plan MUST include:
 
 ### Automation
 
-Use `./tools/plan-ops.sh` for lifecycle operations:
+Use `./plugins/tim-loop/scripts/plan-ops.sh` for lifecycle operations:
 - `init` - Create folder structure
 - `import` - Import from ~/.claude/plans (auto-deletes original)
 - `ralph` - Start/complete Ralph Loop review (multi-phase plans)

@@ -51,18 +51,18 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 │  1. Plan promoted to active/ (existing workflow)                │
 │           │                                                     │
 │           ▼                                                     │
-│  2. AI: ./tools/plan-ops.sh execute plans/active/my-plan.md     │
+│  2. AI: ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md     │
 │     → Creates approval request, outputs request ID              │
 │     → BLOCKED - no tim-loop command yet                         │
 │           │                                                     │
 │           ▼                                                     │
 │  3. HUMAN (separate terminal):                                  │
-│     ./tools/plan-ops.sh approve-execute <request-id>            │
+│     ./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id>            │
 │        --approver "Name"                                        │
 │     → Validates and approves request                            │
 │           │                                                     │
 │           ▼                                                     │
-│  4. AI: ./tools/plan-ops.sh execute plans/active/my-plan.md     │
+│  4. AI: ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md     │
 │     → Finds valid approval                                      │
 │     → Outputs tim-loop command                                  │
 │           │                                                     │
@@ -71,7 +71,7 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 │     (Tim Loop runs with structured 6-step methodology)          │
 │           │                                                     │
 │           ▼                                                     │
-│  6. ./tools/plan-ops.sh complete plans/active/my-plan.md        │
+│  6. ./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/my-plan.md        │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -83,7 +83,7 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 ### Request Execution
 
 ```bash
-./tools/plan-ops.sh execute plans/active/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
 ```
 
 **First call (no approval):**
@@ -99,7 +99,7 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 ### Approve Execution (Human Only)
 
 ```bash
-./tools/plan-ops.sh approve-execute <request-id> --approver "Name"
+./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Name"
 ```
 
 - **Must be run in a separate terminal by a human**

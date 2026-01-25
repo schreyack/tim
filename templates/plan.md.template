@@ -108,7 +108,7 @@ USAGE NOTES:
 1. Replace all [PLACEHOLDERS] with actual values
 2. Delete these HTML comments before finalizing
 3. Set Ralph Review to "required" if plan has 2+ phases, "not-required" otherwise
-4. Use `./tools/plan-ops.sh` to manage plan lifecycle:
+4. Use `./plugins/tim-loop/scripts/plan-ops.sh` to manage plan lifecycle:
    - init: Create folder structure
    - import: Bring plan into project from ~/.claude/plans
    - ralph: Start/complete Ralph Loop review (multi-phase plans)
@@ -117,17 +117,17 @@ USAGE NOTES:
    - abandon: Move to abandoned with reason
 
 RALPH LOOP WORKFLOW (for multi-phase plans):
-1. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md
+1. ./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md
 2. Run the displayed /ralph-loop command
-3. ./tools/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
-4. ./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
+3. ./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+4. ./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
 
 EXECUTION WORKFLOW (for active plans):
-1. ./tools/plan-ops.sh execute plans/active/my-plan.md
+1. ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
    (BLOCKED - creates approval request)
 2. HUMAN runs in separate terminal:
-   ./tools/plan-ops.sh approve-execute <request-id> --approver "Name"
-3. ./tools/plan-ops.sh execute plans/active/my-plan.md
+   ./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Name"
+3. ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
    (Outputs /tim-loop command)
 4. Run the /tim-loop command
 

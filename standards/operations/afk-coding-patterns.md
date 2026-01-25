@@ -81,7 +81,7 @@ Tim-loop is designed for AFK development. It provides:
 
 ```bash
 # Human approves execution, then steps away
-./tools/plan-ops.sh approve-execute <request-id> --approver "Human"
+./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Human"
 
 # AI runs tim-loop (can take hours for complex plans)
 /tim-loop --implement plans/active/my-plan.md
@@ -105,7 +105,7 @@ When human returns, review:
 
 ```bash
 # Check plan status
-./tools/plan-ops.sh status plans/active/my-plan.md
+./plugins/tim-loop/scripts/plan-ops.sh status plans/active/my-plan.md
 
 # Review commits
 git log --oneline -20

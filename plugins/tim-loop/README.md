@@ -123,11 +123,11 @@ Tim Loop works as a system of two tools that handle different concerns:
 
 **When to use:** When you have a task that needs to be fully completed, not abandoned at 80%.
 
-### Plan-Ops (auto-installed to `./tools/plan-ops.sh`)
+### Plan-Ops (bundled in plugin)
 
 **What it does:** Manages the plan lifecycle with human approval gates.
 
-**Note:** Plan-ops is automatically copied to your project on first `/tim-loop` run. Run it from your terminal (not Claude Code) for human approval workflows.
+**Note:** Plan-ops is bundled in the tim-loop plugin. Run it from your terminal (not Claude Code) for human approval workflows. Use `/tim-loop --wizard` for guided plan management.
 
 - Organizes plans in `drafts/` → `active/` → `completed/` folders
 - Enforces Ralph Loop review for multi-phase plans
@@ -314,24 +314,13 @@ You should see the help text with available options.
 
 ### Project Initialization
 
-The first time you run `/tim-loop` in a project, it automatically:
+The first time you run `/tim-loop` in a project, it automatically creates the `./plans/` folder structure:
+- `drafts/` - Plans being designed
+- `active/` - Approved plans under implementation
+- `completed/` - Successfully executed plans
+- `abandoned/` - Cancelled plans
 
-1. Creates `./tools/plan-ops.sh` - Plan lifecycle management script
-2. Creates `./plans/` folder structure:
-   - `drafts/` - Plans being designed
-   - `active/` - Approved plans under implementation
-   - `completed/` - Successfully executed plans
-   - `abandoned/` - Cancelled plans
-
-**To update plan-ops.sh** (after plugin updates):
-```bash
-/tim-loop --reinit --dry-run "update"
-```
-
-**To skip auto-initialization:**
-```bash
-/tim-loop --no-init "your task"
-```
+Plan-ops commands are run directly from the plugin (no project-local copy needed).
 
 ## Usage
 
@@ -578,7 +567,7 @@ The loop looks for these markers in the plan file:
 
 ## Integration with plan-ops.sh
 
-Tim Loop integrates with `tools/plan-ops.sh` for full plan lifecycle management:
+Tim Loop integrates with `plan-ops.sh` for full plan lifecycle management:
 
 ### Plan Lifecycle Flow
 
@@ -797,14 +786,14 @@ For `--implement` mode, the plan must have:
 ```
 in its status table. Use plan-ops.sh to grant this approval:
 ```bash
-./tools/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Your Name"
+./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Your Name"
 ```
 
 ### "Can only implement plans from active/ folder"
 
 Move the plan to active first:
 ```bash
-./tools/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
+./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
 ```
 
 ### Hooks not being unregistered
