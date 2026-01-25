@@ -36,8 +36,8 @@ WIZARD_PLAN_FILE=""
 # LOGGING FUNCTIONS
 # =============================================================================
 
-log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_info() { echo -e "${GREEN}[INFO]${NC} $1" >&2; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
 # =============================================================================
