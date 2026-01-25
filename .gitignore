@@ -1,6 +1,6 @@
 # TIM Execution Requests (approval tokens)
-.tim-execution-requests/*
-!.tim-execution-requests/.gitkeep
+**/.tim-execution-requests/*
+!**/.tim-execution-requests/.gitkeep
 
 # Python
 __pycache__/
