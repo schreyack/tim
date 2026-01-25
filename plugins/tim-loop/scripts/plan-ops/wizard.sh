@@ -65,6 +65,39 @@ cmd_wizard() {
     echo "=== Plan Wizard ==="
     echo "Plan: $WIZARD_PLAN_FILE"
 
+    # Check if plan is in plans/ root but not in a subfolder - move to appropriate folder
+    if [[ "$WIZARD_PLAN_FILE" == *"/plans/"* ]] && \
+       [[ "$WIZARD_PLAN_FILE" != *"/plans/drafts/"* ]] && \
+       [[ "$WIZARD_PLAN_FILE" != *"/plans/active/"* ]] && \
+       [[ "$WIZARD_PLAN_FILE" != *"/plans/completed/"* ]] && \
+       [[ "$WIZARD_PLAN_FILE" != *"/plans/abandoned/"* ]]; then
+
+        # Determine which folder based on Stage field
+        local stage
+        stage=$(get_status_field "$WIZARD_PLAN_FILE" "Stage")
+        local target_folder="drafts"  # default
+        case "$stage" in
+            active|in_progress) target_folder="active" ;;
+            completed) target_folder="completed" ;;
+            abandoned) target_folder="abandoned" ;;
+        esac
+
+        local basename plans_dir new_path
+        basename=$(basename "$WIZARD_PLAN_FILE")
+        plans_dir=$(dirname "$WIZARD_PLAN_FILE")
+        new_path="${plans_dir}/${target_folder}/${basename}"
+
+        echo ""
+        log_info "Plan is in plans/ root, moving to ${target_folder}/..."
+        mkdir -p "${plans_dir}/${target_folder}"
+        mv "$WIZARD_PLAN_FILE" "$new_path"
+        WIZARD_PLAN_FILE="$new_path"
+        log_info "Moved to: $WIZARD_PLAN_FILE"
+
+        # Refresh state after move
+        state=$(get_plan_state "$WIZARD_PLAN_FILE")
+    fi
+
     # Check if plan is already completed - offer verification step
     if [[ "$state" == "done" ]]; then
         echo ""
