@@ -920,6 +920,18 @@ cmd_wizard() {
     echo "=== Plan Wizard ==="
     echo "Plan: $WIZARD_PLAN_FILE"
 
+    # Check if plan is already completed - offer verification step
+    if [[ "$state" == "done" ]]; then
+        echo ""
+        log_info "This plan is already marked as completed."
+        run_verification_tim_loop "$WIZARD_PLAN_FILE" "Run verification tim-loop on completed plan? [y/N] "
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${GREEN}✓ Plan lifecycle complete!${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        return
+    fi
+
     # Main wizard loop - continues until plan is completed
     while [[ "$state" != "done" ]]; do
         case "$state" in
@@ -1211,12 +1223,14 @@ You are NOT DONE until all phases complete AND code is TIM-compliant.\""
     fi
 }
 
-wizard_step_complete() {
-    print_step_header "complete" "Mark plan complete"
+# Run optional verification tim-loop
+# Returns: 0 if verification passed or skipped, 1 if verification failed
+run_verification_tim_loop() {
+    local plan_file="$1"
+    local prompt_text="${2:-Run verification tim-loop? [y/N] }"
 
-    # Optional verification tim-loop step
     echo ""
-    echo "Before marking complete, you can optionally run a verification tim-loop."
+    echo "You can run a verification tim-loop to ensure the plan was fully implemented."
     echo "This will:"
     echo "  - Review the original intent of the plan"
     echo "  - Check if it was actually implemented"
@@ -1224,20 +1238,23 @@ wizard_step_complete() {
     echo "  - Create remediation plans if gaps are found"
     echo "  - Iterate until fully complete (no stubs, no deferred work)"
     echo ""
-    echo -n "Run verification tim-loop? [y/N] "
+    echo -n "$prompt_text"
     read -r run_verification </dev/tty
 
-    if [[ "$run_verification" =~ ^[Yy] ]]; then
-        # Determine project directory from plan file path
-        local project_dir
-        project_dir=$(dirname "$(dirname "$(dirname "$WIZARD_PLAN_FILE")")")
+    if [[ ! "$run_verification" =~ ^[Yy] ]]; then
+        return 0  # Skipped, treat as success
+    fi
 
-        # Ensure tim-loop permissions are configured
-        ensure_tim_loop_permissions "$project_dir"
+    # Determine project directory from plan file path
+    local project_dir
+    project_dir=$(dirname "$(dirname "$(dirname "$plan_file")")")
 
-        echo ""
-        echo "Run this command in Claude Code:"
-        local cmd="/tim-loop \"VERIFICATION AUDIT for $WIZARD_PLAN_FILE
+    # Ensure tim-loop permissions are configured
+    ensure_tim_loop_permissions "$project_dir"
+
+    echo ""
+    echo "Run this command in Claude Code:"
+    local cmd="/tim-loop \"VERIFICATION AUDIT for $plan_file
 
 Your task is to verify that this plan was FULLY implemented with NO shortcuts.
 
@@ -1272,21 +1289,30 @@ CRITICAL: You are NOT DONE until:
 - No deferred/TODO items remain
 
 Iterate with NO LIMIT until this is achieved.\""
-        show_command "$cmd"
-        echo -n "Press Enter when verification tim-loop completes..."
-        read -r </dev/tty
+    show_command "$cmd"
+    echo -n "Press Enter when verification tim-loop completes..."
+    read -r </dev/tty
 
-        echo ""
-        echo "Did the verification tim-loop complete successfully with all checks passing? (y/n)"
-        echo -n "> "
-        read -r verification_passed </dev/tty
+    echo ""
+    echo "Did the verification tim-loop complete successfully with all checks passing? (y/n)"
+    echo -n "> "
+    read -r verification_passed </dev/tty
 
-        if [[ ! "$verification_passed" =~ ^[Yy] ]]; then
-            log_warn "Verification not passed. Run the wizard again when remediation is complete."
-            exit 0
-        fi
+    if [[ ! "$verification_passed" =~ ^[Yy] ]]; then
+        log_warn "Verification not passed. Run the wizard again when remediation is complete."
+        return 1
+    fi
 
-        log_info "Verification passed!"
+    log_info "Verification passed!"
+    return 0
+}
+
+wizard_step_complete() {
+    print_step_header "complete" "Mark plan complete"
+
+    # Optional verification tim-loop step
+    if ! run_verification_tim_loop "$WIZARD_PLAN_FILE" "Run verification tim-loop before marking complete? [y/N] "; then
+        exit 0
     fi
 
     echo ""
@@ -2592,15 +2618,18 @@ WIZARD WORKFLOW:
     5. Offer optional verification tim-loop before marking complete
     6. Continue until plan reaches completed state
 
-    VERIFICATION TIM-LOOP (optional, at completion):
-    Before marking a plan complete, the wizard offers to run a verification
-    tim-loop that:
+    VERIFICATION TIM-LOOP (optional):
+    The wizard offers to run a verification tim-loop that:
     - Reviews the original intent of the plan
     - Audits implementation to ensure it matches intent
     - Verifies TIM Project rules are followed
     - Checks for stubs, TODOs, deferred work, or cheating
     - Creates and executes remediation plans if gaps found
     - Iterates with NO LIMIT until 100% complete
+
+    This is offered:
+    - Before marking a plan complete (during normal workflow)
+    - When running wizard on an already-completed plan (re-verification)
 
     Use --status to check state without entering the wizard:
     $SCRIPT_PATH wizard <plan-file> --status
