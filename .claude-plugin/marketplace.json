@@ -3,17 +3,17 @@
   "name": "tim-design-standards",
   "description": "TIM Design Standards plugins for AI-driven development workflows",
   "owner": {
-    "name": "TIM",
-    "email": "tim@example.com"
+    "name": "Tim Schreyack",
+    "email": "schreyack@yahoo.com"
   },
   "plugins": [
     {
       "name": "tim-loop",
-      "description": "Goal in, working code out: iterative convergence with verification loop. Four-phase workflow: Plan -> Review -> Implement -> Verify.",
-      "version": "1.0.1",
+      "description": "Goal in, working code out: iterative convergence with verification loop and AI behavioral enforcement. Four-phase workflow: Plan -> Review -> Implement -> Verify with 100% completion requirement.",
+      "version": "1.5.0",
       "author": {
-        "name": "TIM",
-        "email": "tim@example.com"
+        "name": "Tim Schreyack",
+        "email": "schreyack@yahoo.com"
       },
       "source": "./plugins/tim-loop",
       "category": "development"
