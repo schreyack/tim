@@ -1,0 +1,8 @@
+{
+  "name": "tim-loop",
+  "description": "Goal in, working code out: iterative convergence with verification loop. Four-phase workflow: Plan -> Review -> Implement -> Verify with 100% completion requirement.",
+  "author": {
+    "name": "TIM",
+    "email": "tim@example.com"
+  }
+}
