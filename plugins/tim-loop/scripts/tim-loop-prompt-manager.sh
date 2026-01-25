@@ -14,25 +14,43 @@
 
 set -euo pipefail
 
-# Configuration
-PROMPT_DIR="${TIM_PROMPT_DIR:-.tim-execution-requests}"
+# Configuration - match tim-loop-setup.sh paths
+PROMPT_DIR="${TIM_PROMPT_DIR:-$HOME/.claude}"
 STALE_MINUTES="${TIM_PROMPT_STALE_MINUTES:-1440}"  # 24 hours default
 
-# Get session ID (prefer TIM_LOOP_SESSION_ID, fall back to CLAUDE_CODE_SESSION)
+# Get session ID from multiple sources
+# Priority: TIM_LOOP_SESSION_ID > tim-loop-active file > CLAUDE_CODE_SESSION
 get_session_id() {
-    local session_id="${TIM_LOOP_SESSION_ID:-${CLAUDE_CODE_SESSION:-}}"
+    local session_id="${TIM_LOOP_SESSION_ID:-}"
+
+    # Try to read from active marker file if no env var
+    if [[ -z "$session_id" && -f "$PROMPT_DIR/.tim-loop-active" ]]; then
+        local active_state
+        active_state=$(cat "$PROMPT_DIR/.tim-loop-active" 2>/dev/null || true)
+        if [[ -f "$active_state" ]]; then
+            # Extract session ID from state file path
+            session_id=$(basename "$active_state" | sed 's/\.tim-loop-state-//')
+        fi
+    fi
+
+    # Fall back to CLAUDE_CODE_SESSION
     if [[ -z "$session_id" ]]; then
-        # Generate a fallback based on parent PID if no session ID
+        session_id="${CLAUDE_CODE_SESSION:-}"
+    fi
+
+    # Last resort fallback
+    if [[ -z "$session_id" ]]; then
         session_id="fallback-$$"
     fi
     echo "$session_id"
 }
 
-# Get prompt file path for current session
+# Get prompt file path for current session (matches tim-loop-setup.sh format)
 get_prompt_file() {
     local session_id
     session_id=$(get_session_id)
-    echo "${PROMPT_DIR}/.tim-loop-prompt-${session_id}.md"
+    # Note: No .md extension - matches tim-loop-setup.sh
+    echo "${PROMPT_DIR}/.tim-loop-prompt-${session_id}"
 }
 
 # Ensure prompt directory exists
@@ -48,15 +66,8 @@ cmd_save() {
     local prompt_file
     prompt_file=$(get_prompt_file)
 
-    # Save with metadata header
-    cat > "$prompt_file" << EOF
----
-session_id: $(get_session_id)
-saved_at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
----
-
-$prompt
-EOF
+    # Save raw prompt (matches tim-loop-setup.sh format)
+    printf '%s' "$prompt" > "$prompt_file"
 
     echo "Prompt saved to: $prompt_file" >&2
 }
@@ -83,8 +94,8 @@ cmd_get() {
         return 1
     fi
 
-    # Extract prompt (everything after the YAML frontmatter)
-    awk '/^---$/{i++; next} i>=2' "$prompt_file"
+    # Read the file directly (tim-loop-setup.sh saves raw prompt, no frontmatter)
+    cat "$prompt_file"
 }
 
 # Clear prompt for current session
@@ -105,10 +116,11 @@ cmd_cleanup() {
     fi
 
     local count=0
+    # Match files without .md extension (tim-loop-setup.sh format)
     while IFS= read -r -d '' file; do
         rm -f "$file"
         ((count++)) || true
-    done < <(find "$PROMPT_DIR" -name ".tim-loop-prompt-*.md" -type f -mmin +${STALE_MINUTES} -print0 2>/dev/null)
+    done < <(find "$PROMPT_DIR" -maxdepth 1 -name ".tim-loop-prompt-*" -type f -mmin +${STALE_MINUTES} -print0 2>/dev/null)
 
     if [[ $count -gt 0 ]]; then
         echo "Cleaned up $count stale prompt file(s)" >&2

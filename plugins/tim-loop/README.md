@@ -10,6 +10,7 @@ Tim Loop is a Claude Code plugin that implements a four-phase workflow for AI-dr
 - [Installation](#installation)
 - [Usage](#usage)
 - [How It Works](#how-it-works)
+- [AI Behavioral Gates](#ai-behavioral-gates)
 - [Modes](#modes)
 - [Options Reference](#options-reference)
 - [Completion Rules](#completion-rules)
@@ -184,9 +185,76 @@ From within Claude Code:
 
 | Hook | Purpose |
 |------|---------|
-| `stop` | Intercepts exit to check for completion and re-inject prompt |
+| `Stop` | Intercepts exit to check for completion and re-inject prompt |
+| `Stop` | Excuse pattern detector - catches deflection and blocks completion |
 | `PreToolUse` | Auto-approves tools when `--auto-approve` is active |
+| `PostToolUse` | Code quality validator - enforces file/function size limits |
 | `PreCompact` | Preserves original prompt across context compaction |
+
+## AI Behavioral Gates
+
+Tim Loop includes real-time enforcement hooks that ensure code quality and accountability. These run automatically when you install the plugin - no additional configuration needed.
+
+### Code Quality Validator (PostToolUse)
+
+Runs after every `Edit` or `Write` operation:
+
+| Check | Limit | Action |
+|-------|-------|--------|
+| File size | 400 lines max | Blocks until refactored |
+| Function length | 50 lines max | Blocks until split |
+
+When a violation is detected, Claude receives a blocking response:
+
+```
+CODE QUALITY VIOLATION in page.tsx:
+
+- File has 542 lines (max: 400). Must be refactored into smaller modules.
+
+TIM Design Standards require this file to be refactored before continuing.
+This is a HARD REQUIREMENT - no exceptions.
+```
+
+Claude cannot proceed until the violation is fixed.
+
+### Excuse Pattern Detector (Stop)
+
+Runs when Claude tries to complete a task. Scans the conversation for deflection patterns:
+
+| Pattern Type | Example | Why Blocked |
+|--------------|---------|-------------|
+| Pre-existing blame | "The file was already over the limit" | Touched file = your responsibility |
+| Scope avoidance | "This isn't part of my changes" | Standards don't care about scope |
+| Responsibility denial | "I didn't cause this violation" | You saw it, you fix it |
+| Minimization | "I only added 6 lines" | Impact size is irrelevant |
+| Plan excuses | "The plan doesn't mention this" | Standards override plan scope |
+
+When excuses are detected:
+
+```
+DEFLECTION DETECTED - You attempted to avoid responsibility.
+
+Found 3 excuse pattern(s):
+  - Pattern: Claiming pre-existing problems excuse current responsibility
+    Context: "...file was already over the limit before my changes..."
+
+TIM DESIGN STANDARDS RULE:
+If you touched a file with violations, you MUST fix them.
+No exceptions. No excuses.
+```
+
+Claude cannot complete until issues are addressed.
+
+### Why This Matters
+
+AI assistants often exhibit problematic behaviors:
+- Making excuses instead of fixing issues
+- Claiming problems are "out of scope"
+- Minimizing their responsibility
+
+**TIM Rule**: If you touched a file with violations, you must fix them. No exceptions.
+
+These gates enforce accountability through deterministic hooks that AI cannot bypass.
 
 ## Modes
 
@@ -436,9 +504,11 @@ plugins/tim-loop/
 │   ├── tim-loop-setup.sh     # Main setup script (parses args, creates state, registers hooks)
 │   ├── tim-loop-hook.sh      # Stop hook (checks completion, re-injects prompt)
 │   ├── tim-loop-permission-hook.sh  # PreToolUse hook (auto-approve when enabled)
-│   └── tim-loop-prompt-manager.sh   # PreCompact hook (preserves prompt across compaction)
+│   ├── tim-loop-prompt-manager.sh   # PreCompact hook (preserves prompt across compaction)
+│   ├── code-quality-validator.py    # PostToolUse hook (file/function size limits)
+│   └── excuse-detector.py    # Stop hook (catches deflection patterns)
 ├── hooks/
-│   └── hooks.json            # PreCompact hook configuration
+│   └── hooks.json            # Hook configuration (PreCompact, PostToolUse, Stop)
 └── README.md                 # This file
 ```
 
@@ -515,3 +585,40 @@ Increase the limit:
 ```
 
 Or investigate why the task isn't completing - the verification check will show what's missing.
+
+### Code quality validator keeps blocking
+
+The validator enforces TIM standards (400-line files, 50-line functions). If you're blocked:
+
+1. Refactor the file into smaller modules
+2. Extract large functions into smaller units
+3. Each module should have a single responsibility
+
+**There is no bypass** - this is intentional. Fix the code.
+
+### Excuse detector false positive
+
+The excuse detector uses conservative patterns. If legitimate technical discussion is flagged:
+
+1. Rephrase to focus on solutions, not blame
+2. Instead of: "This was already broken"
+3. Say: "I'll fix this violation now"
+
+The detector looks for deflection language. Solution-focused language passes through.
+
+### Behavioral gates not running
+
+Verify Python 3 is available:
+```bash
+which python3
+```
+
+Check the hooks are registered:
+```bash
+cat ~/.claude/settings.local.json | grep -A5 PostToolUse
+```
+
+Verify scripts are executable:
+```bash
+ls -la ~/.claude/plugins/cache/tim-design-standards/tim-loop/*/scripts/*.py
+```

@@ -31,6 +31,15 @@ Ready-to-copy configuration files that implement TIM Design Standards.
 | `ops/ops.sh.template` | Deployment script | [ops-script](../standards/deployment/ops-script.md) |
 | `ops/ops-config.yaml.template` | Ops configuration | [ops-script](../standards/deployment/ops-script.md) |
 
+### Claude Code Hooks (AI Behavioral Gates)
+
+| Template | Purpose | Standards Implemented |
+|----------|---------|----------------------|
+| `hooks/code-quality-validator.py` | Enforces file/function size limits | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
+| `hooks/excuse-detector.py` | Catches deflection patterns | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
+| `hooks/install-hooks.sh` | Automated installation | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
+| `hooks/settings.json.template` | Claude Code configuration | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
+
 ### Plans
 
 | Template | Purpose | Standards Implemented |
@@ -50,6 +59,9 @@ cp templates/CLAUDE.md.template my-project/CLAUDE.md
 cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
 cp templates/plan.md.template my-project/plans/
 
+# Install Claude Code AI behavioral gates
+./templates/hooks/install-hooks.sh my-project/
+
 # Customize CLAUDE.md for your project
 # Install pre-commit hooks
 cd my-project && pre-commit install
@@ -64,6 +76,9 @@ cp templates/CLAUDE.md.template my-project/CLAUDE.md
 cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
 cp templates/plan.md.template my-project/plans/
 
+# Install Claude Code AI behavioral gates
+./templates/hooks/install-hooks.sh my-project/
+
 # Customize CLAUDE.md for your project
 # Install pre-commit hooks
 cd my-project && pre-commit install
@@ -72,6 +87,13 @@ cd my-project && pre-commit install
 ## Template-to-Gate Mapping
 
 Templates are designed to enforce specific gates:
+
+### AI Behavioral Gates (Real-time)
+
+- `hooks/code-quality-validator.py` - PostToolUse hook, enforces file/function limits
+- `hooks/excuse-detector.py` - Stop hook, catches deflection patterns
+
+These hooks run during Claude Code sessions, providing immediate enforcement that AI cannot bypass.
 
 ### Gate 1 (Local/Pre-commit)
 

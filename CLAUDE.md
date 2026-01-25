@@ -71,6 +71,27 @@ This is why TIM enforces:
 - **Tests must pass before merge** - Catches plausible-sounding but broken logic
 - **90% coverage minimum** - Forces comprehensive testing, not just happy paths
 - **No bypass flags** - Removes temptation to skip verification
+- **AI Behavioral Gates** - Real-time enforcement during Claude Code sessions
+
+### AI Behavioral Gates (Real-time Enforcement)
+
+Claude Code hooks provide immediate enforcement that AI cannot bypass:
+
+| Hook | When | What It Catches |
+|------|------|-----------------|
+| **Code Quality Validator** | After Edit/Write | File >400 lines, function >50 lines |
+| **Excuse Pattern Detector** | Before completion | Deflection like "was already broken" |
+
+**TIM Rule**: If you touched a file with violations, you must fix them. No exceptions.
+
+The Excuse Pattern Detector specifically catches when AI tries to avoid responsibility:
+- "The file was already over the limit before my changes"
+- "This isn't part of my scope"
+- "I didn't cause this violation"
+
+These patterns trigger a BLOCK - AI cannot complete the task until the violation is fixed.
+
+See: `standards/enforcement/ai-behavioral-gates.md` for full documentation.
 
 ### The Unified Check Command
 
@@ -463,22 +484,24 @@ A task is NOT complete until:
 2. Copy templates from `templates/python/` or `templates/node/`
 3. Install shared library: `pip install ./lib/design_standards/libs/python` or `npm install ./lib/design_standards/libs/node`
 4. Copy `.tim-patterns.yaml` template and register patterns
-5. Configure CI pipeline from `templates/ci/`
-6. **Set up remote environments:**
+5. **Install AI Behavioral Gates**: `./templates/hooks/install-hooks.sh /path/to/project`
+6. Configure CI pipeline from `templates/ci/`
+7. **Set up remote environments:**
    - Copy `templates/environments.yaml.example` to project root
    - Add `environments.yaml` to `.gitignore`
    - Configure dev/uat/prod remote servers
    - Create `environments.yaml` with real connection details
-7. Run `tools/tim-compliance-check.sh` to verify setup
+8. Run `tools/tim-compliance-check.sh` to verify setup
 
 ### For Existing Projects
 1. Run `tools/tim-compliance-check.sh` to identify gaps
 2. Create remediation plan for gaps
 3. Install shared library
 4. Create `.tim-patterns.yaml` and register all patterns
-5. Implement pre-commit hooks (Gate 1)
-6. Add CI pipeline (Gate 2)
-7. Implement deploy gates (Gate 3 + 4)
+5. **Install AI Behavioral Gates**: `./templates/hooks/install-hooks.sh /path/to/project`
+6. Implement pre-commit hooks (Gate 1)
+7. Add CI pipeline (Gate 2)
+8. Implement deploy gates (Gate 3 + 4)
 8. **Migrate to remote-first deployment:**
    - Set up remote dev/uat/prod environments
    - Update team workflow to use `./ops.sh --env dev` by default
