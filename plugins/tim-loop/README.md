@@ -32,61 +32,104 @@ The loop continues until verification passes or max iterations are reached.
 
 ## Installation
 
-Tim Loop is part of the `tim-design-standards` marketplace.
+Tim Loop is part of the `tim-design-standards` marketplace hosted on GitHub.
 
-### Step 1: Register the Marketplace
+### Option A: Interactive Install (Recommended)
 
-Add to `~/.claude/plugins/known_marketplaces.json`:
+The easiest way to install is through the interactive plugin manager:
 
-```json
-{
-  "claude-plugins-official": { ... },
-  "tim-design-standards": {
-    "source": {
-      "source": "github",
-      "repo": "schreyack/design_standards"
-    },
-    "installLocation": "/Users/YOUR_USERNAME/.claude/plugins/marketplaces/tim-design-standards"
-  }
-}
+1. **Open the plugin manager:**
+   ```
+   /plugin
+   ```
+
+2. **Navigate to the Marketplaces tab** (use arrow keys)
+
+3. **Add the marketplace:**
+   - Select "Add Marketplace"
+   - Enter: `schreyack/design_standards`
+   - Press Enter to confirm
+
+4. **Navigate to the Discover tab**
+
+5. **Find and install tim-loop:**
+   - Scroll to find `tim-loop`
+   - Press Enter to select it
+   - Choose your installation scope:
+     - **User** (default): Available in all your projects
+     - **Project**: Shared with team via version control
+     - **Local**: Just for you in this repo
+
+6. **Restart Claude Code** to activate the plugin
+
+### Option B: Command-Line Install
+
+If you prefer CLI commands:
+
+```bash
+# Step 1: Add the marketplace
+/plugin marketplace add schreyack/design_standards
+
+# Step 2: Install tim-loop from the marketplace
+/plugin install tim-loop@tim-design-standards
 ```
 
-Replace `YOUR_USERNAME` with your actual username.
+### Option C: Manual Installation
 
-### Step 2: Clone the Marketplace
+For offline environments or custom setups:
+
+#### Step 1: Clone the repository
 
 ```bash
 git clone https://github.com/schreyack/design_standards.git \
   ~/.claude/plugins/marketplaces/tim-design-standards
 ```
 
-### Step 3: Install tim-loop
+#### Step 2: Register in your settings
 
-Use Claude Code's `/plugins` command to install tim-loop from the tim-design-standards marketplace.
-
-Or manually add to `~/.claude/plugins/installed_plugins.json`:
+Add to `~/.claude/settings.json` (or `.claude/settings.json` for project scope):
 
 ```json
 {
-  "plugins": [
-    {
-      "name": "tim-loop",
-      "marketplace": "tim-design-standards",
-      "source": "~/.claude/plugins/marketplaces/tim-design-standards/plugins/tim-loop"
+  "extraKnownMarketplaces": {
+    "tim-design-standards": {
+      "source": "./plugins/marketplaces/tim-design-standards"
     }
-  ]
+  },
+  "enabledPlugins": {
+    "tim-loop@tim-design-standards": true
+  }
 }
 ```
 
+#### Step 3: Restart Claude Code
+
 ### Updating
 
-Pull the latest from the marketplace directory:
+**Interactive:**
+1. Run `/plugin`
+2. Go to the **Installed** tab
+3. Select `tim-loop` and choose "Update"
 
+**Command-line:**
+```bash
+/plugin update tim-loop@tim-design-standards
+```
+
+**Manual:**
 ```bash
 cd ~/.claude/plugins/marketplaces/tim-design-standards && git pull
 ```
 
-Or use `/plugins update` in Claude Code.
+### Verifying Installation
+
+After installation, verify it works:
+
+```bash
+/tim-loop --help
+```
+
+You should see the help text with available options.
 
 ## Usage
 
