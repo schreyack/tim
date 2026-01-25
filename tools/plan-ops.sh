@@ -1177,24 +1177,13 @@ wizard_step_tim_loop() {
     local has_prompt_manager=false
     if [[ -x "$prompt_manager" ]]; then
         has_prompt_manager=true
-    fi
-
-    if [[ "$has_prompt_manager" == "true" ]]; then
-        echo ""
-        log_info "OPTIONAL: Save prompt for compaction recovery (run BEFORE tim-loop):"
-        show_command "./tools/tim-loop-prompt-manager.sh save \"implement $WIZARD_PLAN_FILE with full TIM compliance\""
-        echo ""
+        # Save prompt automatically for compaction recovery
+        "$prompt_manager" save "implement $WIZARD_PLAN_FILE with full TIM compliance" 2>/dev/null || true
     fi
 
     echo "Run this command in Claude Code:"
     local cmd="/tim-loop:tim-loop --implement $WIZARD_PLAN_FILE"
     show_command "$cmd"
-
-    if [[ "$has_prompt_manager" == "true" ]]; then
-        echo ""
-        log_info "AFTER completion: Clear saved prompt:"
-        show_command "./tools/tim-loop-prompt-manager.sh clear"
-    fi
 
     echo -n "Press Enter when Tim Loop completes..."
     read -r </dev/tty
@@ -1217,6 +1206,10 @@ wizard_step_tim_loop() {
             exit 1
         fi
         log_info "Implementation marked as verified."
+        # Clear saved prompt now that tim-loop is complete
+        if [[ "$has_prompt_manager" == "true" ]]; then
+            "$prompt_manager" clear 2>/dev/null || true
+        fi
     else
         log_warn "Tim Loop not completed. Run the wizard again when ready."
         exit 0
@@ -2109,26 +2102,19 @@ cmd_execute() {
     log_info "Execution APPROVED!"
     echo ""
 
-    # Check for prompt manager
+    # Check for prompt manager and save prompt automatically
     local project_dir
     project_dir=$(dirname "$(dirname "$(dirname "$plan_file")")")
     local prompt_manager="${project_dir}/tools/tim-loop-prompt-manager.sh"
 
     if [[ -x "$prompt_manager" ]]; then
-        log_info "OPTIONAL: Save prompt for compaction recovery (run BEFORE tim-loop):"
-        echo -e "  ${GREEN}./tools/tim-loop-prompt-manager.sh save \"implement ${plan_file} with full TIM compliance\"${NC}"
-        echo ""
+        # Save prompt automatically for compaction recovery
+        "$prompt_manager" save "implement ${plan_file} with full TIM compliance" 2>/dev/null || true
     fi
 
     log_info "STEP 1 of 2: Run this command in Claude Code to start implementation:"
     echo -e "  ${GREEN}/tim-loop:tim-loop --implement ${plan_file}${NC}"
     echo ""
-
-    if [[ -x "$prompt_manager" ]]; then
-        log_info "AFTER completion: Clear saved prompt:"
-        echo -e "  ${GREEN}./tools/tim-loop-prompt-manager.sh clear${NC}"
-        echo ""
-    fi
 
     log_info "STEP 2 of 2: When tim-loop completes successfully, mark the plan as complete:"
     echo -e "  ${GREEN}$SCRIPT_PATH complete $plan_file${NC}"
@@ -2379,6 +2365,14 @@ cmd_complete() {
     if ! update_status "$dest" "completed" "All phases completed, verification passed"; then
         log_error "Failed to update status after completion"
         exit 1
+    fi
+
+    # Clear saved prompt now that plan is complete
+    local project_dir
+    project_dir=$(dirname "$plans_dir")
+    local prompt_manager="${project_dir}/tools/tim-loop-prompt-manager.sh"
+    if [[ -x "$prompt_manager" ]]; then
+        "$prompt_manager" clear 2>/dev/null || true
     fi
 
     log_info "Completed: $dest"

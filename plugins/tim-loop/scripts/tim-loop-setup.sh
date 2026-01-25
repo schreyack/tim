@@ -87,7 +87,7 @@ except (FileNotFoundError, json.JSONDecodeError):
 
 modified = False
 if 'hooks' in settings:
-    for hook_type in ['stop', 'PreToolUse']:
+    for hook_type in ['stop', 'PreToolUse', 'PreCompact']:
         if hook_type in settings['hooks']:
             original = len(settings['hooks'][hook_type])
             settings['hooks'][hook_type] = [h for h in settings['hooks'][hook_type] if 'tim-loop' not in h.get('command', '')]
@@ -506,7 +506,7 @@ try:
     with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
         settings = json.load(f)
     if 'hooks' in settings:
-        for ht in ['stop', 'PreToolUse']:
+        for ht in ['stop', 'PreToolUse', 'PreCompact']:
             if ht in settings['hooks']:
                 settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
                 if not settings['hooks'][ht]: del settings['hooks'][ht]
@@ -558,13 +558,14 @@ EOF
 # Save prompt for re-injection
 echo "$FULL_PROMPT" > "$TIM_LOOP_PROMPT_FILE"
 
-# Register hooks
+# Register hooks (stop, PreToolUse, and PreCompact for context compaction recovery)
 python3 << PYTHON_EOF
 import json, os
 
 settings_file = os.path.expanduser("~/.claude/settings.local.json")
 stop_hook = "${TIM_LOOP_HOOK_SCRIPT}"
 permission_hook = "${PLUGIN_ROOT}/scripts/tim-loop-permission-hook.sh"
+prompt_manager_hook = "${PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook"
 
 try:
     with open(settings_file, 'r') as f:
@@ -575,22 +576,31 @@ except:
 if 'hooks' not in settings:
     settings['hooks'] = {}
 
+# Stop hook - re-injects prompt when Claude tries to exit before completion
 if 'stop' not in settings['hooks']:
     settings['hooks']['stop'] = []
 stop_entry = {"command": stop_hook}
 if stop_entry not in settings['hooks']['stop']:
     settings['hooks']['stop'].append(stop_entry)
 
+# PreToolUse hook - auto-approve permissions during tim-loop
 if 'PreToolUse' not in settings['hooks']:
     settings['hooks']['PreToolUse'] = []
 perm_entry = {"command": permission_hook}
 if perm_entry not in settings['hooks']['PreToolUse']:
     settings['hooks']['PreToolUse'].append(perm_entry)
 
+# PreCompact hook - re-injects prompt after context compaction
+if 'PreCompact' not in settings['hooks']:
+    settings['hooks']['PreCompact'] = []
+compact_entry = {"command": prompt_manager_hook}
+if compact_entry not in settings['hooks']['PreCompact']:
+    settings['hooks']['PreCompact'].append(compact_entry)
+
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)
 
-print("Tim Loop hooks registered")
+print("Tim Loop hooks registered (stop, PreToolUse, PreCompact)")
 PYTHON_EOF
 
 # Display startup message
