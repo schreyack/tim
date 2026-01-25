@@ -545,6 +545,40 @@ Co-Authored-By: Claude <model>/<version> <noreply@anthropic.com>
 
 ---
 
+## Plugin Version Management
+
+When updating the tim-loop plugin version, you MUST update BOTH version files to keep them in sync:
+
+| File | Purpose |
+|------|---------|
+| `.claude-plugin/marketplace.json` | Top-level marketplace metadata |
+| `plugins/tim-loop/.claude-plugin/plugin.json` | **Plugin-specific metadata (marketplace reads this)** |
+
+The marketplace reads from `plugins/tim-loop/.claude-plugin/plugin.json`, so if you only update the top-level file, the marketplace will show the old version.
+
+### Version Update Checklist
+
+```bash
+# 1. Update both files
+# In .claude-plugin/marketplace.json:
+"version": "X.Y.Z",
+
+# In plugins/tim-loop/.claude-plugin/plugin.json:
+"version": "X.Y.Z",
+
+# 2. Commit with version in message
+git commit -m "feat: description of changes (vX.Y.Z)"
+```
+
+### Versioning Scheme
+
+Use semantic versioning:
+- **Major (X.0.0)**: Breaking changes
+- **Minor (0.X.0)**: New features, backward compatible
+- **Patch (0.0.X)**: Bug fixes, backward compatible
+
+---
+
 ## Mandatory: Plan Lifecycle Management
 
 All plans MUST use the project's `plans/` folder with lifecycle subfolders.
