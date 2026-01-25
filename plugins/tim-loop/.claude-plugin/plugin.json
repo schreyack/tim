@@ -1,6 +1,6 @@
 {
   "name": "tim-loop",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Goal in, working code out: iterative convergence with verification loop and AI behavioral enforcement. Four-phase workflow: Plan -> Review -> Implement -> Verify with 100% completion requirement. Includes real-time code quality validation (400-line file limit, 50-line function limit) and excuse pattern detection to enforce accountability.",
   "author": {
     "name": "Tim Schreyack",
