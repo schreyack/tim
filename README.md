@@ -8,6 +8,8 @@
 >
 > When I started using Claude Code and discovered [Boris Cherny's workflow](https://www.anthropic.com/engineering/claude-code-best-practices)—the plan-first approach, iterating until the plan is right, then executing—I immediately thought: *how do I automate this and get reliable results?* AI is like IP: powerful but unreliable. It hallucinates, it stops early, it makes excuses. The TIM standards are my TCP: verification loops, enforcement gates, and tooling that makes reliability emerge from an unreliable substrate.
 >
+> Is this perfect? No. Can it use improvement? Absolutely. Please submit PRs as you use the code—this is a living project that gets better with real-world usage.
+>
 > — Tim Schreyack ([LinkedIn](https://www.linkedin.com/in/tim-schreyack/))
 
 ---
