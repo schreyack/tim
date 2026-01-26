@@ -10,7 +10,7 @@
     {
       "name": "tim-loop",
       "description": "Goal in, working code out: iterative convergence with verification loop and AI behavioral enforcement. Four-phase workflow: Plan -> Review -> Implement -> Verify with 100% completion requirement.",
-      "version": "2.5.4",
+      "version": "2.5.5",
       "author": {
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"
