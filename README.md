@@ -50,6 +50,51 @@ Adopt the full framework for new projects, or install Tim Loop standalone for im
 | **Test** | Tests must exist and pass with 90% coverage | Pre-commit hooks, CI pipeline (Gate 2) |
 | **Deploy** | Human approves production deployment | Deploy gates, canary rollout (Gate 3) |
 
+### Recommended Workflow
+
+The TIM standards work best with a **3-terminal setup** that keeps human oversight smooth while AI executes:
+
+**Setup (iTerm2 or any terminal with tabs):**
+
+| Terminal | Purpose | What Runs Here |
+|----------|---------|----------------|
+| **Tab 1** | Claude Code | `/tim-loop` commands |
+| **Tab 2** | plan-ops | `plan-ops` commands to manage lifecycle |
+| **Tab 3** | Approvals | `plan-ops approve-execute` and other approval commands |
+
+**The workflow:**
+
+1. **Tab 2**: Run `plan-ops` commands to see status, import plans, or get next steps
+2. **Tab 2**: plan-ops outputs the exact command to paste into Claude—just copy it
+3. **Tab 1**: Run `/clear` then paste the command from plan-ops
+4. **Tab 1**: Claude executes the task via Tim Loop
+5. **Tab 3**: When approval is needed, plan-ops tells you—run the approval command here
+6. **Repeat**: plan-ops always shows the next step and gives you the command to paste
+
+**Why this works:**
+- **plan-ops keeps you on track**—it always knows where you are in the lifecycle
+- **Commands are pre-formatted**—copy from Tab 2, paste into Tab 1
+- **`/clear` before every command**—starts Claude with fresh context
+- **Approvals in Tab 3**—never interrupts your Claude session
+- **Human stays in control**—you decide when to proceed, AI executes
+
+**Example session:**
+
+```bash
+# Tab 2: Check status and get next command
+$ plan-ops status
+Active plan: 2025-01-26-auth-system.md (Phase 2 of 3)
+Next step: Run in Claude Code:
+  /tim-loop --implement plans/active/2025-01-26-auth-system.md
+
+# Tab 1: Clear and paste
+/clear
+/tim-loop --implement plans/active/2025-01-26-auth-system.md
+
+# Tab 3: (when plan-ops says approval needed)
+$ plan-ops approve-execute abc123 --approver "Tim"
+```
+
 ---
 
 ## Just Want Tim Loop?
