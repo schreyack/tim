@@ -27,13 +27,41 @@ should_cleanup_existing_session() {
         return 0
     fi
 
-    # Case 2: Different project
+    # Case 2: Old session's plan file shows VERIFIED: YES (session completed successfully)
+    # This catches cases where the stop hook's cleanup failed but the session actually finished
+    if [[ -n "$old_plan_file" ]] && [[ -f "$old_plan_file" ]]; then
+        if grep -q "<!-- VERIFIED: YES -->" "$old_plan_file"; then
+            echo "  Reason: Previous session completed (plan shows VERIFIED: YES)" >&2
+            return 0
+        fi
+    fi
+
+    # Case 3: Different project
     if [[ -n "$old_project" ]] && [[ "$old_project" != "$current_project" ]]; then
         echo "  Reason: Different project (was: $old_project)" >&2
         return 0
     fi
 
-    # Case 3: Session is stale (> 4 hours old)
+    # Case 4: No recent heartbeat (session interrupted by /clear or terminal close)
+    # If no tool has been used in 5+ minutes, session is likely dead
+    # This threshold balances detecting stale sessions vs. not killing sessions
+    # where Claude is doing extended thinking or waiting for user input
+    local heartbeat_file="$HOME/.claude/.tim-loop-heartbeat"
+    local heartbeat_threshold_seconds="${TIM_LOOP_HEARTBEAT_THRESHOLD_SECONDS:-300}"  # 5 minutes default
+    if [[ -f "$heartbeat_file" ]]; then
+        local heartbeat_epoch now_epoch age_seconds
+        heartbeat_epoch=$(cat "$heartbeat_file" 2>/dev/null || echo "0")
+        now_epoch=$(date "+%s")
+        age_seconds=$((now_epoch - heartbeat_epoch))
+
+        if [[ "$age_seconds" -gt "$heartbeat_threshold_seconds" ]]; then
+            local age_minutes=$((age_seconds / 60))
+            echo "  Reason: No activity for $age_minutes minutes (interrupted session)" >&2
+            return 0
+        fi
+    fi
+
+    # Case 5: Session is stale (> 4 hours old)
     if [[ -n "$created_at" ]]; then
         local created_epoch now_epoch age_hours
         # Handle both macOS and Linux date commands

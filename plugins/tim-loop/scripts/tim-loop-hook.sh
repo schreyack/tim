@@ -27,10 +27,35 @@ fi
 cleanup_tim_loop() {
     local message="${1:-Tim Loop: Session ended}"
     echo "$message" >&2
-    rm -f "$TIM_LOOP_STATE_FILE" "$TIM_LOOP_PROMPT_FILE" "$TIM_LOOP_ACTIVE_MARKER"
-    rm -f "$HOME/.claude/.tim-loop-iteration-count" "$HOME/.claude/.tim-loop-auto-approve"
+
+    # Log cleanup attempt for debugging
+    local cleanup_log="$HOME/.claude/.tim-loop-cleanup.log"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Cleanup started: $message" >> "$cleanup_log"
+
+    # Remove state files with explicit error checking
+    local files_to_remove=(
+        "$TIM_LOOP_STATE_FILE"
+        "$TIM_LOOP_PROMPT_FILE"
+        "$TIM_LOOP_ACTIVE_MARKER"
+        "$HOME/.claude/.tim-loop-iteration-count"
+        "$HOME/.claude/.tim-loop-auto-approve"
+        "$HOME/.claude/.tim-loop-heartbeat"
+    )
+
+    for file in "${files_to_remove[@]}"; do
+        if [[ -n "$file" && -f "$file" ]]; then
+            if rm -f "$file"; then
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - Removed: $file" >> "$cleanup_log"
+            else
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - FAILED to remove: $file" >> "$cleanup_log"
+            fi
+        fi
+    done
+
+    # Clean up hooks from settings
     python3 -c "
 import json, os
+log_file = os.path.expanduser('~/.claude/.tim-loop-cleanup.log')
 try:
     with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
         settings = json.load(f)
@@ -42,8 +67,14 @@ try:
         if not settings['hooks']: del settings['hooks']
     with open(os.path.expanduser('~/.claude/settings.local.json'), 'w') as f:
         json.dump(settings, f, indent=2)
-except: pass
+    with open(log_file, 'a') as f:
+        f.write(f'{__import__(\"datetime\").datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")} - Hooks cleaned from settings.local.json\n')
+except Exception as e:
+    with open(log_file, 'a') as f:
+        f.write(f'{__import__(\"datetime\").datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")} - Hook cleanup error: {e}\n')
 " 2>/dev/null || true
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Cleanup completed" >> "$cleanup_log"
 }
 
 # Check for completion promise

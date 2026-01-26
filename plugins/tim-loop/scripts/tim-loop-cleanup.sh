@@ -82,6 +82,11 @@ cleanup_orphan_state_files() {
         [ -n "$session_id" ] && [ ! -f ~/.claude/.tim-loop-state-"$session_id" ] && rm -f ~/.claude/.tim-loop-auto-approve
     fi
 
+    # Remove orphan heartbeat file if no active session
+    if [ -f ~/.claude/.tim-loop-heartbeat ] && [ ! -f ~/.claude/.tim-loop-active ]; then
+        rm -f ~/.claude/.tim-loop-heartbeat
+    fi
+
     cleanup_expired_approval_requests
     cleanup_orphan_hooks
 }
@@ -90,7 +95,7 @@ cleanup_orphan_state_files() {
 cleanup_all() {
     local force="${1:-}"
     if [ "$force" = "--force" ]; then
-        rm -f ~/.claude/.tim-loop-state-* ~/.claude/.tim-loop-prompt-* ~/.claude/.tim-loop-active ~/.claude/.tim-loop-auto-approve 2>/dev/null || true
+        rm -f ~/.claude/.tim-loop-state-* ~/.claude/.tim-loop-prompt-* ~/.claude/.tim-loop-active ~/.claude/.tim-loop-auto-approve ~/.claude/.tim-loop-heartbeat 2>/dev/null || true
         [ -d ".tim-execution-requests" ] && rm -f .tim-execution-requests/*.json 2>/dev/null || true
         cleanup_orphan_hooks
         echo "All tim-loop state files and hooks cleaned up" >&2
@@ -113,6 +118,7 @@ cleanup_session() {
     rm -f "${state_file/state/prompt}"
     rm -f ~/.claude/.tim-loop-active
     rm -f ~/.claude/.tim-loop-iteration-count
+    rm -f ~/.claude/.tim-loop-heartbeat
 
     cleanup_orphan_hooks
 }
