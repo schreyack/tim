@@ -1,5 +1,7 @@
 # TIM Design Standards
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 > **A note from Tim Schreyack**
 >
 > I spent the first half of my career as a network engineer, building infrastructure on protocols like TCP/IP—where the fundamental challenge is creating something reliable on top of something unreliable. That mental model became second nature: you don't trust the underlying layer, you verify, you implement checksums, you build in retransmission. Reliability emerges from disciplined enforcement, not wishful thinking.
@@ -64,17 +66,34 @@ Adopt the full framework for new projects, or install Tim Loop standalone for im
 | **Test** | Tests must exist and pass with 90% coverage | Pre-commit hooks, CI pipeline (Gate 2) |
 | **Deploy** | Human approves production deployment | Deploy gates, canary rollout (Gate 3) |
 
+```
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│   PLAN   │───▶│  REVIEW  │───▶│   CODE   │───▶│  VERIFY  │───▶│   TEST   │───▶│  DEPLOY  │
+│          │    │          │    │          │    │          │    │          │    │          │
+│ AI writes│    │ Human    │    │ AI       │    │ AI checks│    │ CI runs  │    │ Human    │
+│ the plan │    │ approves │    │ executes │    │ 100%     │    │ all tests│    │ approves │
+└──────────┘    └──────────┘    └──────────┘    │ complete │    └──────────┘    └──────────┘
+                                                │    │     │
+                                                │    ▼     │
+                                                │  ┌───┐   │
+                                                │  │ N │───┘ (loop until done)
+                                                │  └───┘
+                                                └──────────┘
+```
+
 ### Recommended Workflow
 
 The TIM standards work best with a **3-terminal setup** that keeps human oversight smooth while AI executes:
 
-**Setup (iTerm2 or any terminal with tabs):**
+**Setup (iTerm2, VS Code integrated terminals, tmux, or any multi-pane terminal):**
 
 | Terminal | Purpose | What Runs Here |
 |----------|---------|----------------|
 | **Tab 1** | Claude Code | `/tim-loop` commands |
 | **Tab 2** | plan-ops | `plan-ops` commands to manage lifecycle |
 | **Tab 3** | Approvals | `plan-ops approve-execute` and other approval commands |
+
+**Why Tab 3?** The `plan-ops execute` command blocks until a human approves in a separate session. This is intentional—AI cannot approve its own execution. Tab 3 keeps approvals from interrupting your Claude Code session.
 
 **The workflow:**
 
@@ -114,6 +133,22 @@ $ plan-ops approve-execute abc123 --approver "Tim"
 ## Just Want Tim Loop?
 
 You don't need to adopt the full TIM standards to use the Tim Loop plugin. Install it in 2 commands:
+
+### Prerequisites
+
+- **Claude Code** v1.0.0 or later (the CLI tool from Anthropic)
+- **Bash** (for `plan-ops` CLI) — included on macOS and Linux; Windows users need WSL or Git Bash
+- No Python or Node.js required for the plugin itself
+
+### Quick Start
+
+Run the quick start script to check prerequisites and get install instructions:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/schreyack/design_standards/main/scripts/quickstart.sh | bash
+```
+
+Or continue with the manual install below.
 
 ### Install
 
@@ -200,6 +235,16 @@ To migrate an existing project to TIM compliance:
 5. Migrate tests using [Test Migration Standard](standards/testing/test-migration.md)
 6. Reach Level 4 (full enforcement) before production
 
+**Enforcement Levels:**
+
+| Level | Name | What It Means |
+|-------|------|---------------|
+| 0 | Audit | Checks run but don't block — establishes baseline |
+| 1 | Warning | Failures logged, PRs flagged but not blocked |
+| 2 | Soft Block | New code must pass, legacy code exempt |
+| 3 | Hard Block | All code must pass, no exemptions |
+| 4 | Full Enforcement | All gates active including deploy gates |
+
 ---
 
 ## Four-Gate Enforcement Model
@@ -226,6 +271,8 @@ The TIM standards require four enforcement gates in all compliant projects:
 │  BLOCKS: Deployment if non-compliant                        │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**What is a Pattern?** A pattern is a standardized architectural approach (authentication, caching, logging, etc.) that must be registered in `.tim-patterns.yaml`. This ensures AI uses approved solutions instead of inventing its own. Patterns reference TIM standards (e.g., `jwt-bearer` for auth) or are marked `CUSTOM` with human approval.
 
 See [standards/enforcement/gates.md](standards/enforcement/gates.md) for full details.
 
@@ -275,6 +322,7 @@ The TIM standards support two technology stacks:
 design_standards/
 ├── CLAUDE.md              # Copy to TIM-compliant projects
 ├── README.md              # This file
+├── LICENSE                # Apache 2.0
 ├── standards/             # All standards documentation
 ├── libs/                  # Shared libraries (required by TIM)
 │   ├── python/            # tim-lib Python package
@@ -285,6 +333,8 @@ design_standards/
 │   ├── python/            # Python/FastAPI example
 │   └── node/              # Node.js/Express example
 ├── templates/             # Ready-to-copy configs
+├── scripts/               # Setup and helper scripts
+│   └── quickstart.sh      # Quick start installer
 └── tools/                 # Enforcement tools
 ```
 
