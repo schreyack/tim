@@ -23,10 +23,45 @@ if [[ -z "${TIM_LOOP_PROMPT_FILE:-}" ]]; then
     exit 0
 fi
 
+# Helper function to clean up all tim-loop state and hooks
+cleanup_tim_loop() {
+    local message="${1:-Tim Loop: Session ended}"
+    echo "$message" >&2
+    rm -f "$TIM_LOOP_STATE_FILE" "$TIM_LOOP_PROMPT_FILE" "$TIM_LOOP_ACTIVE_MARKER"
+    rm -f "$HOME/.claude/.tim-loop-iteration-count" "$HOME/.claude/.tim-loop-auto-approve"
+    python3 -c "
+import json, os
+try:
+    with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
+        settings = json.load(f)
+    if 'hooks' in settings:
+        for ht in ['stop', 'PreToolUse', 'PreCompact']:
+            if ht in settings['hooks']:
+                settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
+                if not settings['hooks'][ht]: del settings['hooks'][ht]
+        if not settings['hooks']: del settings['hooks']
+    with open(os.path.expanduser('~/.claude/settings.local.json'), 'w') as f:
+        json.dump(settings, f, indent=2)
+except: pass
+" 2>/dev/null || true
+}
+
 # Check for completion promise
 LAST_OUTPUT="${1:-}"
 if [[ -z "$LAST_OUTPUT" ]] && [[ -p /dev/stdin ]]; then
     LAST_OUTPUT=$(cat)
+fi
+
+# Detect user termination (empty or minimal output = /clear or Ctrl+C)
+# If output is less than 50 chars and doesn't contain substantive content, user terminated
+OUTPUT_LENGTH=${#LAST_OUTPUT}
+if [[ $OUTPUT_LENGTH -lt 50 ]]; then
+    # Check if it's truly empty or just whitespace/minimal
+    TRIMMED_OUTPUT=$(echo "$LAST_OUTPUT" | tr -d '[:space:]')
+    if [[ ${#TRIMMED_OUTPUT} -lt 20 ]]; then
+        cleanup_tim_loop "Tim Loop: Session terminated by user, cleaning up state"
+        exit 0
+    fi
 fi
 
 if echo "$LAST_OUTPUT" | grep -Fq "<promise>${COMPLETION_PROMISE}</promise>"; then
@@ -42,8 +77,7 @@ if echo "$LAST_OUTPUT" | grep -Fq "<promise>${COMPLETION_PROMISE}</promise>"; th
     if [[ -n "$PLAN_FILE" && -f "$PLAN_FILE" ]]; then
         # Check for verification failure
         if grep -q "<!-- VERIFIED: FAILED -->" "$PLAN_FILE"; then
-            echo "Tim Loop: BLOCKED - Verification failed, remediation required" >&2
-            rm -f "$TIM_LOOP_STATE_FILE" "$TIM_LOOP_PROMPT_FILE" "$TIM_LOOP_ACTIVE_MARKER"
+            cleanup_tim_loop "Tim Loop: BLOCKED - Verification failed, remediation required"
             exit 1
         fi
 
@@ -70,25 +104,7 @@ EOF
     fi
 
     # Task complete
-    echo "Tim Loop: Task complete" >&2
-    rm -f "$TIM_LOOP_STATE_FILE" "$TIM_LOOP_PROMPT_FILE" "$TIM_LOOP_ACTIVE_MARKER"
-
-    # Unregister hooks
-    python3 -c "
-import json, os
-try:
-    with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
-        settings = json.load(f)
-    if 'hooks' in settings:
-        for ht in ['stop', 'PreToolUse']:
-            if ht in settings['hooks']:
-                settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
-                if not settings['hooks'][ht]: del settings['hooks'][ht]
-        if not settings['hooks']: del settings['hooks']
-    with open(os.path.expanduser('~/.claude/settings.local.json'), 'w') as f:
-        json.dump(settings, f, indent=2)
-except: pass
-" 2>/dev/null || true
+    cleanup_tim_loop "Tim Loop: Task complete"
     exit 0
 fi
 
@@ -97,23 +113,7 @@ CURRENT_ITERATION=$((CURRENT_ITERATION + 1))
 
 # Check max iterations
 if [[ $CURRENT_ITERATION -ge $MAX_ITERATIONS ]]; then
-    echo "Tim Loop: Max iterations ($MAX_ITERATIONS) reached" >&2
-    rm -f "$TIM_LOOP_STATE_FILE" "$TIM_LOOP_PROMPT_FILE" "$TIM_LOOP_ACTIVE_MARKER"
-    python3 -c "
-import json, os
-try:
-    with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
-        settings = json.load(f)
-    if 'hooks' in settings:
-        for ht in ['stop', 'PreToolUse']:
-            if ht in settings['hooks']:
-                settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
-                if not settings['hooks'][ht]: del settings['hooks'][ht]
-        if not settings['hooks']: del settings['hooks']
-    with open(os.path.expanduser('~/.claude/settings.local.json'), 'w') as f:
-        json.dump(settings, f, indent=2)
-except: pass
-" 2>/dev/null || true
+    cleanup_tim_loop "Tim Loop: Max iterations ($MAX_ITERATIONS) reached"
     exit 0
 fi
 
