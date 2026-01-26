@@ -131,7 +131,7 @@ See `standards/deployment/environments.md` for full schema.
 ```yaml
 # environments.yaml - NOT in git
 version: "1.0"
-project: "jamphoria"
+project: "my-app"
 
 environments:
   dev:
@@ -142,7 +142,7 @@ environments:
       key_file: "${HOME}/.ssh/dev_deploy_key"
     remote:
       type: "docker-compose"
-      path: "/opt/apps/jamphoria/dev"
+      path: "/opt/apps/my-app/dev"
 
   uat:
     host: "uat.example.com"
@@ -152,7 +152,7 @@ environments:
       key_file: "${HOME}/.ssh/uat_deploy_key"
     remote:
       type: "docker-compose"
-      path: "/opt/apps/jamphoria/uat"
+      path: "/opt/apps/my-app/uat"
 
   prod:
     host: "prod.example.com"
@@ -162,7 +162,7 @@ environments:
       key_file: "${HOME}/.ssh/prod_deploy_key"
     remote:
       type: "docker-compose"
-      path: "/opt/apps/jamphoria/prod"
+      path: "/opt/apps/my-app/prod"
     protections:
       require_approval: true
       require_ticket: true
@@ -176,11 +176,11 @@ Project-specific settings shared across environments:
 ```yaml
 # ops-config.yaml - Project-specific configuration (committed to git)
 project:
-  name: "jamphoria"
+  name: "my-app"
 
 services:
   backend:
-    container: "jamphoria-v2"
+    container: "my-app-v2"
     port: 5002
     health_endpoint: "/health"
     dockerfile: "backend/Dockerfile"
@@ -190,7 +190,7 @@ services:
       - "backend/Dockerfile"
 
   frontend:
-    container: "jamphoria-v2-frontend"
+    container: "my-app-v2-frontend"
     port: 3000
     health_endpoint: "/"
     dockerfile: "frontend/Dockerfile"
@@ -201,13 +201,13 @@ services:
       - "frontend/Dockerfile"
 
   worker:
-    container: "jamphoria-v2-worker"
+    container: "my-app-v2-worker"
     dockerfile: "backend/Dockerfile"
     # No health endpoint - background worker
 
 database:
   type: "postgresql"
-  container: "jamphoria-v2-db"
+  container: "my-app-v2-db"
   migration_command: "alembic upgrade head"
   rollback_command: "alembic downgrade -1"
   backup_path: "/backups"
@@ -340,9 +340,9 @@ All operations are logged with:
 
 ```
 # ~/.tim-ops/audit.log
-2025-01-15T10:30:00Z | tim | jamphoria | deploy | SUCCESS | 45s
-2025-01-15T11:00:00Z | tim | jamphoria | db:migrate | SUCCESS | 3s
-2025-01-15T14:22:00Z | tim | jamphoria | rollback --confirm | SUCCESS | 12s
+2025-01-15T10:30:00Z | tim | my-app | deploy | SUCCESS | 45s
+2025-01-15T11:00:00Z | tim | my-app | db:migrate | SUCCESS | 3s
+2025-01-15T14:22:00Z | tim | my-app | rollback --confirm | SUCCESS | 12s
 ```
 
 ## Health Check Protocol
