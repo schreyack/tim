@@ -26,7 +26,7 @@ AI agents write plausible-looking code that compiles and runs, but silently intr
 
 The TIM standards enforce a **Plan → Review → Code → Verify → Test → Deploy** lifecycle where **humans approve plans and deployments, AI executes in between**. This keeps humans in control of "what" and "when" while AI handles "how." Every phase has gates that block progression until requirements are met.
 
-The core principle: if a rule can be bypassed, an AI will bypass it—so the TIM standards remove the bypass.
+> **The core principle: if a rule can be bypassed, an AI will bypass it—so the TIM standards remove the bypass.**
 
 ### The Enforcement
 
@@ -76,7 +76,7 @@ Adopt the full framework for new projects, or install Tim Loop standalone for im
                                                 │    │     │
                                                 │    ▼     │
                                                 │  ┌───┐   │
-                                                │  │ N │───┘ (loop until done)
+                                                │  │ N │───┘ (Self-Correction Loop)
                                                 │  └───┘
                                                 └──────────┘
 ```
@@ -93,7 +93,7 @@ The TIM standards work best with a **3-terminal setup** that keeps human oversig
 | **Tab 2** | plan-ops | `plan-ops` commands to manage lifecycle |
 | **Tab 3** | Approvals | `plan-ops approve-execute` and other approval commands |
 
-**Why Tab 3?** The `plan-ops execute` command blocks until a human approves in a separate session. This is intentional—AI cannot approve its own execution. Tab 3 keeps approvals from interrupting your Claude Code session.
+**Why Tab 3?** AI cannot be its own judge. Separating execution (Tab 1) from approval (Tab 3) creates a physical "air-gap" that prevents autonomous agents from accidentally or intentionally bypassing human oversight. Tab 3 keeps approvals from interrupting your Claude Code session.
 
 **The workflow:**
 
@@ -139,6 +139,8 @@ You don't need to adopt the full TIM standards to use the Tim Loop plugin. Insta
 - **Claude Code** v1.0.0 or later (the CLI tool from Anthropic)
 - **Bash** (for `plan-ops` CLI) — included on macOS and Linux; Windows users need WSL or Git Bash
 - No Python or Node.js required for the plugin itself
+
+**Note:** `tim-loop` runs **inside** the Claude Code environment (it's a plugin), while `plan-ops` is your **external** control plane for managing the plan lifecycle from your terminal.
 
 ### Quick Start
 
@@ -268,6 +270,8 @@ The TIM standards require four enforcement gates in all compliant projects:
 │  GATE 4: PATTERN COMPLIANCE                                 │
 │  All patterns registered in .tim-patterns.yaml              │
 │  CUSTOM patterns require human approval                     │
+│  Example: AI must use tim-lib's RequiresAuth, not invent    │
+│           a custom auth_check() function                    │
 │  BLOCKS: Deployment if non-compliant                        │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -298,7 +302,7 @@ The TIM standards require:
 
 ## Technology Stacks
 
-The TIM standards support two technology stacks:
+The TIM standards are **language-agnostic**, but we provide first-class support and shared libraries for the following stacks:
 
 ### Python Stack
 - FastAPI + SQLAlchemy 2.0 (async) + Alembic
@@ -440,3 +444,16 @@ This verifies:
 - No secrets in code
 - All patterns are registered
 - CUSTOM patterns have human approval
+
+---
+
+## Contributing
+
+Have a pattern that AI keeps hallucinating? Found a gap in the standards? Submit a PR:
+
+- Add patterns to `standards/`
+- Add configuration templates to `templates/`
+- Improve enforcement tools in `tools/`
+- Report issues at [GitHub Issues](https://github.com/schreyack/design_standards/issues)
+
+This is a living project—it gets better with real-world usage.
