@@ -1,20 +1,139 @@
 # TIM Design Standards
 
-Authoritative standards for all TIM projects. Defense in depth. Never trust. Always verify.
+**TIM is a set of design standards for AI-driven software development.**
 
-**Philosophy**: 100% of TIM development is done by AI developers. These standards are designed to enforce rules automatically - not just document them. If a rule can be bypassed, an AI will bypass it.
+### The Problem
 
-## Quick Start
+AI agents write plausible-looking code that compiles and runs, but silently introduces bugs, security holes, and incomplete implementations. Traditional coding standards fail because they rely on human discipline—AI agents will take shortcuts, make excuses, and declare "done" prematurely unless physically prevented from doing so.
 
-### New Project Setup
+### The Philosophy
+
+The TIM standards enforce a **Plan → Review → Code → Verify → Test → Deploy** lifecycle where **humans approve plans and deployments, AI executes in between**. This keeps humans in control of "what" and "when" while AI handles "how." Every phase has gates that block progression until requirements are met.
+
+The core principle: if a rule can be bypassed, an AI will bypass it—so the TIM standards remove the bypass.
+
+### The Enforcement
+
+The TIM standards solve this through **automated enforcement at every layer**:
+
+- **Pre-commit hooks** block commits that fail type checking or contain secrets
+- **CI pipelines** block merges without 90% test coverage
+- **Deploy gates** require human approval before production
+- **Real-time behavioral hooks** catch AI making excuses or writing oversized files
+- **Tim Loop** re-injects task prompts until verification passes—there is no "good enough," only 100% complete
+
+### What You Get
+
+A complete enforcement framework:
+- Standards documentation for coding, testing, security, and deployment
+- Ready-to-copy templates for CI pipelines, pre-commit hooks, and configuration
+- Shared libraries (tim-lib for Python, @tim/lib for Node.js)
+- The **Tim Loop** plugin for guaranteed task completion
+- The **plan-ops** CLI for human-gated plan management
+
+Adopt the full framework for new projects, or install Tim Loop standalone for immediate benefit.
+
+### The Tools
+
+**Tim Loop** is a Claude Code plugin that enforces the TIM standards' most critical requirement: tasks must be 100% complete, not "mostly done." It captures the original task, loops until all objectives are verified complete, preserves context when conversations get too long, enforces code quality limits in real-time, and blocks completion when AI tries to make excuses. The loop continues until verification passes—there is no early exit.
+
+**plan-ops** is a CLI tool (bundled with Tim Loop) that enforces the TIM standards' human oversight requirements. It organizes plans through a lifecycle (draft → active → completed), requires human approval before AI implements anything, and tracks status with structured metadata.
+
+### The Development Lifecycle
+
+| Phase | What Happens | TIM Enforcement |
+|-------|--------------|-----------------|
+| **Plan** | AI creates a formal plan with goals, steps, and completion criteria | Tim Loop `--plan` mode, plan-ops `import` |
+| **Review** | Human reviews plan for feasibility and approves | plan-ops `promote`, `ai-ready` approval gates |
+| **Code** | AI implements exactly what the plan specifies | Tim Loop `--implement`, real-time code quality hooks |
+| **Verify** | AI verifies 100% of objectives are met, loops if not | Tim Loop verification phase (no exit until complete) |
+| **Test** | Tests must exist and pass with 90% coverage | Pre-commit hooks, CI pipeline (Gate 2) |
+| **Deploy** | Human approves production deployment | Deploy gates, canary rollout (Gate 3) |
+
+---
+
+## Just Want Tim Loop?
+
+You don't need to adopt the full TIM standards to use the Tim Loop plugin. Install it in 2 commands:
+
+### Install
+
+In Claude Code:
+```
+/plugin marketplace add schreyack/design_standards
+/plugin install tim-loop@tim-design-standards
+```
+
+Restart Claude Code. That's it.
+
+### Use
+
+```bash
+# Run any task with guaranteed completion
+/tim-loop "add user authentication"
+
+# Create a plan without implementing
+/tim-loop --plan "design the auth system"
+
+# Quick mode for small tasks
+/tim-loop --no-review "fix typo in header"
+
+# Get help
+/tim-loop --help
+```
+
+### Optional: Add plan-ops to PATH
+
+For plan lifecycle management from your terminal:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+export PATH="$HOME/.claude/plugins/marketplaces/tim-design-standards/bin:$PATH"
+
+# Reload shell
+source ~/.zshrc
+```
+
+Then run `plan-ops help` from anywhere.
+
+### Learn More
+
+- [Full plugin documentation](plugins/tim-loop/README.md) - all options, modes, troubleshooting
+
+---
+
+## What Do You Want to Do?
+
+| Goal | Where to Look |
+|------|---------------|
+| **Install Tim Loop plugin** | [Just Want Tim Loop?](#just-want-tim-loop) (above) |
+| **Understand Tim Loop in depth** | [plugins/tim-loop/README.md](plugins/tim-loop/README.md) |
+| **Set up a new TIM-compliant project** | [New Project Setup](#new-project-setup) (below) |
+| **Migrate an existing project to TIM** | [Existing Project Migration](#existing-project-migration) (below) |
+| **Use the Python shared library** | [libs/python/README.md](libs/python/README.md) |
+| **Use the Node.js shared library** | [libs/node/README.md](libs/node/README.md) |
+| **See a complete example** | [examples/python/](examples/python/) or [examples/node/](examples/node/) |
+| **Copy configuration templates** | [templates/README.md](templates/README.md) |
+| **Understand the enforcement model** | [Four-Gate Model](#four-gate-enforcement-model) (below) |
+| **Browse all standards** | [Standards Index](#standards-index) (below) |
+
+---
+
+## New Project Setup
+
+To create a TIM-compliant project:
+
 1. Copy `CLAUDE.md` to your project root
 2. Copy templates from `templates/python/` or `templates/node/`
-3. Install shared library: `pip install ./lib/design_standards/libs/python` or `npm install ./lib/design_standards/libs/node`
+3. Install shared library (see [libs/python/](libs/python/) or [libs/node/](libs/node/))
 4. Copy `.tim-patterns.yaml` template and register your patterns
 5. Run `pre-commit install`
 6. Configure CI pipeline using templates from `templates/ci/`
 
-### Existing Project Migration
+## Existing Project Migration
+
+To migrate an existing project to TIM compliance:
+
 1. Run `tools/tim-compliance-check.sh` to assess current state
 2. Follow [Legacy Onboarding Playbook](standards/operations/legacy-onboarding.md)
 3. Start at enforcement Level 0 (audit only)
@@ -22,116 +141,11 @@ Authoritative standards for all TIM projects. Defense in depth. Never trust. Alw
 5. Migrate tests using [Test Migration Standard](standards/testing/test-migration.md)
 6. Reach Level 4 (full enforcement) before production
 
-### Tim Loop Plugin & plan-ops
-
-Tim Loop is a Claude Code plugin for AI-driven development with guaranteed completion. It includes `plan-ops` for plan lifecycle management.
-
-**Install the plugin:**
-```bash
-# In Claude Code
-/plugin marketplace add schreyack/design_standards
-/plugin install tim-loop@tim-design-standards
-```
-
-**Add plan-ops to your PATH (one-time setup):**
-```bash
-# 1. Add to your shell config (~/.zshrc or ~/.bashrc)
-export PATH="$HOME/.claude/plugins/marketplaces/tim-design-standards/bin:$PATH"
-
-# 2. Reload your shell
-source ~/.zshrc   # or: source ~/.bashrc
-
-# 3. Verify it works
-plan-ops help
-```
-
-**Now you can run plan-ops from any directory:**
-```bash
-plan-ops init                              # Initialize plans/ folder
-plan-ops import ~/.claude/plans/my-plan.md # Import a plan
-plan-ops wizard plans/drafts/my-plan.md    # Guided workflow
-plan-ops list                              # List all plans
-```
-
-See [plugins/tim-loop/README.md](plugins/tim-loop/README.md) for full documentation.
-
-## Repository Structure
-
-```
-design_standards/
-├── CLAUDE.md                    # Copy to new TIM projects
-├── README.md                    # This file
-├── standards/
-│   ├── enforcement/             # Gate definitions, compliance
-│   │   ├── gates.md             # Four-gate model
-│   │   ├── graduated-enforcement.md  # Migration levels
-│   │   ├── ai-instruction-enforcement.md  # Detect AI ignoring CLAUDE.md
-│   │   ├── ai-review-checklist.md
-│   │   └── strict-compliance.md # Pattern registry enforcement
-│   ├── operations/              # Multi-AI coordination, migration, plans
-│   │   ├── ai-coordination.md   # Worktree/branch strategy
-│   │   ├── legacy-onboarding.md # Migration playbook
-│   │   ├── plan-management.md   # Plan lifecycle & approval
-│   │   └── tim-loop-integration.md    # Tim Loop for plan execution
-│   ├── architecture/
-│   │   └── shared-libraries.md  # Library strategy
-│   ├── coding/                  # Language standards
-│   ├── testing/                 # Test requirements
-│   ├── security/                # Security standards
-│   │   ├── owasp-checklist.md
-│   │   ├── secrets.md           # Secrets management
-│   │   └── authentication.md    # JWT, password hashing
-│   ├── database/                # Migration standards
-│   ├── deployment/              # CI/CD, ops, observability
-│   └── incident/                # Incident response
-│       └── response.md          # Procedures, post-mortems
-├── libs/                        # Shared libraries (REQUIRED)
-│   ├── python/                  # tim-lib Python package
-│   └── node/                    # @tim/lib Node.js package
-├── templates/                   # Ready-to-copy configs
-│   ├── python/
-│   ├── node/
-│   ├── ci/                      # CI pipeline templates
-│   ├── ops/                     # ops.sh templates
-│   └── tim-patterns.yaml.template
-└── tools/                       # Enforcement tools
-    ├── tim-compliance-check.sh  # Compliance verification
-    └── tim-ops-approve          # Human approval for ops
-```
-
-## Standards Overview
-
-| Area | Document | Summary |
-|------|----------|---------|
-| **Enforcement** | [gates.md](standards/enforcement/gates.md) | What blocks merges and deploys |
-| **Graduated Enforcement** | [graduated-enforcement.md](standards/enforcement/graduated-enforcement.md) | Migration levels (0-4) |
-| **AI Instruction Enforcement** | [ai-instruction-enforcement.md](standards/enforcement/ai-instruction-enforcement.md) | Catch when AI ignores CLAUDE.md |
-| **Compliance** | [strict-compliance.md](standards/enforcement/strict-compliance.md) | Pattern registry, human approval workflow |
-| **AI Review** | [ai-review-checklist.md](standards/enforcement/ai-review-checklist.md) | Human review checklist for AI code |
-| **AI Coordination** | [ai-coordination.md](standards/operations/ai-coordination.md) | Multi-AI developer coordination |
-| **Legacy Onboarding** | [legacy-onboarding.md](standards/operations/legacy-onboarding.md) | Migration playbook for existing projects |
-| **Plan Management** | [plan-management.md](standards/operations/plan-management.md) | Plan lifecycle, Ralph Loop, Tim Loop |
-| **Test Migration** | [test-migration.md](standards/testing/test-migration.md) | Convert tests to TIM standards |
-| **Shared Libs** | [shared-libraries.md](standards/architecture/shared-libraries.md) | Required library usage |
-| **Code Organization** | [code-organization.md](standards/coding/code-organization.md) | File size limits, complexity (AI-critical) |
-| **Python** | [python.md](standards/coding/python.md) | mypy strict, ruff, FastAPI patterns |
-| **TypeScript** | [typescript.md](standards/coding/typescript.md) | strict mode, ESLint, Prisma |
-| **API Versioning** | [api-versioning.md](standards/coding/api-versioning.md) | URL path versioning, deprecation |
-| **Testing** | [requirements.md](standards/testing/requirements.md) | 90% coverage, TDD workflow |
-| **E2E Testing** | [e2e-requirements.md](standards/testing/e2e-requirements.md) | True e2e, route discovery |
-| **Security** | [owasp-checklist.md](standards/security/owasp-checklist.md) | OWASP Top 10 coverage |
-| **Secrets** | [secrets.md](standards/security/secrets.md) | Secrets management, rotation |
-| **Authentication** | [authentication.md](standards/security/authentication.md) | JWT, password hashing |
-| **Database** | [migrations.md](standards/database/migrations.md) | Migration requirements |
-| **Incident Response** | [response.md](standards/incident/response.md) | Incident handling, post-mortems |
-| **CI/CD** | [ci-integration.md](standards/deployment/ci-integration.md) | Pipeline + ops.sh integration |
-| **Feature Flags** | [feature-flags.md](standards/deployment/feature-flags.md) | Ship features safely |
-| **Canary** | [canary.md](standards/deployment/canary.md) | 10% rollout, auto-rollback |
-| **Observability** | [observability.md](standards/deployment/observability.md) | Logs, metrics, traces, alerts |
-| **Ops Script** | [ops-script.md](standards/deployment/ops-script.md) | Deployment operations interface |
-| **Ops Security** | [ops-security.md](standards/deployment/ops-security.md) | Ops script security, audit logging |
+---
 
 ## Four-Gate Enforcement Model
+
+The TIM standards require four enforcement gates in all compliant projects:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -154,116 +168,13 @@ design_standards/
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Shared Libraries (Required)
+See [standards/enforcement/gates.md](standards/enforcement/gates.md) for full details.
 
-Every TIM project MUST use the shared libraries. This ensures:
-- Consistent patterns across all projects
-- Central maintenance of common code
-- Automatic security updates
-
-### Python Projects
-```bash
-# Install tim-lib
-pip install ./lib/design_standards/libs/python
-# or add to pyproject.toml dependencies
-```
-
-```python
-from tim_lib import (
-    BaseAppSettings,
-    configure_logging, get_logger,
-    hash_password, verify_password,
-    create_access_token, verify_token,
-    AppError, NotFoundError, ValidationError,
-)
-```
-
-### Node.js Projects
-```bash
-# Install @tim/lib
-npm install ./lib/design_standards/libs/node
-```
-
-```typescript
-import {
-  createConfig, baseEnvSchema,
-  createLogger, LogContextMiddleware,
-  hashPassword, verifyPassword,
-  createAccessToken, verifyToken,
-  AppError, NotFoundError, ValidationError,
-  setupErrorHandlers, securityHeadersMiddleware,
-} from "@tim/lib";
-```
-
-## Pattern Registry
-
-Every project must have a `.tim-patterns.yaml` file registering all design patterns used. If a pattern is not registered or not approved, deployment is blocked.
-
-```yaml
-# .tim-patterns.yaml
-patterns:
-  authentication:
-    standard: "jwt-bearer"
-    reference: "standards/security/authentication.md"
-    implemented: true
-
-  database_access:
-    standard: "sqlalchemy-async"  # or "prisma"
-    reference: "standards/coding/python.md#sqlalchemy-patterns"
-    implemented: true
-
-  # For patterns without TIM standards:
-  custom_audio_processing:
-    standard: "CUSTOM"
-    justification: "No TIM standard exists for audio DSP"
-    approved_by: "human@example.com"
-    approved_date: "2025-01-15"
-    ticket: "STANDARDS-42"
-```
-
-## ops.sh Safety Tiers
-
-The ops.sh script has NO bypass flags. Operations are either allowed or require human approval.
-
-| Tier | Behavior | Examples |
-|------|----------|----------|
-| **SAFE** | Always allowed | status, health, logs, backup |
-| **MODERATE** | Allowed with logging | deploy, restart, migrate |
-| **HUMAN_REQUIRED** | Requires human approval | rollback, stop, db:rollback |
-| **BLOCKED** | Never allowed in ops.sh | destroy, db:restore |
-
-For HUMAN_REQUIRED operations:
-1. AI attempts operation → creates approval request
-2. Human reviews and runs `tim-ops-approve <request_id>`
-3. AI retries operation → succeeds with valid approval
-
-## AI Development Context
-
-TIM develops exclusively with AI. All standards are designed for this context:
-
-- **Strict rules are appropriate** - AI doesn't fatigue from strict enforcement
-- **Hard gates catch AI mistakes** - Plausible bugs need verification
-- **No bypass flags** - If AI can bypass, AI will bypass
-- **Human approval is the escape hatch** - For undefined or blocked operations
-- **Human review is critical** - Use the AI review checklist
-
-## Technology Stacks
-
-### Python Stack
-- FastAPI + SQLAlchemy 2.0 (async) + Alembic
-- Next.js (TypeScript) frontend
-- PostgreSQL + Celery/Redis
-- Docker Compose / Kubernetes
-- tim-lib shared library
-
-### Node.js Stack
-- Express or NestJS (TypeScript strict)
-- React (TypeScript) frontend
-- PostgreSQL + Prisma
-- Docker Compose / Kubernetes
-- @tim/lib shared library
+---
 
 ## Key Requirements
+
+The TIM standards require:
 
 | Requirement | Threshold | Enforcement |
 |-------------|-----------|-------------|
@@ -271,42 +182,143 @@ TIM develops exclusively with AI. All standards are designed for this context:
 | Test coverage | 90% | CI blocks merge |
 | Security vulns | 0 HIGH/CRITICAL | CI blocks merge |
 | Secrets in code | 0 | Pre-commit blocks |
-| Pattern compliance | 100% | Deploy blocks |
+| File size | 400 lines max | CI + AI behavioral gates |
+| Function size | 50 lines max | CI + AI behavioral gates |
+| Complexity | 10 max | CI blocks merge |
 | Shared lib usage | Required | Compliance check |
-| **File size** | **400 lines max** | **CI blocks merge** |
-| **Function size** | **50 lines max** | **CI blocks merge** |
-| **Complexity** | **10 max** | **CI blocks merge** |
+| Pattern compliance | 100% | Deploy blocks |
 
-## Templates
+---
 
-Ready-to-copy configuration files:
+## Technology Stacks
 
-**Python**
-- `templates/python/pyproject.toml` - Poetry + ruff + mypy
-- `templates/python/.pre-commit-config.yaml` - Python pre-commit hooks
+The TIM standards support two technology stacks:
 
-**Node.js**
-- `templates/node/package.json` - TypeScript + ESLint
-- `templates/node/tsconfig.json` - Strict TypeScript
-- `templates/node/.pre-commit-config.yaml` - Node pre-commit hooks
+### Python Stack
+- FastAPI + SQLAlchemy 2.0 (async) + Alembic
+- Next.js (TypeScript) frontend
+- PostgreSQL + Celery/Redis
+- Docker Compose / Kubernetes
+- **tim-lib** shared library ([docs](libs/python/README.md))
 
-**CI/CD**
-- `templates/ci/python-ci.yml` - GitHub Actions for Python
-- `templates/ci/node-ci.yml` - GitHub Actions for Node.js
+### Node.js Stack
+- Express or NestJS (TypeScript strict)
+- React (TypeScript) frontend
+- PostgreSQL + Prisma
+- Docker Compose / Kubernetes
+- **@tim/lib** shared library ([docs](libs/node/README.md))
 
-**Ops**
-- `templates/ops/tim-ops-lib.sh` - Shared ops library
-- `templates/ops/ops-config.yaml.template` - Project config template
+---
 
-**Project Setup**
-- `templates/CLAUDE.md.template` - Project CLAUDE.md template (customize per project)
+## Repository Structure
 
-**Compliance**
-- `templates/tim-patterns.yaml.template` - Pattern registry template
+```
+design_standards/
+├── CLAUDE.md              # Copy to TIM-compliant projects
+├── README.md              # This file
+├── standards/             # All standards documentation
+├── libs/                  # Shared libraries (required by TIM)
+│   ├── python/            # tim-lib Python package
+│   └── node/              # @tim/lib Node.js package
+├── plugins/               # Claude Code plugins
+│   └── tim-loop/          # Tim Loop plugin
+├── examples/              # Reference implementations
+│   ├── python/            # Python/FastAPI example
+│   └── node/              # Node.js/Express example
+├── templates/             # Ready-to-copy configs
+└── tools/                 # Enforcement tools
+```
+
+---
+
+## Standards Index
+
+### Enforcement
+| Document | Summary |
+|----------|---------|
+| [gates.md](standards/enforcement/gates.md) | Four-gate model - what blocks merges and deploys |
+| [graduated-enforcement.md](standards/enforcement/graduated-enforcement.md) | Migration levels (0-4) for existing projects |
+| [strict-compliance.md](standards/enforcement/strict-compliance.md) | Pattern registry and human approval workflow |
+| [ai-review-checklist.md](standards/enforcement/ai-review-checklist.md) | Human review checklist for AI-generated code |
+| [ai-behavioral-gates.md](standards/enforcement/ai-behavioral-gates.md) | Real-time enforcement during Claude Code sessions |
+
+### Operations
+| Document | Summary |
+|----------|---------|
+| [plan-management.md](standards/operations/plan-management.md) | Plan lifecycle, approval workflow, Tim Loop |
+| [ai-coordination.md](standards/operations/ai-coordination.md) | Multi-AI developer coordination |
+| [legacy-onboarding.md](standards/operations/legacy-onboarding.md) | Migration playbook for existing projects |
+| [afk-coding-patterns.md](standards/operations/afk-coding-patterns.md) | Extended autonomous development |
+
+### Coding
+| Document | Summary |
+|----------|---------|
+| [python.md](standards/coding/python.md) | mypy strict, ruff, FastAPI patterns |
+| [typescript.md](standards/coding/typescript.md) | strict mode, ESLint, Prisma |
+| [code-organization.md](standards/coding/code-organization.md) | File size limits, complexity (AI-critical) |
+| [api-versioning.md](standards/coding/api-versioning.md) | URL path versioning, deprecation |
+
+### Testing
+| Document | Summary |
+|----------|---------|
+| [requirements.md](standards/testing/requirements.md) | 90% coverage, TDD workflow |
+| [e2e-requirements.md](standards/testing/e2e-requirements.md) | True e2e testing, route discovery |
+| [test-migration.md](standards/testing/test-migration.md) | Convert tests to TIM standards |
+
+### Security
+| Document | Summary |
+|----------|---------|
+| [owasp-checklist.md](standards/security/owasp-checklist.md) | OWASP Top 10 coverage |
+| [secrets.md](standards/security/secrets.md) | Secrets management, rotation |
+| [authentication.md](standards/security/authentication.md) | JWT, password hashing |
+
+### Database
+| Document | Summary |
+|----------|---------|
+| [migrations.md](standards/database/migrations.md) | Migration requirements |
+
+### Deployment
+| Document | Summary |
+|----------|---------|
+| [ci-integration.md](standards/deployment/ci-integration.md) | Pipeline + ops.sh integration |
+| [ops-script.md](standards/deployment/ops-script.md) | Deployment operations interface |
+| [ops-security.md](standards/deployment/ops-security.md) | Ops script security, audit logging |
+| [feature-flags.md](standards/deployment/feature-flags.md) | Ship features safely |
+| [canary.md](standards/deployment/canary.md) | 10% rollout, auto-rollback |
+| [observability.md](standards/deployment/observability.md) | Logs, metrics, traces, alerts |
+
+### Incident Response
+| Document | Summary |
+|----------|---------|
+| [response.md](standards/incident/response.md) | Incident handling, post-mortems |
+
+---
+
+## Why Strict Enforcement Works for AI
+
+The TIM standards are intentionally strict because AI agents respond differently to enforcement than humans:
+
+| Human Developer | AI Developer |
+|----------------|--------------|
+| Frustrated by repeated failures | Unfazed by iteration |
+| May disable "annoying" checks | Cannot bypass enforcement |
+| Tires after many fix cycles | Unlimited patience |
+| May cut corners under pressure | Follows rules consistently |
+
+This is why the TIM standards enforce:
+- **Type checking on every commit** - Catches AI hallucinations about types
+- **Tests must pass before merge** - Catches plausible-sounding but broken logic
+- **90% coverage minimum** - Forces comprehensive testing, not just happy paths
+- **No bypass flags anywhere** - Removes temptation to skip verification
+- **Real-time behavioral gates** - Catches violations as they happen
+
+Strictness is the feature, not a bug.
+
+---
 
 ## Compliance Verification
 
-Run the compliance checker before deployment:
+Run the compliance checker to verify a project meets TIM standards:
 
 ```bash
 ./tools/tim-compliance-check.sh /path/to/project

@@ -1,6 +1,6 @@
 # TIM Shared Python Library (tim-lib)
 
-Shared utilities for all TIM Python projects. Provides battle-tested implementations of common patterns so you don't reinvent the wheel (or introduce bugs).
+The TIM standards require all Python projects to use this shared library. It provides battle-tested implementations of common patterns—configuration, logging, security, database access, and testing utilities—so projects don't reinvent the wheel or introduce bugs in critical infrastructure code.
 
 ## Installation
 

@@ -1,6 +1,6 @@
 # @tim/lib - TIM Shared Node.js/TypeScript Library
 
-Shared utilities for all TIM Node.js projects. This library enforces consistent patterns across the organization.
+The TIM standards require all Node.js projects to use this shared library. It provides battle-tested implementations of common patterns—configuration, logging, security, API middleware, and testing utilities—ensuring consistent behavior and eliminating bugs in critical infrastructure code.
 
 ## Installation
 
@@ -266,7 +266,7 @@ const fetchMock = createSequenceMock([
 
 ## TypeScript Configuration
 
-This library requires TypeScript strict mode. Ensure your `tsconfig.json` has:
+The TIM standards require TypeScript strict mode. Ensure your `tsconfig.json` has:
 
 ```json
 {

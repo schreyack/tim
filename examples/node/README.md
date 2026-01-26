@@ -1,6 +1,6 @@
-# TIM Example API (Node.js)
+# TIM Example: Node.js API
 
-A reference implementation demonstrating TIM Design Standards for Node.js projects.
+A complete reference implementation demonstrating a TIM-compliant Node.js/Express project. This example shows how all the TIM standards requirements work together: strict TypeScript, 90% test coverage, file size limits, and proper project structure.
 
 ## Stack
 

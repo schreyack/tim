@@ -1,6 +1,6 @@
 # TIM Templates
 
-Ready-to-copy configuration files that implement TIM Design Standards.
+Ready-to-copy configuration files that implement the TIM standards. These templates enforce the required thresholds (90% coverage, strict type checking, file size limits) and integrate with the four-gate enforcement model.
 
 ## Template Index
 
@@ -9,20 +9,23 @@ Ready-to-copy configuration files that implement TIM Design Standards.
 | Template | Purpose | Standards Implemented |
 |----------|---------|----------------------|
 | `python/.pre-commit-config.yaml` | Pre-commit hooks | [Gate 1](../standards/enforcement/gates.md#gate-1-local) |
-
-*Planned: pyproject.toml, mypy.ini*
+| `python/pyproject.toml` | Poetry config with TIM defaults | Type checking, linting, coverage |
 
 ### Node.js Stack
 
 | Template | Purpose | Standards Implemented |
 |----------|---------|----------------------|
 | `node/.pre-commit-config.yaml` | Pre-commit hooks | [Gate 1](../standards/enforcement/gates.md#gate-1-local) |
-
-*Planned: package.json, tsconfig.json, eslint.config.js*
+| `node/package.json` | npm config with TIM scripts | Type checking, linting, coverage |
+| `node/tsconfig.json` | TypeScript strict mode config | Type safety |
+| `node/eslint.config.js` | ESLint with TIM rules | Code quality |
 
 ### CI/CD
 
-*Planned: python-ci.yml, node-ci.yml, security-scan.yml*
+| Template | Purpose | Standards Implemented |
+|----------|---------|----------------------|
+| `ci/python-ci.yml` | Python CI pipeline | [Gate 2](../standards/enforcement/gates.md#gate-2-ci) |
+| `ci/node-ci.yml` | Node.js CI pipeline | [Gate 2](../standards/enforcement/gates.md#gate-2-ci) |
 
 ### Operations
 
@@ -30,15 +33,18 @@ Ready-to-copy configuration files that implement TIM Design Standards.
 |----------|---------|----------------------|
 | `ops/ops.sh.template` | Deployment script | [ops-script](../standards/deployment/ops-script.md) |
 | `ops/ops-config.yaml.template` | Ops configuration | [ops-script](../standards/deployment/ops-script.md) |
+| `environments.yaml.example` | Environment config template | [environments](../standards/deployment/environments.md) |
 
 ### Claude Code Hooks (AI Behavioral Gates)
 
-| Template | Purpose | Standards Implemented |
-|----------|---------|----------------------|
-| `hooks/code-quality-validator.py` | Enforces file/function size limits | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
-| `hooks/excuse-detector.py` | Catches deflection patterns | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
-| `hooks/install-hooks.sh` | Automated installation | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
-| `hooks/settings.json.template` | Claude Code configuration | [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) |
+AI behavioral gates (code quality validator, excuse detector) are bundled with the **Tim Loop plugin**. Install via the Claude Code marketplace:
+
+```
+/plugin marketplace add schreyack/design_standards
+/plugin install tim-loop@tim-design-standards
+```
+
+See [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) for documentation.
 
 ### Plans
 
@@ -59,12 +65,13 @@ cp templates/CLAUDE.md.template my-project/CLAUDE.md
 cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
 cp templates/plan.md.template my-project/plans/
 
-# Install Claude Code AI behavioral gates
-./templates/hooks/install-hooks.sh my-project/
-
 # Customize CLAUDE.md for your project
 # Install pre-commit hooks
 cd my-project && pre-commit install
+
+# Install Tim Loop plugin for AI behavioral gates (in Claude Code)
+# /plugin marketplace add schreyack/design_standards
+# /plugin install tim-loop@tim-design-standards
 ```
 
 ### New Node.js Project
@@ -76,12 +83,13 @@ cp templates/CLAUDE.md.template my-project/CLAUDE.md
 cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
 cp templates/plan.md.template my-project/plans/
 
-# Install Claude Code AI behavioral gates
-./templates/hooks/install-hooks.sh my-project/
-
 # Customize CLAUDE.md for your project
 # Install pre-commit hooks
 cd my-project && pre-commit install
+
+# Install Tim Loop plugin for AI behavioral gates (in Claude Code)
+# /plugin marketplace add schreyack/design_standards
+# /plugin install tim-loop@tim-design-standards
 ```
 
 ## Template-to-Gate Mapping
@@ -114,12 +122,14 @@ These hooks run during Claude Code sessions, providing immediate enforcement tha
 
 ## Customization Guidelines
 
-When customizing templates:
+When customizing templates, the TIM standards require:
 
 1. **Keep thresholds** - Don't lower coverage from 90%
 2. **Keep strictness** - Don't disable type checking rules
 3. **Add, don't remove** - Add project-specific checks, don't remove standard ones
 4. **Update versions** - Keep dependencies current
+
+Lowering thresholds or disabling checks violates TIM compliance and will be caught by the compliance checker.
 
 ## Version Compatibility
 
