@@ -15,9 +15,9 @@ project:
 # REMOTE SERVER (REQUIRED for remote deployments)
 # =============================================================================
 remote:
-  host: "192.168.86.14"              # (REQUIRED) Remote server hostname/IP
-  user: "tim"                         # (REQUIRED) SSH user
-  path: "/home/tim/apps/your-project" # (REQUIRED) Remote project path
+  host: "your-server.example.com"    # (REQUIRED) Remote server hostname/IP
+  user: "deploy"                      # (REQUIRED) SSH user
+  path: "/opt/apps/your-project"      # (REQUIRED) Remote project path
   ssh_key: ""                         # Optional: path to SSH key (uses default if empty)
 
 # =============================================================================

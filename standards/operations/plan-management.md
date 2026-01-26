@@ -91,7 +91,7 @@ See [Plan Review Gate](#plan-review-gate-for-multi-phase-plans) section below.
 **Format:** `YYYY-MM-DD-<project>-<brief-description>.md`
 
 Examples:
-- `2025-01-16-micasa-compliance-migration.md`
+- `2025-01-16-myapp-compliance-migration.md`
 - `2025-01-16-standards-plan-lifecycle.md`
 
 The date is when the plan was created. The project prefix helps when viewing plans across multiple repos.
