@@ -59,6 +59,29 @@ should_cleanup_existing_session() {
             echo "  Reason: No activity for $age_minutes minutes (interrupted session)" >&2
             return 0
         fi
+    else
+        # No heartbeat file means session was created before heartbeat support
+        # or heartbeat was never written. Check state file age instead.
+        if [[ -f "$old_state" ]]; then
+            local now_epoch file_mtime_epoch age_minutes
+            now_epoch=$(date "+%s")
+            # Get state file modification time
+            if stat -f "%m" "$old_state" &>/dev/null; then
+                file_mtime_epoch=$(stat -f "%m" "$old_state")
+            elif stat -c "%Y" "$old_state" &>/dev/null; then
+                file_mtime_epoch=$(stat -c "%Y" "$old_state")
+            else
+                file_mtime_epoch=0
+            fi
+            age_minutes=$(( (now_epoch - file_mtime_epoch) / 60 ))
+
+            # If state file hasn't been modified in 5+ minutes and no heartbeat,
+            # the session is definitely stale
+            if [[ "$age_minutes" -gt 5 ]]; then
+                echo "  Reason: No heartbeat file and state file is $age_minutes minutes old (legacy stale session)" >&2
+                return 0
+            fi
+        fi
     fi
 
     # Case 5: Session is stale (> 4 hours old)
