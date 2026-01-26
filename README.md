@@ -72,7 +72,6 @@ design_standards/
 │   │   ├── ai-coordination.md   # Worktree/branch strategy
 │   │   ├── legacy-onboarding.md # Migration playbook
 │   │   ├── plan-management.md   # Plan lifecycle & approval
-│   │   ├── ralph-loop-integration.md  # Ralph Loop for plan review
 │   │   └── tim-loop-integration.md    # Tim Loop for plan execution
 │   ├── architecture/
 │   │   └── shared-libraries.md  # Library strategy
