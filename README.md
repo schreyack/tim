@@ -1,5 +1,17 @@
 # TIM Design Standards
 
+> **A note from Tim Schreyack**
+>
+> I spent the first half of my career as a network engineer, building infrastructure on protocols like TCP/IP—where the fundamental challenge is creating something reliable on top of something unreliable. That mental model became second nature: you don't trust the underlying layer, you verify, you implement checksums, you build in retransmission. Reliability emerges from disciplined enforcement, not wishful thinking.
+>
+> The second half of my career shifted to DevOps and network automation at companies like [Network to Code](https://www.networktocode.com/), where I now work as Director of Sales Engineering. My mode of operation became: if there's a manual process, write code to automate it. If there's a repeatable workflow, make it repeatable *reliably*.
+>
+> When I started using Claude Code and discovered [Boris Cherny's workflow](https://www.anthropic.com/engineering/claude-code-best-practices)—the plan-first approach, iterating until the plan is right, then executing—I immediately thought: *how do I automate this and get reliable results?* AI is like IP: powerful but unreliable. It hallucinates, it stops early, it makes excuses. The TIM standards are my TCP: verification loops, enforcement gates, and tooling that makes reliability emerge from an unreliable substrate.
+>
+> — Tim Schreyack ([LinkedIn](https://www.linkedin.com/in/tim-schreyack/))
+
+---
+
 **TIM is a set of design standards for AI-driven software development.**
 
 ### The Problem
