@@ -26,9 +26,9 @@ count_phases() {
     echo "$count"
 }
 
-# Check if plan requires Ralph Loop review
+# Check if plan requires Plan Review
 # Returns: "true" if 2+ phases, "false" otherwise
-requires_ralph() {
+requires_review() {
     local file="$1"
     local phase_count
     phase_count=$(count_phases "$file")
@@ -39,17 +39,24 @@ requires_ralph() {
     fi
 }
 
-# Check if plan has completed Ralph Loop review
-# Returns: "true" if Ralph Review: completed, "false" otherwise
-has_ralph_completed() {
+# Backward compatibility alias
+requires_ralph() { requires_review "$@"; }
+
+# Check if plan has completed Plan Review
+# Returns: "true" if Plan Review: completed or Ralph Review: completed, "false" otherwise
+has_review_completed() {
     local file="$1"
     # Use regex to handle variable whitespace in markdown tables
-    if grep -qE "\| Ralph Review[[:space:]]*\|[[:space:]]*completed[[:space:]]*\|" "$file" 2>/dev/null; then
+    # Accept BOTH "Ralph Review" AND "Plan Review" field names for backward compatibility
+    if grep -qE "\| (Ralph Review|Plan Review)[[:space:]]*\|[[:space:]]*completed[[:space:]]*\|" "$file" 2>/dev/null; then
         echo "true"
     else
         echo "false"
     fi
 }
+
+# Backward compatibility alias
+has_ralph_completed() { has_review_completed "$@"; }
 
 # Extract a field value from Status Header markdown table
 # Usage: get_status_field "$plan_file" "Stage"
@@ -80,9 +87,11 @@ get_plan_state() {
     fi
 
     # Read status fields from Status Header using helper
-    local stage ralph_review ai_ready exec_approved impl_verified
+    # Check both Plan Review and Ralph Review for backward compatibility
+    local stage plan_review ai_ready exec_approved impl_verified
     stage=$(get_status_field "$plan_file" "Stage")
-    ralph_review=$(get_status_field "$plan_file" "Ralph Review")
+    plan_review=$(get_status_field "$plan_file" "Plan Review")
+    [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$plan_file" "Ralph Review")
     ai_ready=$(get_status_field "$plan_file" "AI Developer Ready")
     exec_approved=$(get_status_field "$plan_file" "Execution Approved")
     impl_verified=$(get_status_field "$plan_file" "Implementation Verified")
@@ -90,16 +99,16 @@ get_plan_state() {
     # State machine
     case "$stage" in
         draft)
-            # Ralph Review: required (needs loop) | completed (done) | not-required (skip)
-            if [[ "$ralph_review" == "required" ]]; then
+            # Plan Review: required (needs loop) | completed (done) | not-required (skip)
+            if [[ "$plan_review" == "required" ]]; then
                 echo "ralph"
-            elif [[ "$ralph_review" == "completed" || "$ralph_review" == "not-required" ]]; then
+            elif [[ "$plan_review" == "completed" || "$plan_review" == "not-required" ]]; then
                 echo "promote"
             else
-                # Ralph Review field missing or empty - check if multi-phase
-                local needs_ralph
-                needs_ralph=$(requires_ralph "$plan_file")
-                if [[ "$needs_ralph" == "true" ]]; then
+                # Plan Review field missing or empty - check if multi-phase
+                local needs_review
+                needs_review=$(requires_review "$plan_file")
+                if [[ "$needs_review" == "true" ]]; then
                     echo "ralph"
                 else
                     echo "promote"
@@ -143,16 +152,18 @@ show_plan_status() {
     local state="$2"
 
     # Read status fields using the helper
-    local stage ralph_review ai_ready exec_approved impl_verified
+    # Check both Plan Review and Ralph Review for backward compatibility
+    local stage plan_review ai_ready exec_approved impl_verified
     stage=$(get_status_field "$plan_file" "Stage")
-    ralph_review=$(get_status_field "$plan_file" "Ralph Review")
+    plan_review=$(get_status_field "$plan_file" "Plan Review")
+    [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$plan_file" "Ralph Review")
     ai_ready=$(get_status_field "$plan_file" "AI Developer Ready")
     exec_approved=$(get_status_field "$plan_file" "Execution Approved")
     impl_verified=$(get_status_field "$plan_file" "Implementation Verified")
 
     # Default empty fields to "-"
     [[ -z "$stage" ]] && stage="-"
-    [[ -z "$ralph_review" ]] && ralph_review="-"
+    [[ -z "$plan_review" ]] && plan_review="-"
     [[ -z "$ai_ready" ]] && ai_ready="-"
     [[ -z "$exec_approved" ]] && exec_approved="-"
     [[ -z "$impl_verified" ]] && impl_verified="-"
@@ -160,7 +171,7 @@ show_plan_status() {
     echo ""
     echo "Plan: $plan_file"
     echo "Stage: $stage"
-    echo "Ralph Review: $ralph_review"
+    echo "Plan Review: $plan_review"
     echo "AI Developer Ready: $ai_ready"
     echo "Execution Approved: $exec_approved"
     echo "Implementation Verified: $impl_verified"
@@ -173,7 +184,7 @@ show_plan_status() {
 get_state_description() {
     case "$1" in
         import)          echo "Import plan to drafts folder" ;;
-        ralph)           echo "Run Ralph Loop review, then mark complete" ;;
+        ralph)           echo "Run Plan Review, then mark complete" ;;
         promote)         echo "Promote plan to active" ;;
         ai-ready)        echo "Run AI-ready review, then mark ai-ready" ;;
         execute-request) echo "Create execution request" ;;
@@ -253,9 +264,9 @@ ensure_status_header_fields() {
     # Define required fields with their default values
     # Format: "field_name|default_value|anchor_field"
     # anchor_field is where to insert after if missing
-    local ralph_status="not-required"
-    if [[ "$(requires_ralph "$file")" == "true" ]]; then
-        ralph_status="required"
+    local review_status="not-required"
+    if [[ "$(requires_review "$file")" == "true" ]]; then
+        review_status="required"
     fi
 
     local required_fields=(
@@ -264,9 +275,9 @@ ensure_status_header_fields() {
         "Last Updated|${ts}|Created"
         "Author|Claude|Last Updated"
         "Approver|-|Author"
-        "Ralph Review|${ralph_status}|Approver"
-        "Ralph Date|-|Ralph Review"
-        "Execution Approved|no|Ralph Date"
+        "Plan Review|${review_status}|Approver"
+        "Review Date|-|Plan Review"
+        "Execution Approved|no|Review Date"
         "Execution Approved By|-|Execution Approved"
         "Execution Started|-|Execution Approved By"
         "AI Developer Ready|no|Execution Started"
@@ -338,10 +349,10 @@ add_status_header() {
         return 0
     fi
 
-    # Determine Ralph Review status based on phase count
-    local ralph_status="not-required"
-    if [[ "$(requires_ralph "$file")" == "true" ]]; then
-        ralph_status="required"
+    # Determine Plan Review status based on phase count
+    local review_status="not-required"
+    if [[ "$(requires_review "$file")" == "true" ]]; then
+        review_status="required"
     fi
 
     # Create header content
@@ -354,8 +365,8 @@ add_status_header() {
 | Last Updated | ${ts} |
 | Author | ${author} |
 | Approver | - |
-| Ralph Review | ${ralph_status} |
-| Ralph Date | - |
+| Plan Review | ${review_status} |
+| Review Date | - |
 | Execution Approved | no |
 | Execution Approved By | - |
 | Execution Started | - |

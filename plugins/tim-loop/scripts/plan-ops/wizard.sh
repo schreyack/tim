@@ -189,30 +189,34 @@ wizard_step_import() {
 }
 
 wizard_step_ralph() {
-    print_step_header "ralph" "Ralph Loop Review (multi-phase plan)"
+    print_step_header "ralph" "Plan Review (multi-phase plan)"
 
     # Ensure all required Status Header fields exist (including Approver)
     ensure_status_header_fields "$WIZARD_PLAN_FILE"
 
-    # Ensure Ralph Review field exists and is set to "required" (use regex for variable whitespace)
-    if ! grep -qE "\| Ralph Review[[:space:]]*\|[[:space:]]*required[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
-        update_ralph_status "$WIZARD_PLAN_FILE" "required"
+    # Ensure Plan Review field exists and is set to "required" (use regex for variable whitespace)
+    # Check both Plan Review and Ralph Review for backward compatibility
+    if ! grep -qE "\| (Plan Review|Ralph Review)[[:space:]]*\|[[:space:]]*required[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
+        update_review_status "$WIZARD_PLAN_FILE" "required"
     fi
 
     echo ""
     echo "Run /clear first, then paste this command in Claude Code:"
-    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\""
+    local cmd="/tim-loop:tim-loop --review $WIZARD_PLAN_FILE --max-iterations 10 --completion-promise \"DONEDONE\""
     show_command "$cmd"
-    echo -n "Press Enter when Ralph Loop completes..."
+    echo -n "Press Enter when Plan Review completes..."
     read -r </dev/tty
 
     echo ""
-    echo "Marking Ralph Loop complete..."
+    echo "Marking Plan Review complete..."
 
-    # cmd_ralph --mark-complete calls verify_interactive_terminal, which will pass
+    # cmd_review --mark-complete calls verify_interactive_terminal, which will pass
     # since wizard runs interactively
-    cmd_ralph "$WIZARD_PLAN_FILE" --mark-complete
+    cmd_review "$WIZARD_PLAN_FILE" --mark-complete
 }
+
+# Backward compatibility alias
+wizard_step_review() { wizard_step_ralph "$@"; }
 
 wizard_step_promote() {
     print_step_header "promote" "Promote to active"
@@ -249,10 +253,9 @@ wizard_step_ai_ready() {
 
     echo ""
     echo "Run /clear first, then paste this command in Claude Code:"
-    local checklist="${DESIGN_STANDARDS_DIR}/standards/enforcement/ai-developer-ready-checklist.md"
-    local cmd="/ralph-loop:ralph-loop \"review $WIZARD_PLAN_FILE for AI implementation concerns using ${checklist}. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\""
+    local cmd="/tim-loop:tim-loop --review $WIZARD_PLAN_FILE --max-iterations 5 --completion-promise \"AI-READY\""
     show_command "$cmd"
-    echo -n "Press Enter when Ralph Loop completes..."
+    echo -n "Press Enter when review completes..."
     read -r </dev/tty
 
     echo ""

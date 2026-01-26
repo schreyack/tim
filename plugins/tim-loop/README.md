@@ -130,7 +130,7 @@ Tim Loop works as a system of two tools that handle different concerns:
 **Note:** Plan-ops is bundled in the tim-loop plugin. Run it from your terminal (not Claude Code) for human approval workflows. Use `/tim-loop --wizard` for guided plan management.
 
 - Organizes plans in `drafts/` → `active/` → `completed/` folders
-- Enforces Ralph Loop review for multi-phase plans
+- Enforces Plan Review for multi-phase plans
 - Requires human approval before AI can implement
 - Tracks plan status with structured metadata
 - Runs as a shell script in any terminal
@@ -146,13 +146,13 @@ Tim Loop works as a system of two tools that handle different concerns:
 │                                                                  │
 │  1. DRAFT          2. REVIEW         3. ACTIVE        4. DONE   │
 │  ┌─────────┐       ┌─────────┐       ┌─────────┐      ┌──────┐  │
-│  │ Create  │──────▶│ Ralph   │──────▶│ Approve │─────▶│ Done │  │
+│  │ Create  │──────▶│ Plan    │──────▶│ Approve │─────▶│ Done │  │
 │  │ Plan    │       │ Review  │       │ Execute │      │      │  │
 │  └─────────┘       └─────────┘       └─────────┘      └──────┘  │
 │       │                 │                 │               │      │
 │       ▼                 ▼                 ▼               ▼      │
 │  plan-ops.sh       plan-ops.sh       plan-ops.sh    plan-ops.sh │
-│  import            ralph             ai-ready        complete   │
+│  import            review            ai-ready        complete   │
 │                    promote           approve-execute            │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -189,7 +189,7 @@ Tim Loop works as a system of two tools that handle different concerns:
 
 1. **Create plan** - Run `/tim-loop --plan "add feature X"` or let Claude create a plan
 2. **Import** - `plan-ops.sh import ~/.claude/plans/my-plan.md`
-3. **Review** - `plan-ops.sh ralph plans/drafts/my-plan.md` (for multi-phase plans)
+3. **Review** - `plan-ops.sh review plans/drafts/my-plan.md` (for multi-phase plans)
 4. **Promote** - `plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"`
 5. **AI Ready** - `plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"`
 6. **Execute** - `plan-ops.sh execute plans/active/my-plan.md` then approve in separate terminal
@@ -531,7 +531,7 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 ```
 
 **Interactive wizard** that guides you through the FULL plan lifecycle:
-Import → Ralph Review → Promote → AI-Ready → Execute → Tim-Loop → Complete
+Import → Plan Review → Promote → AI-Ready → Execute → Tim-Loop → Complete
 
 **Use for:** When you want step-by-step guidance through all approvals and gates
 
@@ -600,7 +600,7 @@ Tim Loop integrates with `plan-ops.sh` for full plan lifecycle management:
 
 ```
 1. Create plan → plans/drafts/
-2. (Multi-phase only) Ralph Loop review
+2. (Multi-phase only) Plan Review
 3. Human approves → plans/active/
 4. AI Developer Ready approval
 5. Tim Loop implements → plans/completed/
@@ -611,7 +611,7 @@ Tim Loop integrates with `plan-ops.sh` for full plan lifecycle management:
 The `--wizard` mode delegates to plan-ops.sh wizard, which guides you through:
 
 1. **Import** - Import plan from `~/.claude/plans/` if needed
-2. **Ralph Review** - Multi-phase validation (2+ phases require this)
+2. **Plan Review** - Multi-phase validation (2+ phases require this)
 3. **Promote** - Move from drafts to active
 4. **AI-Ready** - Human verifies plan is suitable for AI implementation
 5. **Execute** - Request execution approval

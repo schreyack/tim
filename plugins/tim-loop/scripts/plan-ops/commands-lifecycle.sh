@@ -111,7 +111,7 @@ cmd_import() {
             ralph)
                 local phase_count
                 phase_count=$(count_phases "$source")
-                log_info "This is a multi-phase plan (${phase_count} phases). Ralph Loop review is required."
+                log_info "This is a multi-phase plan (${phase_count} phases). Plan Review is required."
                 ;;
             promote)
                 log_info "Plan is ready for promotion to active."
@@ -160,7 +160,7 @@ cmd_import() {
     phase_count=$(count_phases "$dest")
     echo ""
     if [[ "$phase_count" -ge 2 ]]; then
-        log_info "This is a multi-phase plan (${phase_count} phases). Ralph Loop review is required."
+        log_info "This is a multi-phase plan (${phase_count} phases). Plan Review is required."
     else
         log_info "This is a single-phase plan. Can be promoted directly."
     fi
@@ -221,17 +221,17 @@ cmd_promote() {
     phase_count=$(count_phases "$plan_file")
 
     if [[ "$needs_ralph" == "true" && "$has_ralph" != "true" ]]; then
-        log_error "BLOCKED: Multi-phase plan (${phase_count} phases) requires Ralph Loop review."
-        log_error "Ralph Loop review has NOT been completed for this plan."
+        log_error "BLOCKED: Multi-phase plan (${phase_count} phases) requires Plan Review."
+        log_error "Plan Review has NOT been completed for this plan."
         echo ""
-        echo "To start: $SCRIPT_PATH ralph $plan_file"
-        echo "Then:     $SCRIPT_PATH ralph $plan_file --mark-complete"
+        echo "To start: $SCRIPT_PATH review $plan_file"
+        echo "Then:     $SCRIPT_PATH review $plan_file --mark-complete"
         echo "Then retry promotion."
         exit 1
     fi
 
     if [[ "$skip_ralph" == "true" && "$needs_ralph" == "true" ]]; then
-        log_error "BLOCKED: Cannot skip Ralph Loop for multi-phase plans."
+        log_error "BLOCKED: Cannot skip Plan Review for multi-phase plans."
         log_error "--skip-ralph only works for single-phase plans."
         exit 1
     fi
@@ -262,11 +262,11 @@ cmd_promote() {
     log_info "Promoted to active: $dest"
 
     echo ""
-    log_info "STEP 1 of 2: Run Ralph Loop to review plan for AI implementation concerns:"
+    log_info "STEP 1 of 2: Run Tim Loop Review to review plan for AI implementation concerns:"
     echo ""
-    echo -e "${GREEN}/ralph-loop:ralph-loop \"review ${dest} for AI implementation concerns using standards/enforcement/ai-developer-ready-checklist.md. Verify: (1) instructions are unambiguous (AI has one interpretation), (2) no hallucination opportunities (referenced APIs/files exist), (3) guard rails are explicit (error handling specified), (4) verification criteria are code-checkable. <promise>AI-READY</promise>\" --max-iterations 5 --completion-promise \"AI-READY\"${NC}"
+    echo -e "${GREEN}/tim-loop:tim-loop --review ${dest} --max-iterations 5 --completion-promise \"AI-READY\"${NC}"
     echo ""
-    log_info "STEP 2 of 2: After Ralph Loop completes, human confirms and approves:"
+    log_info "STEP 2 of 2: After review completes, human confirms and approves:"
     echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $dest --reviewer \"Your Name\"${NC}"
 }
 

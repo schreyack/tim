@@ -42,6 +42,7 @@ MODES (mutually exclusive):
   Full Workflow (default):  /tim-loop "add feature X"
   Plan Only (--plan):       /tim-loop --plan "design feature X"
   Implement Existing:       /tim-loop --implement plans/active/my-plan.md
+  Review Mode:              /tim-loop --review plans/drafts/my-plan.md
   Quick Mode:               /tim-loop --no-review "fix typo"
   Wizard Mode:              /tim-loop --wizard plans/active/my-plan.md
 
@@ -74,7 +75,7 @@ HELP_EOF
 
 # Defaults
 MAX_ITERATIONS=30 COMPLETION_PROMISE="COMPLETE" TASK_PARTS=() DRY_RUN=false
-PLAN_ONLY=false IMPLEMENT_FILE="" NO_REVIEW=false NO_VERIFY=false
+PLAN_ONLY=false IMPLEMENT_FILE="" REVIEW_FILE="" NO_REVIEW=false NO_VERIFY=false
 MAX_VERIFY_CYCLES=999999 REVIEW_ITERATIONS=10 AUTO_APPROVE=false
 FORCE_NEW_SESSION=false
 
@@ -97,6 +98,10 @@ while [[ $# -gt 0 ]]; do
             [[ "$2" != *"/active/"* ]] && echo "Error: Can only implement plans from active/ folder" >&2 && exit 1
             ! grep -q "| AI Developer Ready | yes |" "$2" && echo "Error: Plan not AI Developer Ready" >&2 && exit 1
             IMPLEMENT_FILE="$2"; shift 2 ;;
+        --review)
+            [[ -z "${2:-}" ]] && echo "Error: --review requires a file path" >&2 && exit 1
+            [[ ! -f "$2" ]] && echo "Error: Review file not found: $2" >&2 && exit 1
+            REVIEW_FILE="$2"; shift 2 ;;
         --no-review) NO_REVIEW=true; shift ;;
         --no-verify) NO_VERIFY=true; shift ;;
         --auto-approve) AUTO_APPROVE=true; shift ;;
@@ -116,7 +121,12 @@ init_plans_folders
 
 # Join task and validate
 TASK="${TASK_PARTS[*]:-}"
-if [[ -n "$IMPLEMENT_FILE" ]]; then
+if [[ -n "$REVIEW_FILE" ]]; then
+    # Review mode: task derived from filename
+    [[ -z "$TASK" ]] && TASK="review $(basename "$REVIEW_FILE" .md)"
+    # Skip plan path generation for review mode
+    PLAN_FILEPATH="$REVIEW_FILE"
+elif [[ -n "$IMPLEMENT_FILE" ]]; then
     [[ -z "$TASK" ]] && TASK="implement $(basename "$IMPLEMENT_FILE" .md)"
 elif [[ -z "$TASK" ]]; then
     echo "Error: No task provided. Usage: /tim-loop \"your task here\"" >&2 && exit 1
@@ -126,6 +136,14 @@ fi
 [[ "$PLAN_ONLY" == true && -n "$IMPLEMENT_FILE" ]] && echo "Error: --plan and --implement cannot be used together" >&2 && exit 1
 [[ "$NO_REVIEW" == true && -n "$IMPLEMENT_FILE" ]] && echo "Error: --no-review and --implement cannot be used together" >&2 && exit 1
 [[ "$PLAN_ONLY" == true && "$NO_REVIEW" == true ]] && echo "Error: --plan and --no-review cannot be used together" >&2 && exit 1
+[[ -n "$REVIEW_FILE" && "$PLAN_ONLY" == true ]] && echo "Error: --review and --plan cannot be used together" >&2 && exit 1
+[[ -n "$REVIEW_FILE" && -n "$IMPLEMENT_FILE" ]] && echo "Error: --review and --implement cannot be used together" >&2 && exit 1
+[[ -n "$REVIEW_FILE" && "$NO_REVIEW" == true ]] && echo "Error: --review and --no-review cannot be used together" >&2 && exit 1
+
+# Override default completion promise for review mode
+if [[ -n "$REVIEW_FILE" && "$COMPLETION_PROMISE" == "COMPLETE" ]]; then
+    COMPLETION_PROMISE="DONEDONE"
+fi
 
 # Generate plan filename and path
 generate_plan_slug() {
@@ -142,14 +160,20 @@ ensure_plans_dir() {
 
 CURRENT_GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo "not a git repo")
 CONTEXT_PWD=$(pwd)
-PLAN_FILENAME=$(generate_plan_slug "$TASK")
-PLANS_DIR=$(ensure_plans_dir)
-PLAN_FILEPATH="${PLANS_DIR}/${PLAN_FILENAME}"
+
+# For review mode, PLAN_FILEPATH was already set; otherwise generate it
+if [[ -z "$REVIEW_FILE" ]]; then
+    PLAN_FILENAME=$(generate_plan_slug "$TASK")
+    PLANS_DIR=$(ensure_plans_dir)
+    PLAN_FILEPATH="${PLANS_DIR}/${PLAN_FILENAME}"
+fi
 
 # Build prompt
 build_prompt() {
     local prompt="## Task\n$TASK\n\n## Context\n- Working Dir: $CONTEXT_PWD\n- Git Branch: $CURRENT_GIT_BRANCH\n- Plan File: $PLAN_FILEPATH\n\n"
-    if [[ -n "$IMPLEMENT_FILE" ]]; then
+    if [[ -n "$REVIEW_FILE" ]]; then
+        prompt+="## Mode: Review\n\nReview $REVIEW_FILE and look for areas to improve. Iterate multiple times until there are no more improvements possible.\nOutput <promise>$COMPLETION_PROMISE</promise> when no more improvements are possible.\n"
+    elif [[ -n "$IMPLEMENT_FILE" ]]; then
         prompt+="## Mode: Implement Existing Plan\n\n### Plan to Implement\n\`\`\`markdown\n$(cat "$IMPLEMENT_FILE")\n\`\`\`\n\nImplement 100% of this plan. Add <!-- VERIFIED: NO --> when done, then verify.\nOutput <promise>$COMPLETION_PROMISE</promise> only when VERIFIED: YES.\n"
     elif [[ "$PLAN_ONLY" == true ]]; then
         prompt+="## Mode: Plan Only\n\nCreate a plan at $PLAN_FILEPATH with Goal, Implementation Steps, Testing Strategy, Completion Criteria.\nOutput <promise>$COMPLETION_PROMISE</promise> when plan is written.\n"

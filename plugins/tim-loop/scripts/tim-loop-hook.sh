@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tim Loop Hook - Implements iteration without ralph-loop dependency
+# Tim Loop Hook - Implements iteration for Tim Loop workflow
 # This hook is registered as a "stop" hook and intercepts conversation exit
 
 set -euo pipefail

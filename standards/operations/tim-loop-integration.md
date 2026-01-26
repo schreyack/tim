@@ -1,13 +1,15 @@
 # Tim Loop Integration Standard
 
-This document defines how Tim Loop execution is integrated into TIM plan workflows.
+This document defines how Tim Loop execution and review is integrated into TIM plan workflows.
 
 ---
 
 ## Overview
 
-Tim Loop is a structured execution methodology that wraps Ralph Loop with a 6-step workflow. It provides:
+Tim Loop is a structured execution methodology with multiple modes:
 
+### Implementation Mode (default)
+A 6-step workflow for plan execution:
 1. **Understand & Clarify** - State goal, rate confidence
 2. **Analyze** - Break into discrete testable tasks
 3. **Research** - Gather codebase context
@@ -15,13 +17,122 @@ Tim Loop is a structured execution methodology that wraps Ralph Loop with a 6-st
 5. **Validate** - Devil's advocate check
 6. **Execute** - Implement to 100% completion
 
-**Purpose in TIM:** Ensure all active plans are executed with the structured Tim Loop methodology, with mandatory human approval before execution begins.
+### Review Mode (`--review`)
+An iterative review methodology for improving plans:
+- Feeds the same prompt to Claude repeatedly while work persists in files
+- Each iteration sees previous work, enabling incremental improvement
+- Continues until completion criteria are met (DONEDONE by default)
+
+**Purpose in TIM:** Ensure all active plans are executed with structured methodology, with mandatory review for multi-phase plans and human approval before execution begins.
 
 ---
 
-## Hard Enforcement
+## Review Mode (`--review`)
 
-### Why Hard Enforcement?
+### When Review is Required
+
+#### Mandatory: Multi-Phase Plans
+
+Plans with **2 or more phases** MUST complete Plan Review before promotion from `drafts/` to `active/`.
+
+**Detection:** Auto-detected by counting phase headers:
+- `## Phase`, `### Phase`
+- `Phase 1:`, `Phase 2:`, etc.
+
+#### Exempt: Single-Phase Plans
+
+Plans with 0-1 phases can be promoted directly without Plan Review.
+
+### Review Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   PLAN REVIEW GATE WORKFLOW                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. Create plan in plans/drafts/                                │
+│     (auto-detects phase count, sets Plan Review status)         │
+│           │                                                     │
+│           ▼                                                     │
+│  2. plan-ops.sh review plans/drafts/my-plan.md                  │
+│     → If single-phase: "Not required, can promote directly"     │
+│     → If multi-phase: Shows Tim Loop review command to run      │
+│           │                                                     │
+│           ▼                                                     │
+│  3. Run /tim-loop --review command in Claude Code               │
+│     (Iterates until DONEDONE promise or max iterations)         │
+│           │                                                     │
+│           ▼                                                     │
+│  4. plan-ops.sh review plans/drafts/my-plan.md --mark-complete  │
+│     (Updates Status Header: Plan Review = completed)            │
+│           │                                                     │
+│           ▼                                                     │
+│  5. plan-ops.sh promote plans/drafts/my-plan.md --approver "N"  │
+│     (Promotion now allowed)                                     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Review Commands
+
+#### Start Plan Review
+
+```bash
+plan-ops.sh review plans/drafts/my-plan.md
+```
+
+**Output for multi-phase plans:**
+- Shows phase count
+- Outputs the exact `/tim-loop --review` command to run
+- Instructions for marking complete
+
+**Output for single-phase plans:**
+- Indicates Plan Review is not required
+- Shows promote command
+
+#### Mark Review Complete
+
+```bash
+plan-ops.sh review plans/drafts/my-plan.md --mark-complete
+```
+
+Updates the plan's Status Header:
+- `Plan Review: completed`
+- `Review Date: [current date]`
+- Progress Log entry: "Plan Review completed"
+
+### Tim Loop Review Command Format
+
+The standard command for plan review:
+
+```bash
+/tim-loop:tim-loop --review plans/drafts/[plan-name].md --max-iterations 10 --completion-promise "DONEDONE"
+```
+
+#### Parameters
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `--review FILE` | Plan file path | Directs Tim Loop to review and improve the file |
+| `--max-iterations` | `10` | Safety limit to prevent infinite loops |
+| `--completion-promise` | `DONEDONE` | Signal phrase when no more improvements possible |
+
+#### What Review Mode Does
+
+1. Reads the plan file
+2. Analyzes for gaps, inconsistencies, missing details
+3. Makes improvements directly to the plan file
+4. Checks if more improvements are possible
+5. Repeats until satisfied or max iterations reached
+6. Outputs `<promise>DONEDONE</promise>` when complete
+
+---
+
+## Implementation Mode Execution
+
+### Hard Enforcement
+
+#### Why Hard Enforcement?
 
 AI developers can produce plausible-looking work while bypassing safeguards. The execution gate prevents:
 
@@ -29,7 +140,7 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 - Plans being implemented incorrectly or incompletely
 - Bypassing the approval process via flags or workarounds
 
-### Attack Vectors Blocked
+#### Attack Vectors Blocked
 
 | Attack Vector | Defense |
 |---------------|---------|
@@ -39,51 +150,46 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 | AI waits indefinitely | Tokens expire (15 min default) |
 | AI modifies approval files | Files are validated on read |
 
----
-
-## Execution Workflow
+### Execution Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│              PLAN EXECUTION WORKFLOW (HARD ENFORCED)             │
+│              PLAN EXECUTION WORKFLOW (HARD ENFORCED)            │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  1. Plan promoted to active/ (existing workflow)                │
 │           │                                                     │
 │           ▼                                                     │
-│  2. AI: ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md     │
+│  2. AI: plan-ops.sh execute plans/active/my-plan.md             │
 │     → Creates approval request, outputs request ID              │
 │     → BLOCKED - no tim-loop command yet                         │
 │           │                                                     │
 │           ▼                                                     │
 │  3. HUMAN (separate terminal):                                  │
-│     ./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id>            │
-│        --approver "Name"                                        │
+│     plan-ops.sh approve-execute <request-id> --approver "Name"  │
 │     → Validates and approves request                            │
 │           │                                                     │
 │           ▼                                                     │
-│  4. AI: ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md     │
+│  4. AI: plan-ops.sh execute plans/active/my-plan.md             │
 │     → Finds valid approval                                      │
 │     → Outputs tim-loop command                                  │
 │           │                                                     │
 │           ▼                                                     │
 │  5. Run the /tim-loop command to execute the plan               │
-│     (Tim Loop runs with structured 6-step methodology)          │
+│     (Tim Loop runs with structured methodology)                 │
 │           │                                                     │
 │           ▼                                                     │
-│  6. ./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/my-plan.md        │
+│  6. plan-ops.sh complete plans/active/my-plan.md                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
----
+### Execution Commands
 
-## Commands
-
-### Request Execution
+#### Request Execution
 
 ```bash
-./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
+plan-ops.sh execute plans/active/my-plan.md
 ```
 
 **First call (no approval):**
@@ -96,10 +202,10 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 - Updates Status Header with execution approval
 - Outputs the tim-loop command to run
 
-### Approve Execution (Human Only)
+#### Approve Execution (Human Only)
 
 ```bash
-./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Name"
+plan-ops.sh approve-execute <request-id> --approver "Name"
 ```
 
 - **Must be run in a separate terminal by a human**
@@ -107,13 +213,37 @@ AI developers can produce plausible-looking work while bypassing safeguards. The
 - Marks approval in request file
 - Updates plan Status Header
 
-### Tim Loop Command Format
+#### Tim Loop Implement Command
 
 When `execute` succeeds, it outputs:
 
 ```bash
-/tim-loop "implement plans/active/[plan-name]. you are not done until all iterations and phases of the plan are complete."
+/tim-loop:tim-loop --implement plans/active/[plan-name].md
 ```
+
+---
+
+## Status Header Fields
+
+### Plan Review Fields
+
+| Field | Value | Meaning | Promotion Allowed? |
+|-------|-------|---------|-------------------|
+| Plan Review | `required` | Multi-phase plan, review not done | NO |
+| Plan Review | `completed` | Review finished | YES |
+| Plan Review | `not-required` | Single-phase plan | YES |
+| Review Date | `-` | Not applicable or not yet completed | - |
+| Review Date | `YYYY-MM-DD` | When review was completed | - |
+
+Note: For backward compatibility, `Ralph Review` and `Ralph Date` field names are also recognized.
+
+### Execution Fields
+
+| Field | Value |
+|-------|-------|
+| Execution Approved | yes / no |
+| Execution Approved By | [human name or "-"] |
+| Execution Started | [YYYY-MM-DD HH:MM or "-"] |
 
 ---
 
@@ -153,18 +283,6 @@ When `execute` succeeds, it outputs:
 
 ---
 
-## Status Header Fields
-
-| Field | Value |
-|-------|-------|
-| Execution Approved | yes / no |
-| Execution Approved By | [human name or "-"] |
-| Execution Started | [YYYY-MM-DD HH:MM or "-"] |
-
-These fields are updated when execution is approved and started.
-
----
-
 ## Configuration
 
 | Setting | Value | Description |
@@ -177,24 +295,71 @@ These fields are updated when execution is approved and started.
 ## Integration with Plan Lifecycle
 
 ```
-Draft → Ralph Review → Active → Execution Approval → Tim Loop → Completed
-                  ↓
-        (multi-phase only)
+Draft → Plan Review → Active → Execution Approval → Tim Loop → Completed
+              ↓
+    (multi-phase only)
 ```
 
 ### Full Lifecycle
 
 1. **Draft** - Plan created in `plans/drafts/`
-2. **Ralph Review** - Multi-phase plans reviewed via Ralph Loop
+2. **Plan Review** - Multi-phase plans reviewed via Tim Loop `--review` mode
 3. **Promote** - Human approves, plan moves to `plans/active/`
 4. **Execute Request** - AI requests execution approval
 5. **Human Approval** - Human approves in separate terminal
-6. **Tim Loop** - Plan executed via structured methodology
+6. **Tim Loop** - Plan executed via `--implement` mode
 7. **Complete** - Plan moves to `plans/completed/`
 
 ---
 
+## Best Practices
+
+### When Creating Plans
+
+1. Use meaningful phase names
+2. Include clear completion criteria per phase
+3. Add testing strategy for each phase
+4. Consider dependencies between phases
+
+### During Plan Review
+
+1. Let the loop run to completion (or max iterations)
+2. Review the changes made by each iteration
+3. If the plan is significantly restructured, consider re-running
+4. Trust the completion promise - if DONEDONE is output, review is thorough
+
+### After Plan Review
+
+1. Do a final human review before promotion
+2. Ensure Plan Review shows "completed"
+3. Proceed with confidence - the plan has been stress-tested
+
+---
+
 ## Troubleshooting
+
+### "BLOCKED: Multi-phase plan requires Plan Review"
+
+Run the Plan Review workflow:
+```bash
+plan-ops.sh review plans/drafts/my-plan.md
+# Follow the displayed instructions
+```
+
+### Review Not Detecting Phases
+
+Ensure phases are formatted correctly:
+- `## Phase 1: Name` ✓
+- `### Phase 2` ✓
+- `Phase 3: Description` ✓
+- `Step 1` ✗ (not detected as phase)
+
+### Review Runs Forever
+
+The `--max-iterations 10` parameter prevents infinite loops. If hitting max iterations without completion:
+1. The task may be too complex
+2. Consider breaking into smaller plans
+3. Manually mark complete after reviewing iterations
 
 ### "BLOCKED: Execution requires human approval"
 
@@ -217,5 +382,4 @@ After `execute` succeeds, you must manually run the `/tim-loop` command it outpu
 ## Related Documentation
 
 - `standards/operations/plan-management.md` - Full plan lifecycle documentation
-- `standards/operations/ralph-loop-integration.md` - Ralph Loop for plan review
 - `CLAUDE.md` - Project instructions including execution requirements

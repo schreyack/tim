@@ -42,8 +42,9 @@ update_ai_ready_status() {
 
     # Find the best anchor field (last existing field before AI Developer Ready section)
     # Use regex to handle variable whitespace in markdown tables
+    # Check both Plan Review/Review Date and Ralph Review/Ralph Date for backward compatibility
     local anchor=""
-    for candidate in "Execution Started" "Execution Approved By" "Execution Approved" "Ralph Date" "Ralph Review" "Approver"; do
+    for candidate in "Execution Started" "Execution Approved By" "Execution Approved" "Review Date" "Ralph Date" "Plan Review" "Ralph Review" "Approver"; do
         if grep -qE "\| ${candidate}[[:space:]]*\|" "$file"; then
             anchor="$candidate"
             break
@@ -92,8 +93,9 @@ update_verification_status() {
     date=$(datestamp)
 
     # Find the best anchor field (use regex to handle variable whitespace)
+    # Check both Review Date/Plan Review and Ralph Date/Ralph Review for backward compatibility
     local anchor=""
-    for candidate in "AI Developer Ready Iteration" "AI Developer Ready Date" "AI Developer Ready By" "AI Developer Ready" "Execution Started" "Ralph Date" "Approver"; do
+    for candidate in "AI Developer Ready Iteration" "AI Developer Ready Date" "AI Developer Ready By" "AI Developer Ready" "Execution Started" "Review Date" "Ralph Date" "Plan Review" "Ralph Review" "Approver"; do
         if grep -qE "\| ${candidate}[[:space:]]*\|" "$file"; then
             anchor="$candidate"
             break
@@ -172,12 +174,13 @@ EOF
 }
 
 # =============================================================================
-# RALPH REVIEW STATUS
+# PLAN REVIEW STATUS (formerly RALPH REVIEW)
 # =============================================================================
 
-# Update Ralph Review fields in Status Header
+# Update Plan Review fields in Status Header
 # If fields don't exist, adds them after Approver row
-update_ralph_status() {
+# Handles both "Plan Review" and "Ralph Review" field names for backward compatibility
+update_review_status() {
     local file="$1"
     local status="$2"  # required / completed / not-required
     local ts
@@ -187,36 +190,48 @@ update_ralph_status() {
         date_val=$(datestamp)
     fi
 
-    # Check if Ralph Review field exists (use regex to handle variable whitespace)
-    if grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
-        # Update existing field (pattern handles variable whitespace)
+    # Check which field name exists and update accordingly
+    # For reading: accept both, for writing new: use "Plan Review"
+    if grep -qE "\| Plan Review[[:space:]]*\|" "$file"; then
+        # Update existing Plan Review field
+        sed -i '' "s/| Plan Review[[:space:]]*|[^|]*|/| Plan Review | ${status} |/" "$file"
+    elif grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
+        # Update existing Ralph Review field (preserve field name for backward compatibility)
         sed -i '' "s/| Ralph Review[[:space:]]*|[^|]*|/| Ralph Review | ${status} |/" "$file"
     else
-        # Add Ralph Review field after Approver row
+        # Add Plan Review field after Approver row (use new name for new fields)
         if grep -qE "\| Approver[[:space:]]*\|" "$file"; then
-            insert_line_after "| Approver |" "| Ralph Review | ${status} |" "$file"
-            log_warn "Added missing Ralph Review field to Status Header"
+            insert_line_after "| Approver |" "| Plan Review | ${status} |" "$file"
+            log_warn "Added missing Plan Review field to Status Header"
         else
-            log_error "Cannot find Approver row to insert Ralph Review field"
+            log_error "Cannot find Approver row to insert Plan Review field"
             return 1
         fi
     fi
 
-    # Check if Ralph Date field exists (use regex to handle variable whitespace)
-    if grep -qE "\| Ralph Date[[:space:]]*\|" "$file"; then
-        # Update existing field (pattern handles variable whitespace)
+    # Handle date field - check both names
+    if grep -qE "\| Review Date[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| Review Date[[:space:]]*|[^|]*|/| Review Date | ${date_val} |/" "$file"
+    elif grep -qE "\| Ralph Date[[:space:]]*\|" "$file"; then
+        # Update existing Ralph Date field (preserve field name)
         sed -i '' "s/| Ralph Date[[:space:]]*|[^|]*|/| Ralph Date | ${date_val} |/" "$file"
     else
-        # Add Ralph Date field after Ralph Review row
-        if grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
-            insert_line_after "| Ralph Review |" "| Ralph Date | ${date_val} |" "$file"
-            log_warn "Added missing Ralph Date field to Status Header"
+        # Add Review Date field after Plan Review or Ralph Review row
+        if grep -qE "\| Plan Review[[:space:]]*\|" "$file"; then
+            insert_line_after "| Plan Review |" "| Review Date | ${date_val} |" "$file"
+            log_warn "Added missing Review Date field to Status Header"
+        elif grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
+            insert_line_after "| Ralph Review |" "| Review Date | ${date_val} |" "$file"
+            log_warn "Added missing Review Date field to Status Header"
         fi
     fi
 
     # Update Last Updated
     sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
 }
+
+# Backward compatibility alias
+update_ralph_status() { update_review_status "$@"; }
 
 # =============================================================================
 # EXECUTION REQUEST MANAGEMENT
@@ -334,8 +349,9 @@ update_execution_status() {
     approver=$(grep '"approved_by"' "$approval_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
     # Find the best anchor field (use regex to handle variable whitespace)
+    # Check both Review Date/Plan Review and Ralph Date/Ralph Review for backward compatibility
     local anchor=""
-    for candidate in "Ralph Date" "Ralph Review" "Approver"; do
+    for candidate in "Review Date" "Ralph Date" "Plan Review" "Ralph Review" "Approver"; do
         if grep -qE "\| ${candidate}[[:space:]]*\|" "$plan_file"; then
             anchor="$candidate"
             break

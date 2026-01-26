@@ -1,6 +1,6 @@
 ---
 description: "Goal in, working code out: iterative convergence with verification loop"
-argument-hint: "TASK [--plan] [--implement FILE] [--wizard FILE] [--no-review] [--no-verify] [--auto-approve] [--cleanup] [--cleanup-all]"
+argument-hint: "TASK [--plan] [--implement FILE] [--review FILE] [--wizard FILE] [--no-review] [--no-verify] [--auto-approve] [--cleanup] [--cleanup-all]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-setup.sh:*)"]
 ---
 
@@ -71,12 +71,20 @@ From within Claude Code:
 **End state:** Same as full workflow, but faster
 **Use for:** Small, obvious tasks where review adds no value
 
+#### Review Mode (`--review`)
+```
+/tim-loop --review plans/drafts/my-plan.md
+```
+**Phases:** Review only (iterative improvement)
+**End state:** Plan file improved, ready for promotion
+**Use for:** Iterative review of multi-phase plans before promotion
+
 #### Wizard Mode (`--wizard`)
 ```
 /tim-loop --wizard plans/active/my-plan.md
 ```
 **Interactive wizard** that guides you through the FULL plan lifecycle:
-Import -> Ralph Review -> Promote -> AI-Ready -> Execute -> Tim-Loop -> Complete
+Import -> Plan Review -> Promote -> AI-Ready -> Execute -> Tim-Loop -> Complete
 **Use for:** When you want step-by-step guidance through all approvals and gates
 
 ### Modifier Options
@@ -130,4 +138,4 @@ Tim Loop implements a four-phase workflow with automatic verification:
 
 **Orphaned code (exists but not used) = NOT implemented.**
 
-For full rules, see `/ralph-loop-rules.md` in the project root.
+For full rules, see the tim-loop documentation in the plugin.

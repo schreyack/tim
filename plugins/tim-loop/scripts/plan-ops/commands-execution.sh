@@ -188,15 +188,15 @@ cmd_fast_track() {
     add_status_header "$plan_file" "Claude"
     ensure_status_header_fields "$plan_file"
 
-    # Step 3: Mark Ralph Review as completed (or not-required for single-phase)
-    local ralph_status
-    if [[ "$(requires_ralph "$plan_file")" == "true" ]]; then
-        ralph_status="completed"
+    # Step 3: Mark Plan Review as completed (or not-required for single-phase)
+    local review_status
+    if [[ "$(requires_review "$plan_file")" == "true" ]]; then
+        review_status="completed"
     else
-        ralph_status="not-required"
+        review_status="not-required"
     fi
-    update_ralph_status "$plan_file" "$ralph_status"
-    log_info "Ralph Review: $ralph_status"
+    update_review_status "$plan_file" "$review_status"
+    log_info "Plan Review: $review_status"
 
     # Step 4: Update Stage and Approver (patterns handle variable whitespace)
     sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | active |/" "$plan_file"

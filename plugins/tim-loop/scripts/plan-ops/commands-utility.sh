@@ -76,15 +76,16 @@ COMMANDS:
         Import plan from ~/.claude/plans to drafts folder
         Automatically deletes original and cleans up ~/.claude/plans
 
-    ralph <plan-file> [--mark-complete]
-        Start or complete Ralph Loop review for a draft plan
-        - Without flags: Shows the Ralph Loop command to run
-        - With --mark-complete: Marks Ralph review as done (required before promote)
-        Multi-phase plans (2+ phases) MUST complete Ralph Loop before promotion
+    review <plan-file> [--mark-complete]
+        Start or complete Plan Review for a draft plan
+        - Without flags: Shows the Tim Loop review command to run
+        - With --mark-complete: Marks review as done (required before promote)
+        Multi-phase plans (2+ phases) MUST complete Plan Review before promotion
+        (Alias: 'ralph' still works but is deprecated)
 
     promote <plan-file> --approver <name>
         Move plan from drafts to active (requires human approver)
-        BLOCKED for multi-phase plans until Ralph Loop review is completed
+        BLOCKED for multi-phase plans until Plan Review is completed
 
     ai-ready <plan-file> --reviewer <name> [--iteration <n>]
         Mark plan as AI Developer Ready after human review
@@ -108,7 +109,7 @@ COMMANDS:
         - Works with plans in ~/.claude/plans/, drafts/, or active/
         - Auto-imports from ~/.claude/plans/ if needed
         - Auto-promotes from drafts/ to active/ if needed
-        - Marks Ralph Review as completed
+        - Marks Plan Review as completed
         - Marks AI Developer Ready as yes
         - Auto-approves execution
         - Outputs the tim-loop command ready to run
@@ -138,15 +139,15 @@ COMMANDS:
     help
         Show this help message
 
-RALPH LOOP WORKFLOW:
-    Multi-phase plans require Ralph Loop review before promotion:
+PLAN REVIEW WORKFLOW:
+    Multi-phase plans require Plan Review before promotion:
 
-    1. $SCRIPT_PATH ralph plans/drafts/my-plan.md
-       (Shows the Ralph Loop command to run)
+    1. $SCRIPT_PATH review plans/drafts/my-plan.md
+       (Shows the Tim Loop review command to run)
 
-    2. Run the displayed /ralph-loop command in Claude Code
+    2. Run the displayed /tim-loop --review command in Claude Code
 
-    3. $SCRIPT_PATH ralph plans/drafts/my-plan.md --mark-complete
+    3. $SCRIPT_PATH review plans/drafts/my-plan.md --mark-complete
        (Marks review as done)
 
     4. $SCRIPT_PATH promote plans/drafts/my-plan.md --approver "Name"
@@ -176,7 +177,7 @@ FAST-TRACK WORKFLOW:
     This single command:
     - Imports from ~/.claude/plans/ if needed
     - Promotes from drafts/ to active/ if needed
-    - Marks Ralph Review as completed
+    - Marks Plan Review as completed
     - Marks AI Developer Ready as yes
     - Auto-approves execution
     - Outputs the wizard command to continue (copied to clipboard)
@@ -220,8 +221,8 @@ WIZARD WORKFLOW:
 EXAMPLES:
     $SCRIPT_PATH init
     $SCRIPT_PATH import ~/.claude/plans/xyz.md --name "feature-auth"
-    $SCRIPT_PATH ralph plans/drafts/2025-01-16-feature-auth.md
-    $SCRIPT_PATH ralph plans/drafts/2025-01-16-feature-auth.md --mark-complete
+    $SCRIPT_PATH review plans/drafts/2025-01-16-feature-auth.md
+    $SCRIPT_PATH review plans/drafts/2025-01-16-feature-auth.md --mark-complete
     $SCRIPT_PATH promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
     $SCRIPT_PATH execute plans/active/2025-01-16-feature-auth.md
     $SCRIPT_PATH approve-execute abc123 --approver "Tim"

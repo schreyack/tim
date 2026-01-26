@@ -619,29 +619,31 @@ The `plan-ops init` command will display these instructions with the correct pat
 ### Plan Lifecycle
 
 1. **Draft** - Claude creates plan, imports to `plans/drafts/`
-2. **Ralph Review** - Multi-phase plans (2+ phases) MUST complete Ralph Loop review
+2. **Plan Review** - Multi-phase plans (2+ phases) MUST complete Plan Review
 3. **Active** - Human approves, moves to `plans/active/`
 4. **Completed** - All phases done, moves to `plans/completed/`
 5. **Abandoned** - Cancelled with reason, moves to `plans/abandoned/`
 
-### Ralph Loop Gate (MANDATORY for Multi-Phase Plans)
+### Plan Review Gate (MANDATORY for Multi-Phase Plans)
 
-Plans with 2+ phases **cannot be promoted** until Ralph Loop review is completed:
+Plans with 2+ phases **cannot be promoted** until Plan Review is completed:
 
 ```bash
-# 1. Show Ralph Loop command
-plan-ops ralph plans/drafts/my-plan.md
+# 1. Show Plan Review command
+plan-ops review plans/drafts/my-plan.md
 
-# 2. Run the displayed /ralph-loop command in Claude Code
+# 2. Run the displayed /tim-loop --review command in Claude Code
 
 # 3. Mark review complete
-plan-ops ralph plans/drafts/my-plan.md --mark-complete
+plan-ops review plans/drafts/my-plan.md --mark-complete
 
 # 4. Now promotion is allowed
 plan-ops promote plans/drafts/my-plan.md --approver "Name"
 ```
 
-Single-phase plans can skip Ralph Loop and promote directly.
+Single-phase plans can skip Plan Review and promote directly.
+
+Note: The `ralph` command still works for backward compatibility but is deprecated.
 
 ### Tim Loop Execution Gate (HARD ENFORCED)
 
@@ -739,8 +741,8 @@ Every plan MUST start with:
 | Last Updated | 2025-01-16 16:45 |
 | Author | Claude Opus 4.5 |
 | Approver | [human name or "-"] |
-| Ralph Review | required / completed / not-required |
-| Ralph Date | [YYYY-MM-DD or "-"] |
+| Plan Review | required / completed / not-required |
+| Review Date | [YYYY-MM-DD or "-"] |
 | Execution Approved | yes / no |
 | Execution Approved By | [human name or "-"] |
 | Execution Started | [YYYY-MM-DD HH:MM or "-"] |
@@ -752,9 +754,9 @@ Every plan MUST start with:
 | 2025-01-16 14:30 | draft | Plan created |
 ```
 
-**Ralph Review values:**
-- `required` - Multi-phase plan, Ralph Loop not yet done
-- `completed` - Ralph Loop finished, ready for promotion
+**Plan Review values:**
+- `required` - Multi-phase plan, review not yet done
+- `completed` - Review finished, ready for promotion
 - `not-required` - Single-phase plan
 
 ### Plan Requirements
@@ -770,8 +772,8 @@ Every plan MUST include:
 Use `plan-ops` for lifecycle operations (requires PATH setup, see above):
 - `init` - Create folder structure
 - `import` - Import from ~/.claude/plans (auto-deletes original)
-- `ralph` - Start/complete Ralph Loop review (multi-phase plans)
-- `promote` - Move draft to active (blocked for multi-phase until ralphed)
+- `review` - Start/complete Plan Review (multi-phase plans)
+- `promote` - Move draft to active (blocked for multi-phase until reviewed)
 - `execute` - Request execution approval (requires human approval)
 - `approve-execute` - Human approves execution (run in separate terminal)
 - `complete` - Move active to completed

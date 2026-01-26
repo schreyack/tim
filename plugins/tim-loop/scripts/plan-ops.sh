@@ -77,6 +77,7 @@ done
 case "${1:-help}" in
     init) cmd_init ;;
     import) cmd_import "${@:2}" ;;
+    review) cmd_review "${@:2}" ;;
     ralph) cmd_ralph "${@:2}" ;;
     promote) cmd_promote "${@:2}" ;;
     ai-ready) cmd_ai_ready "${@:2}" ;;

@@ -23,16 +23,16 @@ Draft → [Ralph Review] → Promote → AI Ready → Execute Approval → Tim L
 
 ## 1. Ralph Loop Review (Multi-Phase Plans Only)
 
-Plans with 2+ phases require Ralph Loop review before promotion.
+Plans with 2+ phases require Plan Review before promotion.
 
 ```bash
-# Step 1: See the Ralph Loop command to run
-./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md
+# Step 1: See the Tim Loop review command to run
+./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md
 
-# Step 2: Run the displayed /ralph-loop command in Claude Code
+# Step 2: Run the displayed /tim-loop --review command in Claude Code
 
 # Step 3: Mark review complete (human only)
-./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/my-plan.md --mark-complete
+./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md --mark-complete
 ```
 
 **Single-phase plans skip this step.**
@@ -47,7 +47,7 @@ Move an approved plan from `drafts/` to `active/`.
 ./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
 ```
 
-**Blocked if:** Multi-phase plan hasn't completed Ralph Loop review.
+**Blocked if:** Multi-phase plan hasn't completed Plan Review.
 
 ---
 
@@ -112,10 +112,10 @@ Two-step process requiring separate terminal.
 # 1. Import plan from Claude's default location
 ./plugins/tim-loop/scripts/plan-ops.sh import ~/.claude/plans/xyz.md --name "feature-auth"
 
-# 2. For multi-phase plans: Start Ralph Loop
-./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md
-# (Run the displayed /ralph-loop command in Claude Code)
-./plugins/tim-loop/scripts/plan-ops.sh ralph plans/drafts/2025-01-16-feature-auth.md --mark-complete
+# 2. For multi-phase plans: Start Plan Review
+./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/2025-01-16-feature-auth.md
+# (Run the displayed /tim-loop --review command in Claude Code)
+./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/2025-01-16-feature-auth.md --mark-complete
 
 # 3. Promote to active
 ./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"

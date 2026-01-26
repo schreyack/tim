@@ -18,10 +18,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 
 # =============================================================================
-# RALPH COMMAND
+# REVIEW COMMAND (formerly RALPH)
 # =============================================================================
 
-cmd_ralph() {
+cmd_review() {
     local plan_file="${1:-}"
     local mark_complete=false
 
@@ -40,7 +40,7 @@ cmd_ralph() {
     done
 
     if [[ -z "$plan_file" ]]; then
-        log_error "Usage: $SCRIPT_PATH ralph <plan-file> [--mark-complete]"
+        log_error "Usage: $SCRIPT_PATH review <plan-file> [--mark-complete]"
         exit 1
     fi
 
@@ -54,7 +54,7 @@ cmd_ralph() {
 
     # Verify plan is in drafts
     if [[ "$plan_file" != *"/drafts/"* ]]; then
-        log_error "Ralph Loop review only applies to plans in drafts/"
+        log_error "Plan Review only applies to plans in drafts/"
         exit 1
     fi
 
@@ -64,46 +64,52 @@ cmd_ralph() {
     plan_basename=$(basename "$plan_file")
 
     if [[ "$mark_complete" == "true" ]]; then
-        # Block AI from marking Ralph as complete
+        # Block AI from marking review as complete
         verify_interactive_terminal
 
         # Ensure all required Status Header fields exist (including Approver)
         ensure_status_header_fields "$plan_file"
 
-        # Mark Ralph Loop as completed
-        if ! update_ralph_status "$plan_file" "completed"; then
-            log_error "Failed to update Ralph status"
+        # Mark Plan Review as completed
+        if ! update_review_status "$plan_file" "completed"; then
+            log_error "Failed to update review status"
             exit 1
         fi
-        if ! update_status "$plan_file" "draft" "Ralph Loop review completed"; then
+        if ! update_status "$plan_file" "draft" "Plan Review completed"; then
             log_error "Failed to update progress log"
             exit 1
         fi
-        log_info "Marked Ralph Loop review as completed for: $plan_file"
+        log_info "Marked Plan Review as completed for: $plan_file"
 
         log_info "NEXT STEP: Promote the plan to active:"
         show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
     else
-        # Show Ralph Loop command to run
+        # Show Plan Review command to run
         echo ""
         log_info "Plan: $plan_basename"
         log_info "Phases detected: $phase_count"
 
         if [[ "$phase_count" -lt 2 ]]; then
-            log_warn "This is a single-phase plan. Ralph Loop review is NOT required."
+            log_warn "This is a single-phase plan. Plan Review is NOT required."
             log_info "NEXT STEP: Promote the plan directly:"
             show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
             return 0
         fi
 
         echo ""
-        log_info "Multi-phase plan detected. Ralph Loop review is REQUIRED before promotion."
+        log_info "Multi-phase plan detected. Plan Review is REQUIRED before promotion."
         echo ""
         log_info "STEP 1 of 2: Run /clear first, then paste this command in Claude Code:"
-        show_command "/ralph-loop:ralph-loop \"review ${plan_file} and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>\" --max-iterations 10 --completion-promise \"DONEDONE\""
-        log_info "STEP 2 of 2: After Ralph Loop completes, mark it done:"
-        echo -e "  ${GREEN}$SCRIPT_PATH ralph $plan_file --mark-complete${NC}"
+        show_command "/tim-loop:tim-loop --review ${plan_file} --max-iterations 10 --completion-promise \"DONEDONE\""
+        log_info "STEP 2 of 2: After Plan Review completes, mark it done:"
+        echo -e "  ${GREEN}$SCRIPT_PATH review $plan_file --mark-complete${NC}"
     fi
+}
+
+# Backward compatibility alias
+cmd_ralph() {
+    log_warn "DEPRECATED: 'ralph' command will be removed in future versions. Use 'review' instead."
+    cmd_review "$@"
 }
 
 # =============================================================================

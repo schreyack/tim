@@ -61,14 +61,14 @@ project/
 - Delete the original from `~/.claude/plans/` (MANDATORY)
 - Add Status Header if not present
 
-**2. Draft → Active (Human Approval + Ralph Loop Gate)**
-- **Multi-phase plans (2+ phases) MUST complete Ralph Loop review first**
+**2. Draft → Active (Human Approval + Plan Review Gate)**
+- **Multi-phase plans (2+ phases) MUST complete Plan Review first**
 - Human reviews and approves the plan
 - Move to `plans/active/`
 - Update Status Header: Stage = active, Approver = [human]
 - Add log entry: "Approved by [human], moved to active/"
 
-See [Ralph Loop Gate](#ralph-loop-gate-for-multi-phase-plans) section below.
+See [Plan Review Gate](#plan-review-gate-for-multi-phase-plans) section below.
 
 **3. Active → Completed**
 - All implementation phases completed
@@ -112,8 +112,8 @@ Every plan MUST include a Status Header at the top:
 | Last Updated | 2025-01-16 16:45 |
 | Author | Claude Opus 4.5 |
 | Approver | [human who approved, or "-" if draft] |
-| Ralph Review | required / completed / not-required |
-| Ralph Date | [YYYY-MM-DD or "-" if not applicable] |
+| Plan Review | required / completed / not-required |
+| Review Date | [YYYY-MM-DD or "-" if not applicable] |
 
 ### Progress Log
 
@@ -121,7 +121,7 @@ Every plan MUST include a Status Header at the top:
 |-----------|-------|-------|
 | 2025-01-16 14:30 | draft | Plan created |
 | 2025-01-16 15:00 | draft | Added testing strategy |
-| 2025-01-16 15:30 | draft | Ralph Loop review completed |
+| 2025-01-16 15:30 | draft | Plan Review completed |
 | 2025-01-16 16:00 | active | Approved by Tim, moved to active/ |
 | 2025-01-16 18:30 | active | Phase 1 completed |
 | 2025-01-17 10:00 | completed | All phases done, verification passed |
@@ -131,13 +131,13 @@ Every plan MUST include a Status Header at the top:
 [Rest of plan content...]
 ```
 
-### Ralph Review Field Values
+### Plan Review Field Values
 
 | Value | Meaning |
 |-------|---------|
-| `required` | Multi-phase plan, Ralph Loop not yet completed |
-| `completed` | Ralph Loop review finished, ready for promotion |
-| `not-required` | Single-phase plan, can skip Ralph Loop |
+| `required` | Multi-phase plan, review not yet completed |
+| `completed` | Plan Review finished, ready for promotion |
+| `not-required` | Single-phase plan, can skip Plan Review |
 
 ### Required Plan Sections
 
@@ -230,13 +230,13 @@ Before promoting draft → active:
 
 ---
 
-## Ralph Loop Gate for Multi-Phase Plans
+## Plan Review Gate for Multi-Phase Plans
 
-Multi-phase plans (2+ phases) **MUST** complete Ralph Loop review before promotion to active. This is a hard gate enforced by `plan-ops.sh`.
+Multi-phase plans (2+ phases) **MUST** complete Plan Review before promotion to active. This is a hard gate enforced by `plan-ops.sh`.
 
-### Why Ralph Loop?
+### Why Plan Review?
 
-Ralph Loop provides iterative AI-driven improvement:
+Plan Review provides iterative AI-driven improvement:
 - Catches gaps, inconsistencies, and missing details
 - Improves plan quality through multiple review passes
 - Reduces implementation failures from poor planning
@@ -244,51 +244,51 @@ Ralph Loop provides iterative AI-driven improvement:
 
 ### Detection
 
-A plan requires Ralph Loop if it contains 2+ phases, detected by patterns:
+A plan requires Plan Review if it contains 2+ phases, detected by patterns:
 - `## Phase`, `### Phase`
 - `Phase 1:`, `Phase 2:`, etc.
 
-Single-phase plans can be promoted directly without Ralph Loop.
+Single-phase plans can be promoted directly without Plan Review.
 
 ### Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    RALPH LOOP GATE WORKFLOW                      │
+│                   PLAN REVIEW GATE WORKFLOW                     │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  1. Create multi-phase plan in drafts/                          │
 │           │                                                     │
 │           ▼                                                     │
-│  2. plan-ops ralph plans/drafts/my-plan.md           │
-│     (Outputs the Ralph Loop command to run)                     │
+│  2. plan-ops review plans/drafts/my-plan.md                     │
+│     (Outputs the Tim Loop review command to run)                │
 │           │                                                     │
 │           ▼                                                     │
-│  3. Run /ralph-loop command in Claude Code                      │
+│  3. Run /tim-loop --review command in Claude Code               │
 │     (Iterates until DONEDONE or max iterations)                 │
 │           │                                                     │
 │           ▼                                                     │
-│  4. plan-ops ralph plans/drafts/my-plan.md           │
+│  4. plan-ops review plans/drafts/my-plan.md                     │
 │        --mark-complete                                          │
-│     (Updates Ralph Review: completed)                           │
+│     (Updates Plan Review: completed)                            │
 │           │                                                     │
 │           ▼                                                     │
-│  5. plan-ops promote plans/drafts/my-plan.md         │
+│  5. plan-ops promote plans/drafts/my-plan.md                    │
 │        --approver "Name"                                        │
 │     (Promotion now allowed)                                     │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Ralph Loop Command Format
+### Tim Loop Review Command Format
 
 ```bash
-/ralph-loop:ralph-loop "review plans/drafts/[plan-name] and look for areas to improve. iterate multiple times until there are no more improvements possible. <promise>DONEDONE</promise>" --max-iterations 10 --completion-promise "DONEDONE"
+/tim-loop:tim-loop --review plans/drafts/[plan-name].md --max-iterations 10 --completion-promise "DONEDONE"
 ```
 
 ### What Happens on Promote Attempt
 
-| Plan Type | Ralph Review Status | Result |
+| Plan Type | Plan Review Status | Result |
 |-----------|---------------------|--------|
 | Single-phase | any | Allowed |
 | Multi-phase | not-required | Allowed (auto-detected) |
@@ -296,6 +296,8 @@ Single-phase plans can be promoted directly without Ralph Loop.
 | Multi-phase | completed | Allowed |
 
 If blocked, the error message shows exact commands to run.
+
+Note: The `ralph` command still works for backward compatibility but is deprecated.
 
 ---
 
@@ -431,7 +433,7 @@ After implementation, tim-loop verifies that 100% of plan objectives are met. Th
 When verification fails:
 1. Original plan marked `<!-- VERIFIED: FAILED -->`
 2. New remediation plan created in `plans/drafts/`
-3. Remediation plan goes through FULL lifecycle (Ralph → Promote → AI-Ready → Execute)
+3. Remediation plan goes through FULL lifecycle (Review → Promote → AI-Ready → Execute)
 4. When remediation succeeds, original plan updated to `<!-- VERIFIED: YES -->`
 
 ### Status Header Verification Fields
@@ -579,13 +581,13 @@ plan-ops init
 # Import from ~/.claude/plans (copies + deletes original)
 plan-ops import ~/.claude/plans/xxx.md --name "project-feature"
 
-# Start Ralph Loop review (shows command to run)
-plan-ops ralph plans/drafts/my-plan.md
+# Start Plan Review (shows command to run)
+plan-ops review plans/drafts/my-plan.md
 
-# Mark Ralph Loop as complete (after running /ralph-loop)
-plan-ops ralph plans/drafts/my-plan.md --mark-complete
+# Mark Plan Review as complete (after running /tim-loop --review)
+plan-ops review plans/drafts/my-plan.md --mark-complete
 
-# Promote draft to active (blocked for multi-phase without ralph)
+# Promote draft to active (blocked for multi-phase without review)
 plan-ops promote plans/drafts/my-plan.md --approver "Tim"
 
 # Request execution approval (first call creates request, blocks)
@@ -618,8 +620,8 @@ plan-ops list [drafts|active|completed|abandoned|all]
 |--------|---------|
 | Start new project | `plan-ops init` |
 | Import Claude's plan | `plan-ops import ~/.claude/plans/xxx.md --name "desc"` |
-| Start Ralph review | `plan-ops ralph plans/drafts/plan.md` |
-| Complete Ralph review | `plan-ops ralph plans/drafts/plan.md --mark-complete` |
+| Start Plan Review | `plan-ops review plans/drafts/plan.md` |
+| Complete Plan Review | `plan-ops review plans/drafts/plan.md --mark-complete` |
 | Approve plan | `plan-ops promote plans/drafts/plan.md --approver "Name"` |
 | Request execution | `plan-ops execute plans/active/plan.md` |
 | Approve execution (human) | `plan-ops approve-execute <id> --approver "Name"` |
