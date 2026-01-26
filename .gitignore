@@ -1,3 +1,9 @@
+# Plans folder (should not be in this repo)
+plans/
+
+# Claude Code local settings (contains personal permissions)
+.claude/settings.local.json
+
 # TIM Execution Requests (approval tokens)
 **/.tim-execution-requests/*
 !**/.tim-execution-requests/.gitkeep
