@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Tests for the TIM excuse detector hook.
+Tests for the TIM excuse detector hook - Core patterns (1-38).
 
 Tests cover:
-- New pattern detection (patterns 17-28)
+- Core pattern detection (patterns 1-38)
 - Mitigation detection (false positive prevention)
 - Bypass regression prevention
+- Scope reduction patterns (29-38)
+
+See test_excuse_patterns_extended.py for extended pattern tests (39-76).
 """
 
 import importlib.util
@@ -19,11 +22,14 @@ _spec = importlib.util.spec_from_file_location(
 _module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_module)
 
-ExcusePattern = _module.ExcusePattern
-EXCUSE_PATTERNS = _module.EXCUSE_PATTERNS
-MITIGATION_PATTERNS = _module.MITIGATION_PATTERNS
+# Import from the detector module
 find_excuses = _module.find_excuses
 has_mitigation_nearby = _module.has_mitigation_nearby
+
+# Import patterns from the patterns module
+import sys
+sys.path.insert(0, __file__.rsplit("/", 1)[0])
+from excuse_patterns import ExcusePattern, EXCUSE_PATTERNS, MITIGATION_PATTERNS
 
 
 class TestNewPatternDetection:
@@ -328,11 +334,11 @@ class TestScopeReductionPatterns:
 class TestPatternCount:
     """Verify pattern counts match expectations."""
 
-    def test_excuse_patterns_count_equals_38(self) -> None:
-        assert len(EXCUSE_PATTERNS) == 38
+    def test_excuse_patterns_count_equals_76(self) -> None:
+        assert len(EXCUSE_PATTERNS) == 76
 
-    def test_mitigation_patterns_count_equals_6(self) -> None:
-        assert len(MITIGATION_PATTERNS) == 6
+    def test_mitigation_patterns_count_equals_15(self) -> None:
+        assert len(MITIGATION_PATTERNS) == 15
 
 
 class TestCaseInsensitivity:

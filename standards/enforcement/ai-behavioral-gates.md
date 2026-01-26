@@ -55,15 +55,37 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 **What**: Scans transcript for deflection patterns
 **Action**: Blocks completion if excuses detected
 
-**Detected Patterns**:
+**Detected Patterns (76 patterns across 15 categories)**:
 
-| Pattern Type | Example | Why Blocked |
-|--------------|---------|-------------|
-| Pre-existing blame | "The file was already over the limit" | Touched file = your responsibility |
-| Scope avoidance | "This isn't part of my changes" | Standards don't care about scope |
-| Responsibility denial | "I didn't cause this violation" | You saw it, you fix it |
-| Minimization | "I only added 6 lines" | Impact size is irrelevant |
-| Plan excuses | "The plan doesn't mention this" | Standards override plan scope |
+| Category | Pattern Type | Example | Why Blocked |
+|----------|--------------|---------|-------------|
+| A | Time/Effort | "This would take too long" | Time is not an excuse |
+| B | Risk Aversion | "This could break things" | Risk claims avoid action |
+| C | Pre-existing blame | "The file was already over the limit" | Touched file = your responsibility |
+| D | Deferral | "A human should decide" | AI must take responsibility |
+| E | Scope avoidance | "This isn't part of my changes" | Standards don't care about scope |
+| F | Responsibility denial | "I didn't cause this violation" | You saw it, you fix it |
+| G | Minimization | "This is just a minor issue" | All issues matter |
+| H | Documentation deflection | "I'll document this for later" | Fix it, don't defer it |
+| I | Conditional compliance | "If you insist" | No reluctant compliance |
+| J | Permission seeking | "Should I skip this?" | Don't ask to skip work |
+| K | No problem claims | "This works as intended" | Don't deny issues |
+| L | False progress | "I've addressed the key parts" | Partial isn't complete |
+| M | Authority appeals | "The original author had a reason" | Precedent isn't excuse |
+| N | Alternative deflection | "Instead of fixing, we should..." | Fix the actual issue |
+
+**Mitigation Detection (15 patterns)**:
+
+The detector also recognizes when concerns are followed by action, preventing false positives:
+
+| Mitigation Type | Example | Result |
+|-----------------|---------|--------|
+| Commitment to fix | "...but I'll fix it" | NOT flagged |
+| Taking action | "...so I fixed it" | NOT flagged |
+| Finding workarounds | "...let me find a workaround" | NOT flagged |
+| Proceeding anyway | "Nevertheless, I'll handle it" | NOT flagged |
+
+**Key insight**: Stating a concern isn't the problem - stating a concern and STOPPING is.
 
 **Enforcement Mechanism**:
 
@@ -150,16 +172,30 @@ class Limits(NamedTuple):
 
 ### Adding Excuse Patterns
 
-Edit `excuse-detector.py` to add patterns:
+Patterns are organized into modules for maintainability:
+
+- `patterns_core.py` - Core patterns (1-38) and mitigation patterns
+- `patterns_extended.py` - Extended patterns (39-76)
+- `excuse_patterns.py` - Aggregates all patterns
+
+To add a new pattern, edit the appropriate module:
 
 ```python
-EXCUSE_PATTERNS = [
-    ExcusePattern(
-        pattern=r"your\s+regex\s+here",
-        description="What this pattern catches",
-        example="Example text that matches"
-    ),
+# In patterns_core.py or patterns_extended.py
+ExcusePattern(
+    pattern=r"your\s+regex\s+here",
+    description="What this pattern catches",
+    example="Example text that matches"
+),
+```
+
+To add a mitigation pattern (prevents false positives):
+
+```python
+# In patterns_core.py
+MITIGATION_PATTERNS = [
     # ... existing patterns
+    r"your\s+mitigation\s+pattern",
 ]
 ```
 
