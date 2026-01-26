@@ -484,7 +484,7 @@ A task is NOT complete until:
 2. Copy templates from `templates/python/` or `templates/node/`
 3. Install shared library: `pip install ./lib/design_standards/libs/python` or `npm install ./lib/design_standards/libs/node`
 4. Copy `.tim-patterns.yaml` template and register patterns
-5. **Install AI Behavioral Gates**: `./templates/hooks/install-hooks.sh /path/to/project`
+5. **Install AI Behavioral Gates**: Install the `tim-loop` plugin via Claude Code marketplace (hooks auto-register)
 6. Configure CI pipeline from `templates/ci/`
 7. **Set up remote environments:**
    - Copy `templates/environments.yaml.example` to project root
@@ -498,11 +498,11 @@ A task is NOT complete until:
 2. Create remediation plan for gaps
 3. Install shared library
 4. Create `.tim-patterns.yaml` and register all patterns
-5. **Install AI Behavioral Gates**: `./templates/hooks/install-hooks.sh /path/to/project`
+5. **Install AI Behavioral Gates**: Install the `tim-loop` plugin via Claude Code marketplace (hooks auto-register)
 6. Implement pre-commit hooks (Gate 1)
 7. Add CI pipeline (Gate 2)
 8. Implement deploy gates (Gate 3 + 4)
-8. **Migrate to remote-first deployment:**
+9. **Migrate to remote-first deployment:**
    - Set up remote dev/uat/prod environments
    - Update team workflow to use `./ops.sh --env dev` by default
    - For local dev: humans can opt-in via `tim-local-dev-enable`
