@@ -1,9 +1,10 @@
 {
   "name": "tim-loop",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Goal in, working code out: iterative convergence with verification loop. Includes plan-ops.sh for plan lifecycle management (auto-installed on first run). Four-phase workflow with AI behavioral enforcement.",
   "author": {
     "name": "Tim Schreyack",
     "email": "schreyack@yahoo.com"
-  }
+  },
+  "hooks": "./hooks/hooks.json"
 }
