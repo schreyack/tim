@@ -90,8 +90,15 @@ cmd_review() {
         log_info "Phases detected: $phase_count"
 
         if [[ "$phase_count" -lt 2 ]]; then
-            log_warn "This is a single-phase plan. Plan Review is NOT required."
-            log_info "NEXT STEP: Promote the plan directly:"
+            log_info "This is a single-phase plan. Plan Review is OPTIONAL."
+            echo ""
+            echo "Option 1: Run Plan Review anyway (recommended for complex plans):"
+            show_command "/tim-loop:tim-loop --review ${plan_file} --max-iterations 10 --completion-promise \"DONEDONE\""
+            echo ""
+            echo "Then mark complete:"
+            echo -e "  ${GREEN}$SCRIPT_PATH review $plan_file --mark-complete${NC}"
+            echo ""
+            echo "Option 2: Skip review and promote directly:"
             show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
             return 0
         fi

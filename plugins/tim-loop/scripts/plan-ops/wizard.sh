@@ -221,6 +221,25 @@ wizard_step_review() { wizard_step_ralph "$@"; }
 wizard_step_promote() {
     print_step_header "promote" "Promote to active"
 
+    # For single-phase plans that haven't been reviewed, offer the option
+    local phase_count plan_review
+    phase_count=$(count_phases "$WIZARD_PLAN_FILE")
+    plan_review=$(get_status_field "$WIZARD_PLAN_FILE" "Plan Review")
+    [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$WIZARD_PLAN_FILE" "Ralph Review")
+
+    if [[ "$phase_count" -lt 2 ]] && [[ "$plan_review" != "completed" ]]; then
+        echo ""
+        echo "This is a single-phase plan. Plan Review is optional."
+        echo -n "Run Plan Review before promoting? [y/N] "
+        read -r response </dev/tty
+        if [[ "$response" =~ ^[Yy] ]]; then
+            # Update status to required and run the ralph step
+            update_review_status "$WIZARD_PLAN_FILE" "required"
+            wizard_step_ralph
+            return
+        fi
+    fi
+
     local name
     name=$(prompt_for_name "Enter approver name")
 
