@@ -404,6 +404,24 @@ wizard_step_tim_loop() {
     read -r response </dev/tty
 
     if [[ "$response" =~ ^[Yy] ]]; then
+        # Check if plan file still exists (might have been moved during tim-loop)
+        if [[ ! -f "$WIZARD_PLAN_FILE" ]]; then
+            # Try to find the file if it was moved to completed/
+            local basename plans_dir completed_path
+            basename=$(basename "$WIZARD_PLAN_FILE")
+            plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+            completed_path="${plans_dir}/completed/${basename}"
+            if [[ -f "$completed_path" ]]; then
+                log_info "Plan was moved to completed/ during tim-loop"
+                WIZARD_PLAN_FILE="$completed_path"
+            else
+                log_error "Plan file not found: $WIZARD_PLAN_FILE"
+                log_error "The file may have been moved or deleted during tim-loop."
+                log_info "If tim-loop completed successfully, you can mark it complete manually."
+                exit 1
+            fi
+        fi
+
         # Mark implementation as verified so state transitions to 'complete'
         local reviewer
         reviewer=$(prompt_for_name "Enter verifier name")

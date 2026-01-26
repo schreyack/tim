@@ -59,6 +59,47 @@ find_plans_by_name() {
     printf '%s\n' "${results[@]}"
 }
 
+# Try to relocate a plan file that might have been moved
+# Returns: new path if found, empty string if not found
+# Unlike resolve_plan_path, this doesn't prompt for interactive selection
+try_relocate_plan() {
+    local original_path="$1"
+
+    # If file exists, return as-is
+    if [[ -f "$original_path" ]]; then
+        echo "$original_path"
+        return 0
+    fi
+
+    # Extract basename and try common locations
+    local basename
+    basename=$(basename "$original_path")
+
+    # Determine plans directory from original path
+    local plans_dir=""
+    if [[ "$original_path" == *"/plans/"* ]]; then
+        # Extract the plans directory path
+        plans_dir="${original_path%%/plans/*}/plans"
+    fi
+
+    # If we can't determine plans_dir, try current project
+    if [[ -z "$plans_dir" ]] || [[ ! -d "$plans_dir" ]]; then
+        plans_dir="$PLANS_DIR"
+    fi
+
+    # Search order: completed, active, drafts, abandoned (most likely moves)
+    for stage in completed active drafts abandoned; do
+        local candidate="${plans_dir}/${stage}/${basename}"
+        if [[ -f "$candidate" ]]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+
+    # Not found
+    return 1
+}
+
 # Resolve a plan argument to an absolute path
 # If it's a path and exists, use it directly
 # If it's a path but doesn't exist, extract filename and search

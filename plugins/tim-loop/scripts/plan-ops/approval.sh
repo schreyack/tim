@@ -40,6 +40,19 @@ update_ai_ready_status() {
     ts=$(timestamp)
     date=$(datestamp)
 
+    # Check file exists first, try to relocate if moved
+    if [[ ! -f "$file" ]]; then
+        local relocated
+        relocated=$(try_relocate_plan "$file")
+        if [[ -n "$relocated" ]]; then
+            log_info "Plan was moved to: $relocated"
+            file="$relocated"
+        else
+            log_error "Plan file not found: $file"
+            return 1
+        fi
+    fi
+
     # Find the best anchor field (last existing field before AI Developer Ready section)
     # Use regex to handle variable whitespace in markdown tables
     # Check both Plan Review/Review Date and Ralph Review/Ralph Date for backward compatibility
@@ -91,6 +104,20 @@ update_verification_status() {
     local ts date
     ts=$(timestamp)
     date=$(datestamp)
+
+    # Check file exists first, try to relocate if moved
+    if [[ ! -f "$file" ]]; then
+        local relocated
+        relocated=$(try_relocate_plan "$file")
+        if [[ -n "$relocated" ]]; then
+            log_info "Plan was moved to: $relocated"
+            file="$relocated"
+        else
+            log_error "Plan file not found: $file"
+            log_error "Searched in drafts/, active/, completed/, abandoned/"
+            return 1
+        fi
+    fi
 
     # Find the best anchor field (use regex to handle variable whitespace)
     # Check both Review Date/Plan Review and Ralph Date/Ralph Review for backward compatibility
@@ -343,6 +370,19 @@ update_execution_status() {
     local approval_file="$2"
     local ts
     ts=$(timestamp)
+
+    # Check plan file exists first, try to relocate if moved
+    if [[ ! -f "$plan_file" ]]; then
+        local relocated
+        relocated=$(try_relocate_plan "$plan_file")
+        if [[ -n "$relocated" ]]; then
+            log_info "Plan was moved to: $relocated"
+            plan_file="$relocated"
+        else
+            log_error "Plan file not found: $plan_file"
+            return 1
+        fi
+    fi
 
     # Get approver from approval file
     local approver
