@@ -172,6 +172,57 @@ EXCUSE_PATTERNS = [
         description="Claiming domain boundaries",
         example="outside my area"
     ),
+    # Patterns 29-38: Scope reduction and constraint-based deflection
+    ExcusePattern(
+        pattern=r"(?:let\s+me\s+)?(?:simplify|revise|restructure|re-?structure)\s+(?:the\s+)?(?:tests?|approach|code)\s+to\s+(?:be\s+more\s+)?(?:practical|focus)",
+        description="Reducing scope to avoid hard parts",
+        example="Let me simplify the tests to be more practical"
+    ),
+    ExcusePattern(
+        pattern=r"since\s+(?:the\s+)?(?:plan|task|instructions?|requirements?)\s+(?:says?|specifies?|requires?)",
+        description="Using plan constraints as excuse to not solve problem",
+        example="Since the plan says DO NOT modify..."
+    ),
+    ExcusePattern(
+        pattern=r"(?:can'?t|cannot|can\s+not)\s+be\s+(?:skipped|bypassed|avoided|worked\s+around)",
+        description="Claiming impossibility to avoid solving",
+        example="photo requirements can't be skipped"
+    ),
+    ExcusePattern(
+        pattern=r"work\s+within\s+(?:the\s+)?(?:existing\s+)?(?:\w+\s+)?(?:constraints?|limitations?|restrictions?)",
+        description="Using constraints as excuse to reduce scope",
+        example="I need to work within the existing workflow constraints"
+    ),
+    ExcusePattern(
+        pattern=r"what'?s\s+actually\s+(?:testable|possible|achievable|doable)",
+        description="Redefining success to exclude hard parts",
+        example="focus on what's actually testable"
+    ),
+    ExcusePattern(
+        pattern=r"(?:focus|concentrate)\s+on\s+what\s+(?:can|could)\s+(?:actually|really)\s+be\s+(?:tested|done|achieved)",
+        description="Redefining scope to avoid difficult work",
+        example="focus on what can actually be tested"
+    ),
+    ExcusePattern(
+        pattern=r"(?:requires?|needs?)\s+(?:a\s+)?different\s+approach\s+since",
+        description="Changing approach to avoid the actual requirement",
+        example="I need a different approach since photo requirements..."
+    ),
+    ExcusePattern(
+        pattern=r"(?:best|better|practical)\s+approach\s+is\s+to\s+(?:re-?structure|revise|simplify|skip)",
+        description="Reframing avoidance as better approach",
+        example="The best approach is to re-structure tests"
+    ),
+    ExcusePattern(
+        pattern=r"(?:accepting|accept)\s+that\s+(?:some|certain)\s+(?:phases?|parts?|sections?)\s+require\s+prerequisites?",
+        description="Accepting limitations instead of solving them",
+        example="accepting that some phases require prerequisites"
+    ),
+    ExcusePattern(
+        pattern=r"(?:this\s+)?means\s+I\s+(?:need|have)\s+to\s+either.*or\s+(?:change|modify|skip|simplify)",
+        description="False dichotomy to justify easier path",
+        example="This means I need to either upload photos (complex) or change the test approach"
+    ),
 ]
 
 # Mitigation patterns that indicate the speaker took corrective action

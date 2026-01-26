@@ -253,11 +253,83 @@ class TestBypassPrevention:
         assert len(excuses) >= 1
 
 
+class TestScopeReductionPatterns:
+    """Tests for scope reduction and constraint-based deflection (patterns 29-38)."""
+
+    def test_find_excuses_when_simplify_tests_detects_deflection(self) -> None:
+        text = "Let me simplify the tests to focus on what can be done."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_restructure_to_be_practical_detects_deflection(
+        self,
+    ) -> None:
+        text = "Let me restructure the tests to be more practical."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_since_plan_says_detects_deflection(self) -> None:
+        text = 'Since the plan says "DO NOT modify component files", I need to take a different approach.'
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_cant_be_skipped_detects_deflection(self) -> None:
+        text = "The photo requirements can't be skipped."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_cannot_be_bypassed_detects_deflection(self) -> None:
+        text = "This validation cannot be bypassed."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_work_within_constraints_detects_deflection(self) -> None:
+        text = "I need to work within the existing workflow constraints."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_whats_actually_testable_detects_deflection(self) -> None:
+        text = "Let me focus on what's actually testable."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_focus_on_what_can_be_tested_detects_deflection(
+        self,
+    ) -> None:
+        text = "I'll focus on what can actually be tested without completing the full workflow."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_needs_different_approach_detects_deflection(
+        self,
+    ) -> None:
+        text = "This requires a different approach since the prerequisites are complex."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_best_approach_is_restructure_detects_deflection(
+        self,
+    ) -> None:
+        text = "The best approach is to re-structure tests to test components in their natural phases."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_accepting_prerequisites_detects_deflection(self) -> None:
+        text = "Accepting that some phases require prerequisites."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+    def test_find_excuses_when_false_dichotomy_detects_deflection(self) -> None:
+        text = "This means I need to either upload photos (complex) or change the test approach."
+        excuses = find_excuses(text)
+        assert len(excuses) >= 1
+
+
 class TestPatternCount:
     """Verify pattern counts match expectations."""
 
-    def test_excuse_patterns_count_equals_28(self) -> None:
-        assert len(EXCUSE_PATTERNS) == 28
+    def test_excuse_patterns_count_equals_38(self) -> None:
+        assert len(EXCUSE_PATTERNS) == 38
 
     def test_mitigation_patterns_count_equals_6(self) -> None:
         assert len(MITIGATION_PATTERNS) == 6
