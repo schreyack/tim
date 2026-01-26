@@ -19,7 +19,7 @@ fi
 # =============================================================================
 
 # Find plan files matching a name pattern
-# Searches: current project's plans/, ~/.claude/plans/
+# Searches: current project's plans/ (top-level and subfolders), ~/.claude/plans/
 # Returns: newline-separated list of matching absolute paths
 find_plans_by_name() {
     local pattern="$1"
@@ -28,10 +28,17 @@ find_plans_by_name() {
     # Add .md extension if not present
     [[ "$pattern" != *.md ]] && pattern="${pattern}.md"
 
-    # Search in current project's plans directory (all stages)
+    # Search in current project's plans directory (top-level and all stages)
     if [[ -d "$PLANS_DIR" ]]; then
         local abs_plans_dir
         abs_plans_dir=$(to_absolute "$PLANS_DIR")
+
+        # Search top-level plans/ directory first
+        while IFS= read -r -d '' file; do
+            results+=("$file")
+        done < <(find "${abs_plans_dir}" -maxdepth 1 -name "*${pattern}" -type f -print0 2>/dev/null)
+
+        # Search stage subfolders
         for stage in drafts active completed abandoned; do
             if [[ -d "${abs_plans_dir}/${stage}" ]]; then
                 while IFS= read -r -d '' file; do
@@ -85,7 +92,7 @@ resolve_plan_path() {
 
     if [[ -z "$matches" ]]; then
         log_error "No plan found matching: $arg"
-        log_info "Searched in: $PLANS_DIR/*, $CLAUDE_PLANS_DIR"
+        log_info "Searched in: $PLANS_DIR, $PLANS_DIR/*, $CLAUDE_PLANS_DIR"
         return 1
     fi
 
