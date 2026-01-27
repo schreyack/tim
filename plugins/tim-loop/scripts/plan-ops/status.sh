@@ -96,6 +96,19 @@ get_plan_state() {
     exec_approved=$(get_status_field "$plan_file" "Execution Approved")
     impl_verified=$(get_status_field "$plan_file" "Implementation Verified")
 
+    # Override stage based on folder location (folder is authoritative over Status Header)
+    # Also update the plan file to fix the mismatch
+    if [[ "$plan_file" == *"/plans/active/"* ]] && [[ "$stage" == "draft" ]]; then
+        stage="active"
+        sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | active |/" "$plan_file"
+    elif [[ "$plan_file" == *"/plans/completed/"* ]] && [[ "$stage" != "completed" ]]; then
+        stage="completed"
+        sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | completed |/" "$plan_file"
+    elif [[ "$plan_file" == *"/plans/abandoned/"* ]] && [[ "$stage" != "abandoned" ]]; then
+        stage="abandoned"
+        sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | abandoned |/" "$plan_file"
+    fi
+
     # State machine
     case "$stage" in
         draft)
