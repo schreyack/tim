@@ -60,10 +60,18 @@ should_cleanup_existing_session() {
             return 0
         fi
     else
-        # No heartbeat file means session was created before heartbeat support
-        # or heartbeat was never written. Check state file age instead.
+        # No heartbeat file means either:
+        # 1. Session predates heartbeat support (legacy)
+        # 2. Heartbeat was just deleted by setup.sh to detect /clear race condition
+        #
+        # In case 2, a truly active parallel session would have ALREADY recreated
+        # the heartbeat via its PreToolUse hook (which fires on every tool use).
+        # So if there's no heartbeat, the session is almost certainly dead.
+        #
+        # Be aggressive: clean up if state file is >30 seconds old (not 5 minutes).
+        # This handles the /clear case while still protecting genuinely concurrent sessions.
         if [[ -f "$old_state" ]]; then
-            local now_epoch file_mtime_epoch age_minutes
+            local now_epoch file_mtime_epoch age_seconds
             now_epoch=$(date "+%s")
             # Get state file modification time
             if stat -f "%m" "$old_state" &>/dev/null; then
@@ -73,12 +81,18 @@ should_cleanup_existing_session() {
             else
                 file_mtime_epoch=0
             fi
-            age_minutes=$(( (now_epoch - file_mtime_epoch) / 60 ))
+            age_seconds=$((now_epoch - file_mtime_epoch))
 
-            # If state file hasn't been modified in 5+ minutes and no heartbeat,
-            # the session is definitely stale
-            if [[ "$age_minutes" -gt 5 ]]; then
-                echo "  Reason: No heartbeat file and state file is $age_minutes minutes old (legacy stale session)" >&2
+            # No heartbeat + state file older than 30 seconds = dead session
+            # (Active sessions update heartbeat constantly via PreToolUse)
+            if [[ "$age_seconds" -gt 30 ]]; then
+                local age_display
+                if [[ "$age_seconds" -gt 60 ]]; then
+                    age_display="$((age_seconds / 60)) minutes"
+                else
+                    age_display="${age_seconds} seconds"
+                fi
+                echo "  Reason: No heartbeat and state file is ${age_display} old (stale session)" >&2
                 return 0
             fi
         fi

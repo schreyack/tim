@@ -116,6 +116,12 @@ done
 
 # Cleanup and session handling
 cleanup_orphan_state_files 2>/dev/null || true
+
+# Fix for /clear race condition: delete heartbeat before session check.
+# Live parallel sessions recreate it immediately via PreToolUse hook;
+# dead sessions (after /clear) won't recreate it.
+rm -f "$HOME/.claude/.tim-loop-heartbeat" 2>/dev/null || true
+
 handle_existing_session "$FORCE_NEW_SESSION" "$PWD"
 init_plans_folders
 
