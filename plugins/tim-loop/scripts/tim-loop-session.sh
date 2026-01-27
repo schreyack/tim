@@ -21,18 +21,11 @@ should_cleanup_existing_session() {
         created_at="${CREATED_AT:-}"
     fi
 
-    echo "  Debug: Checking cleanup conditions..." >&2
-    echo "  Debug: old_state=$old_state" >&2
-    echo "  Debug: old_project=$old_project" >&2
-    echo "  Debug: current_project=$current_project" >&2
-    echo "  Debug: old_plan_file=$old_plan_file" >&2
-
     # Case 1: Old session's plan file no longer exists
     if [[ -n "$old_plan_file" ]] && [[ ! -f "$old_plan_file" ]]; then
         echo "  Reason: Plan file no longer exists" >&2
         return 0
     fi
-    echo "  Debug: Case 1 (plan missing): plan file exists, skipping" >&2
 
     # Case 2: Old session's plan file shows VERIFIED: YES (session completed successfully)
     # This catches cases where the stop hook's cleanup failed but the session actually finished
@@ -41,7 +34,6 @@ should_cleanup_existing_session() {
             echo "  Reason: Previous session completed (plan shows VERIFIED: YES)" >&2
             return 0
         fi
-        echo "  Debug: Case 2 (VERIFIED:YES): not found in plan, skipping" >&2
     fi
 
     # Case 3: Different project
@@ -49,7 +41,6 @@ should_cleanup_existing_session() {
         echo "  Reason: Different project (was: $old_project)" >&2
         return 0
     fi
-    echo "  Debug: Case 3 (diff project): same project, skipping" >&2
 
     # Case 4: No recent heartbeat (session interrupted by /clear or terminal close)
     # If no tool has been used in 5+ minutes, session is likely dead
@@ -71,9 +62,8 @@ should_cleanup_existing_session() {
     else
         # No heartbeat file means session was created before heartbeat support
         # or heartbeat was never written. Check state file age instead.
-        echo "  Debug: No heartbeat file, checking state file age" >&2
         if [[ -f "$old_state" ]]; then
-            local now_epoch file_mtime_epoch age_minutes age_seconds
+            local now_epoch file_mtime_epoch age_minutes
             now_epoch=$(date "+%s")
             # Get state file modification time
             if stat -f "%m" "$old_state" &>/dev/null; then
@@ -83,21 +73,14 @@ should_cleanup_existing_session() {
             else
                 file_mtime_epoch=0
             fi
-            age_seconds=$((now_epoch - file_mtime_epoch))
-            age_minutes=$((age_seconds / 60))
-
-            echo "  Debug: state file=$old_state, mtime=$file_mtime_epoch, now=$now_epoch, age=${age_seconds}s (${age_minutes}m)" >&2
+            age_minutes=$(( (now_epoch - file_mtime_epoch) / 60 ))
 
             # If state file hasn't been modified in 5+ minutes and no heartbeat,
             # the session is definitely stale
             if [[ "$age_minutes" -gt 5 ]]; then
                 echo "  Reason: No heartbeat file and state file is $age_minutes minutes old (legacy stale session)" >&2
                 return 0
-            else
-                echo "  Debug: State file is only ${age_minutes} minutes old, not cleaning up" >&2
             fi
-        else
-            echo "  Debug: State file $old_state does not exist" >&2
         fi
     fi
 
