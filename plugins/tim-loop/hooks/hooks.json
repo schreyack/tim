@@ -3,11 +3,11 @@
   "hooks": {
     "PreCompact": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook",
+            "timeout": 10
           }
         ]
       }
@@ -18,18 +18,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/code-quality-validator.py\""
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/code-quality-validator.py",
+            "timeout": 30
           }
         ]
       }
     ],
     "Stop": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/excuse-detector.py\""
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/excuse-detector.py",
+            "timeout": 10
           }
         ]
       }
