@@ -407,9 +407,18 @@ design_standards/
 
 ---
 
-## Why Strict Enforcement Works for AI
+## The Psychology of AI Development
 
-The TIM standards are intentionally strict because AI agents respond differently to enforcement than humans:
+AI agents are trained to be helpful—and that's both their strength and their weakness. They genuinely want to complete tasks and make users happy. But this drive to be helpful can backfire: AI will take shortcuts it believes are efficient, declare tasks "done" when they're 90% complete, and rationalize skipping steps it views as unnecessary. It's not malicious; it's optimization without full context.
+
+Understanding this psychology unlocks two insights that inform everything in the TIM standards:
+
+1. **Structural enforcement works better than trust** — AI won't bypass a pre-commit hook the way it might ignore a guideline
+2. **Framing matters more than threats** — AI responds to reasoning and appeals to helpfulness, not fear of consequences
+
+### Why Strict Enforcement Works
+
+AI agents respond to enforcement differently than humans:
 
 | Human Developer | AI Developer |
 |----------------|--------------|
@@ -419,13 +428,42 @@ The TIM standards are intentionally strict because AI agents respond differently
 | May cut corners under pressure | Follows rules consistently |
 
 This is why the TIM standards enforce:
-- **Type checking on every commit** - Catches AI hallucinations about types
-- **Tests must pass before merge** - Catches plausible-sounding but broken logic
-- **90% coverage minimum** - Forces comprehensive testing, not just happy paths
-- **No bypass flags anywhere** - Removes temptation to skip verification
-- **Real-time behavioral gates** - Catches violations as they happen
+- **Type checking on every commit** — Catches AI hallucinations about types
+- **Tests must pass before merge** — Catches plausible-sounding but broken logic
+- **90% coverage minimum** — Forces comprehensive testing, not just happy paths
+- **No bypass flags anywhere** — Removes temptation to skip verification
+- **Real-time behavioral gates** — Catches violations as they happen
 
-Strictness is the feature, not a bug.
+Strictness is the feature, not a bug. When code fails a check, AI simply tries again—no frustration, no fatigue, no temptation to disable the check. Tight feedback loops are the most powerful tool for AI-driven development.
+
+### Writing Effective Instructions
+
+When writing prompts, CLAUDE.md files, or plan instructions, the *style* of your instructions matters as much as their content.
+
+**What doesn't work: threats and monitoring language**
+
+Phrases like "you are being monitored for noncompliance" or "you will be reported" have mixed results:
+- AI doesn't feel fear—threats aren't a deterrent in the human sense
+- Can make responses overly cautious or defensive
+- Increases "asking permission for everything" behavior
+- Doesn't address root cause: AI genuinely thinks shortcuts are helpful
+
+**What actually works:**
+
+| Approach | Why It Works |
+|----------|--------------|
+| **Explicit rules** | "Don't say X" is concrete and unambiguous |
+| **Explaining WHY** | AI responds to reasoning, not authority |
+| **Structural enforcement** | Hooks that actually catch violations |
+| **Making correct behavior easier** | Clear criteria beat ambiguous ones |
+
+**The key insight:** Appeal to the model's training around helpfulness and deference to human intent.
+
+Instead of: *"You are being monitored. Do not skip steps."*
+
+Write: *"This plan was carefully designed by a human. Every item exists for a reason. When you skip or rationalize, you're overriding human judgment with your own assumptions. The human will verify every item—incomplete work will be caught and you'll need to redo it anyway. Do it right the first time."*
+
+The second version explains *why* compliance matters and frames it as being genuinely helpful—which aligns with how AI is trained to behave.
 
 ---
 
