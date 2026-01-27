@@ -7,8 +7,8 @@ The TIM standards require all Python projects to use this shared library. It pro
 ### Option 1: Git Submodule (Recommended)
 
 ```bash
-# Add design_standards as submodule
-git submodule add https://github.com/your-org/design_standards lib/tim
+# Add tim as submodule
+git submodule add https://github.com/your-org/tim lib/tim
 
 # Install the library
 pip install -e lib/tim/libs/python
@@ -20,7 +20,7 @@ poetry add ./lib/tim/libs/python
 ### Option 2: Direct Install
 
 ```bash
-pip install git+https://github.com/your-org/design_standards#subdirectory=libs/python
+pip install git+https://github.com/your-org/tim#subdirectory=libs/python
 ```
 
 ## Modules

@@ -147,7 +147,7 @@ You don't need to adopt the full TIM standards to use the Tim Loop plugin. Insta
 Run the quick start script to check prerequisites and get install instructions:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/schreyack/design_standards/main/scripts/quickstart.sh | bash
+curl -fsSL https://raw.githubusercontent.com/schreyack/tim/main/scripts/quickstart.sh | bash
 ```
 
 Or continue with the manual install below.
@@ -156,7 +156,7 @@ Or continue with the manual install below.
 
 In Claude Code:
 ```
-/plugin marketplace add schreyack/design_standards
+/plugin marketplace add schreyack/tim
 /plugin install tim-loop@tim-design-standards
 ```
 
@@ -323,7 +323,7 @@ The TIM standards are **language-agnostic**, but we provide first-class support 
 ## Repository Structure
 
 ```
-design_standards/
+tim/
 ├── CLAUDE.md              # Copy to TIM-compliant projects
 ├── README.md              # This file
 ├── LICENSE                # Apache 2.0
@@ -492,6 +492,6 @@ Have a pattern that AI keeps hallucinating? Found a gap in the standards? Submit
 - Add patterns to `standards/`
 - Add configuration templates to `templates/`
 - Improve enforcement tools in `tools/`
-- Report issues at [GitHub Issues](https://github.com/schreyack/design_standards/issues)
+- Report issues at [GitHub Issues](https://github.com/schreyack/tim/issues)
 
 This is a living project—it gets better with real-world usage.

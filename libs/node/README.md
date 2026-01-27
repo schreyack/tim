@@ -9,8 +9,8 @@ The TIM standards require all Node.js projects to use this shared library. It pr
 npm install @tim/lib
 
 # Or from git submodule
-git submodule add https://github.com/your-org/design_standards.git lib/design_standards
-npm install ./lib/design_standards/libs/node
+git submodule add https://github.com/your-org/tim.git lib/tim
+npm install ./lib/tim/libs/node
 ```
 
 ## Modules

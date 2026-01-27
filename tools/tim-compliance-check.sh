@@ -98,7 +98,7 @@ check_structure() {
     if [[ -f "CLAUDE.md" ]]; then
         log_pass "CLAUDE.md exists"
     else
-        log_fail "CLAUDE.md missing - copy from design_standards"
+        log_fail "CLAUDE.md missing - copy from tim repo"
     fi
 
     # Pattern registry

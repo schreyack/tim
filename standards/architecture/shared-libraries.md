@@ -12,7 +12,7 @@ TIM projects must use shared libraries for common functionality. This prevents c
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │                    design_standards (THIS REPO)                       │   │
+│  │                    tim (THIS REPO)                       │   │
 │  │  ├── templates/ops/tim-ops-lib.sh   ← Ops: Bash library              │   │
 │  │  ├── libs/python/tim_lib/           ← Python: tim-lib                │   │
 │  │  └── libs/node/                      ← Node.js: @tim/lib              │   │
@@ -68,7 +68,7 @@ Shared Python library for all TIM Python projects.
 **Installation:**
 ```bash
 # Option 1: Git submodule
-git submodule add https://github.com/your-org/design_standards lib/tim
+git submodule add https://github.com/your-org/tim lib/tim
 pip install -e lib/tim/libs/python
 
 # Option 2: Direct pip install (when published)
@@ -90,7 +90,7 @@ Shared TypeScript library for all TIM Node.js projects.
 **Installation:**
 ```bash
 # Option 1: Git submodule
-git submodule add https://github.com/your-org/design_standards lib/tim
+git submodule add https://github.com/your-org/tim lib/tim
 npm install ./lib/tim/libs/node
 
 # Option 2: npm package (when published)
@@ -105,7 +105,7 @@ Best for small teams with private repos. Changes are explicit.
 
 ```bash
 # Add to project
-git submodule add https://github.com/your-org/design_standards lib/tim
+git submodule add https://github.com/your-org/tim lib/tim
 
 # Update to latest
 git submodule update --remote lib/tim
@@ -255,7 +255,7 @@ def old_function():
 ## Directory Structure
 
 ```
-design_standards/
+tim/
 ├── libs/
 │   ├── python/
 │   │   ├── pyproject.toml
@@ -292,7 +292,7 @@ design_standards/
 
 ## Checklist for Projects
 
-- [ ] Add design_standards as git submodule: `git submodule add ... lib/tim`
+- [ ] Add tim as git submodule: `git submodule add ... lib/tim`
 - [ ] Install tim-lib in dependencies
 - [ ] Import and use shared config base
 - [ ] Use shared logging setup

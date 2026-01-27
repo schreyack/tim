@@ -3,7 +3,7 @@
 # TIM Design Standards - Quick Start Script
 # Checks prerequisites and installs the Tim Loop plugin
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/schreyack/design_standards/main/scripts/quickstart.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/schreyack/tim/main/scripts/quickstart.sh | bash
 #    or: ./scripts/quickstart.sh
 #
 
@@ -117,7 +117,7 @@ if check_command claude; then
     echo ""
     echo "  Run these commands in Claude Code:"
     echo ""
-    echo -e "    ${GREEN}/plugin marketplace add schreyack/design_standards${NC}"
+    echo -e "    ${GREEN}/plugin marketplace add schreyack/tim${NC}"
     echo -e "    ${GREEN}/plugin install tim-loop@tim-design-standards${NC}"
     echo ""
     echo "  Then restart Claude Code."
@@ -172,5 +172,5 @@ else
 fi
 
 echo ""
-echo "Documentation: https://github.com/schreyack/design_standards"
+echo "Documentation: https://github.com/schreyack/tim"
 echo ""

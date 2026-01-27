@@ -115,7 +115,7 @@ The detector also recognizes when concerns are followed by action, preventing fa
 For new TIM projects, use the installation script:
 
 ```bash
-# From design_standards repo
+# From tim repo
 ./templates/hooks/install-hooks.sh /path/to/project
 ```
 

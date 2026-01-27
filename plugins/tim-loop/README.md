@@ -228,7 +228,7 @@ The easiest way to install is through the interactive plugin manager:
 
 3. **Add the marketplace:**
    - Select "Add Marketplace"
-   - Enter: `schreyack/design_standards`
+   - Enter: `schreyack/tim`
    - Press Enter to confirm
 
 4. **Navigate to the Discover tab**
@@ -249,7 +249,7 @@ If you prefer CLI commands:
 
 ```bash
 # Step 1: Add the marketplace
-/plugin marketplace add schreyack/design_standards
+/plugin marketplace add schreyack/tim
 
 # Step 2: Install tim-loop from the marketplace
 /plugin install tim-loop@tim-design-standards
@@ -262,7 +262,7 @@ For offline environments or custom setups:
 #### Step 1: Clone the repository
 
 ```bash
-git clone https://github.com/schreyack/design_standards.git \
+git clone https://github.com/schreyack/tim.git \
   ~/.claude/plugins/marketplaces/tim-design-standards
 ```
 

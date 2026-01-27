@@ -16,7 +16,7 @@
 # This ensures that ANY SSH connection using this key is forced through the gateway.
 #
 # VERSION: 1.0.0
-# SOURCE: design_standards/templates/ops/ops-gateway.sh
+# SOURCE: tim/templates/ops/ops-gateway.sh
 
 set -euo pipefail
 

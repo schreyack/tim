@@ -564,11 +564,11 @@ Phase 3: Implement (parallel where possible)
 
 ## Automation: plan-ops
 
-To run `plan-ops` from anywhere, add the design_standards `bin/` directory to your PATH:
+To run `plan-ops` from anywhere, add the tim `bin/` directory to your PATH:
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc:
-export PATH="/path/to/design_standards/bin:$PATH"
+export PATH="/path/to/tim/bin:$PATH"
 source ~/.bashrc  # or source ~/.zshrc
 ```
 

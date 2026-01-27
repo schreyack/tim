@@ -26,7 +26,7 @@ When encountering complicated problems:
 
 ## Execution Environment
 
-**This repository (design_standards) is local-only.** All commands execute on your machine.
+**This repository (tim) is local-only.** All commands execute on your machine.
 
 - This is a documentation/standards repository - no application to deploy
 - Tests: Run locally if any test infrastructure exists
@@ -140,7 +140,7 @@ See: `standards/operations/afk-coding-patterns.md` for extended autonomous devel
 ## Repository Structure
 
 ```
-design_standards/
+tim/
 ├── CLAUDE.md                    # This file - copy to new TIM projects
 ├── README.md                    # Quick reference guide
 ├── standards/
@@ -482,7 +482,7 @@ A task is NOT complete until:
 ### For New TIM Projects
 1. Copy this `CLAUDE.md` to the new project root
 2. Copy templates from `templates/python/` or `templates/node/`
-3. Install shared library: `pip install ./lib/design_standards/libs/python` or `npm install ./lib/design_standards/libs/node`
+3. Install shared library: `pip install ./lib/tim/libs/python` or `npm install ./lib/tim/libs/node`
 4. Copy `.tim-patterns.yaml` template and register patterns
 5. **Install AI Behavioral Gates**: Install the `tim-loop` plugin via Claude Code marketplace (hooks auto-register)
 6. Configure CI pipeline from `templates/ci/`
@@ -597,11 +597,11 @@ plans/
 
 ### Adding plan-ops to PATH (Recommended)
 
-Add the design_standards `bin/` directory to your PATH to run `plan-ops` from anywhere:
+Add the tim repo's `bin/` directory to your PATH to run `plan-ops` from anywhere:
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc:
-export PATH="/path/to/design_standards/bin:$PATH"
+export PATH="/path/to/tim/bin:$PATH"
 
 # Reload your shell
 source ~/.bashrc  # or source ~/.zshrc

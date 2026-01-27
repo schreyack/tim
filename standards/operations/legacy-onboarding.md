@@ -39,11 +39,11 @@ Before starting migration:
 ### 0.1 Run Compliance Check
 
 ```bash
-# Clone design_standards if not already
-git clone <design_standards_repo>
+# Clone tim if not already
+git clone <tim_repo>
 
 # Run compliance checker
-./design_standards/tools/tim-compliance-check.sh /path/to/project
+./tim/tools/tim-compliance-check.sh /path/to/project
 ```
 
 ### 0.2 Generate Assessment Report
@@ -149,11 +149,11 @@ blockers: []
 
 ```bash
 # Copy CLAUDE.md
-cp design_standards/CLAUDE.md ./
+cp tim/CLAUDE.md ./
 
 # Copy template configs
-cp design_standards/templates/python/pyproject.toml ./  # or node/package.json
-cp design_standards/templates/python/.pre-commit-config.yaml ./
+cp tim/templates/python/pyproject.toml ./  # or node/package.json
+cp tim/templates/python/.pre-commit-config.yaml ./
 ```
 
 ### 1.2 Install Shared Library
@@ -161,14 +161,14 @@ cp design_standards/templates/python/.pre-commit-config.yaml ./
 **Python:**
 ```bash
 # Add to pyproject.toml dependencies
-poetry add tim-lib@path/to/design_standards/libs/python
+poetry add tim-lib@path/to/tim/libs/python
 # or
-pip install path/to/design_standards/libs/python
+pip install path/to/tim/libs/python
 ```
 
 **Node.js:**
 ```bash
-npm install path/to/design_standards/libs/node
+npm install path/to/tim/libs/node
 ```
 
 ### 1.3 Configure Pre-commit (Warn Mode)

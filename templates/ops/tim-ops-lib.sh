@@ -3,7 +3,7 @@
 # Shared deployment operations for all TIM projects
 #
 # VERSION: 2.0.0
-# SOURCE: https://github.com/your-org/design_standards/templates/ops/tim-ops-lib.sh
+# SOURCE: https://github.com/your-org/tim/templates/ops/tim-ops-lib.sh
 #
 # PHILOSOPHY: Operations are either ALLOWED or require HUMAN APPROVAL.
 # There are NO bypass flags. AI developers cannot override safety checks.
@@ -553,7 +553,7 @@ verify_security() {
 
     if [[ ! -f "$verify_script" ]]; then
         log_warn "Security verification script not found"
-        log_warn "Recommended: Add scripts/verify-ops-security.sh from design_standards"
+        log_warn "Recommended: Add scripts/verify-ops-security.sh from tim"
         return 0  # Warning only if script missing
     fi
 

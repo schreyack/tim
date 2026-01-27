@@ -30,7 +30,7 @@ set -euo pipefail
 
 # Resolve script's absolute path (works even when called via symlink)
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-# Resolve design_standards root directory (3 levels up: scripts/ -> tim-loop/ -> plugins/ -> root)
+# Resolve tim repo root directory (3 levels up: scripts/ -> tim-loop/ -> plugins/ -> root)
 DESIGN_STANDARDS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 # Module directory (plan-ops/ subdirectory next to this script)
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/plan-ops"
