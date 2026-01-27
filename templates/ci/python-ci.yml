@@ -1,4 +1,4 @@
-# TIM Design Standards - Python CI Pipeline
+# TIM Standards - Python CI Pipeline
 # Copy to: .github/workflows/ci.yml
 #
 # This pipeline implements Gate 2 (CI) checks:

@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in TIM Design Standards, please report it responsibly.
+If you discover a security vulnerability in TIM Standards, please report it responsibly.
 
 **Do not open a public issue for security vulnerabilities.**
 
@@ -28,7 +28,7 @@ Include:
 
 This security policy applies to:
 
-- The TIM Design Standards documentation and templates
+- The TIM Standards documentation and templates
 - The shared libraries (`tim-lib` for Python, `@tim/lib` for Node.js)
 - The Tim Loop plugin and plan-ops CLI
 - Example implementations

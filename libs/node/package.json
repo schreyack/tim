@@ -1,7 +1,7 @@
 {
   "name": "@tim/lib",
   "version": "1.0.0",
-  "description": "TIM Design Standards shared Node.js/TypeScript library",
+  "description": "TIM Standards shared Node.js/TypeScript library",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -80,7 +80,7 @@
   ],
   "keywords": [
     "tim",
-    "design-standards",
+    "tim-standards",
     "typescript",
     "utilities"
   ]

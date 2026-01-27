@@ -1,6 +1,6 @@
-# Contributing to TIM Design Standards
+# Contributing to TIM Standards
 
-Thank you for your interest in contributing to TIM Design Standards. This project gets better with real-world usage and feedback.
+Thank you for your interest in contributing to TIM Standards. This project gets better with real-world usage and feedback.
 
 ## How to Contribute
 

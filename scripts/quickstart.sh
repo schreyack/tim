@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# TIM Design Standards - Quick Start Script
+# TIM Standards - Quick Start Script
 # Checks prerequisites and installs the Tim Loop plugin
 #
 # Usage: curl -fsSL https://raw.githubusercontent.com/schreyack/tim/main/scripts/quickstart.sh | bash
@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 print_header() {
     echo ""
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  TIM Design Standards - Quick Start${NC}"
+    echo -e "${BLUE}  TIM Standards - Quick Start${NC}"
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
     echo ""
 }
@@ -118,7 +118,7 @@ if check_command claude; then
     echo "  Run these commands in Claude Code:"
     echo ""
     echo -e "    ${GREEN}/plugin marketplace add schreyack/tim${NC}"
-    echo -e "    ${GREEN}/plugin install tim-loop@tim-design-standards${NC}"
+    echo -e "    ${GREEN}/plugin install tim-loop@tim${NC}"
     echo ""
     echo "  Then restart Claude Code."
     echo ""
@@ -134,7 +134,7 @@ fi
 print_step "Optional: Add plan-ops to PATH"
 echo ""
 
-PLUGIN_BIN_PATH="\$HOME/.claude/plugins/marketplaces/tim-design-standards/bin"
+PLUGIN_BIN_PATH="\$HOME/.claude/plugins/marketplaces/tim/bin"
 SHELL_RC=""
 
 if [[ -f "$HOME/.zshrc" ]]; then

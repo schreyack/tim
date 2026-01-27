@@ -19,7 +19,7 @@ Execute setup to launch Tim Loop with four-phase workflow:
 ## Prerequisites
 
 1. **Claude Code CLI** - Install from [claude.ai/code](https://claude.ai/code)
-2. **TIM Design Standards** - This plugin is part of the tim-design-standards marketplace
+2. **TIM Standards** - This plugin is part of the tim marketplace
 
 ## Installation
 

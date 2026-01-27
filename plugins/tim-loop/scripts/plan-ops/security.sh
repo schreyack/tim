@@ -87,7 +87,7 @@ ensure_tim_loop_permissions() {
         log_warn "Tim-loop is not installed."
         echo ""
         echo "Install via Claude Code plugin system:"
-        echo "  1. Register the tim-design-standards marketplace"
+        echo "  1. Register the tim marketplace"
         echo "  2. Install the tim-loop plugin"
         echo ""
         echo "Or visit: https://github.com/schreyack/design_standards"

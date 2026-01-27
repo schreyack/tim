@@ -1,4 +1,4 @@
-# TIM Design Standards
+# TIM Standards
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -157,7 +157,7 @@ Or continue with the manual install below.
 In Claude Code:
 ```
 /plugin marketplace add schreyack/tim
-/plugin install tim-loop@tim-design-standards
+/plugin install tim-loop@tim
 ```
 
 Restart Claude Code. That's it.
@@ -184,7 +184,7 @@ For plan lifecycle management from your terminal:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-export PATH="$HOME/.claude/plugins/marketplaces/tim-design-standards/bin:$PATH"
+export PATH="$HOME/.claude/plugins/marketplaces/tim/bin:$PATH"
 
 # Reload shell
 source ~/.zshrc

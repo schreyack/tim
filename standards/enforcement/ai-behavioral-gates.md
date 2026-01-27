@@ -277,4 +277,4 @@ mv .claude/settings.json .claude/settings.json.disabled
 - [decider/claude-hooks](https://github.com/decider/claude-hooks) - Inspiration for code quality validation
 - [disler/claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) - Hook implementation patterns
 - [AI Confession Discussion](https://github.com/orgs/community/discussions/184349) - Problem documentation
-- TIM Design Standards: `standards/enforcement/gates.md`
+- TIM Standards: `standards/enforcement/gates.md`

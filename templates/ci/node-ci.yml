@@ -1,4 +1,4 @@
-# TIM Design Standards - Node.js/TypeScript CI Pipeline
+# TIM Standards - Node.js/TypeScript CI Pipeline
 # Copy to: .github/workflows/ci.yml
 #
 # This pipeline implements Gate 2 (CI) checks:

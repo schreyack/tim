@@ -213,7 +213,7 @@ The loop continues until verification passes or max iterations are reached.
 
 ## Installation
 
-Tim Loop is part of the `tim-design-standards` marketplace hosted on GitHub.
+Tim Loop is part of the `tim` marketplace hosted on GitHub.
 
 ### Option A: Interactive Install (Recommended)
 
@@ -252,7 +252,7 @@ If you prefer CLI commands:
 /plugin marketplace add schreyack/tim
 
 # Step 2: Install tim-loop from the marketplace
-/plugin install tim-loop@tim-design-standards
+/plugin install tim-loop@tim
 ```
 
 ### Option C: Manual Installation
@@ -263,7 +263,7 @@ For offline environments or custom setups:
 
 ```bash
 git clone https://github.com/schreyack/tim.git \
-  ~/.claude/plugins/marketplaces/tim-design-standards
+  ~/.claude/plugins/marketplaces/tim
 ```
 
 #### Step 2: Register in your settings
@@ -273,12 +273,12 @@ Add to `~/.claude/settings.json` (or `.claude/settings.json` for project scope):
 ```json
 {
   "extraKnownMarketplaces": {
-    "tim-design-standards": {
-      "source": "./plugins/marketplaces/tim-design-standards"
+    "tim": {
+      "source": "./plugins/marketplaces/tim"
     }
   },
   "enabledPlugins": {
-    "tim-loop@tim-design-standards": true
+    "tim-loop@tim": true
   }
 }
 ```
@@ -294,12 +294,12 @@ Add to `~/.claude/settings.json` (or `.claude/settings.json` for project scope):
 
 **Command-line:**
 ```bash
-/plugin update tim-loop@tim-design-standards
+/plugin update tim-loop@tim
 ```
 
 **Manual:**
 ```bash
-cd ~/.claude/plugins/marketplaces/tim-design-standards && git pull
+cd ~/.claude/plugins/marketplaces/tim && git pull
 ```
 
 ### Verifying Installation
@@ -328,7 +328,7 @@ To run `plan-ops` from any directory without the full path, add the `bin/` direc
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc:
-export PATH="$HOME/.claude/plugins/marketplaces/tim-design-standards/bin:$PATH"
+export PATH="$HOME/.claude/plugins/marketplaces/tim/bin:$PATH"
 
 # Reload your shell
 source ~/.bashrc  # or source ~/.zshrc
@@ -434,7 +434,7 @@ CODE QUALITY VIOLATION in page.tsx:
 
 - File has 542 lines (max: 400). Must be refactored into smaller modules.
 
-TIM Design Standards require this file to be refactored before continuing.
+TIM Standards require this file to be refactored before continuing.
 This is a HARD REQUIREMENT - no exceptions.
 ```
 
@@ -894,5 +894,5 @@ cat ~/.claude/settings.local.json | grep -A5 PostToolUse
 
 Verify scripts are executable:
 ```bash
-ls -la ~/.claude/plugins/cache/tim-design-standards/tim-loop/*/scripts/*.py
+ls -la ~/.claude/plugins/cache/tim/tim-loop/*/scripts/*.py
 ```

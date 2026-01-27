@@ -1,4 +1,4 @@
-# TIM Design Standards Repository - Pre-commit Configuration
+# TIM Standards Repository - Pre-commit Configuration
 # This repo contains both Python and Node.js shared libraries
 # Run: pre-commit install
 

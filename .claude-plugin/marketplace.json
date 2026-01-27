@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "tim-design-standards",
-  "description": "TIM Design Standards plugins for AI-driven development workflows",
+  "name": "tim",
+  "description": "TIM Standards plugins for AI-driven development workflows",
   "owner": {
     "name": "Tim Schreyack",
     "email": "schreyack@users.noreply.github.com"

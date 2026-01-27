@@ -36,7 +36,7 @@ When encountering complicated problems:
 
 ## Repository Purpose
 
-This is the **TIM Design Standards** repository - the authoritative source for coding, testing, security, and deployment standards used across all TIM projects.
+This is the **TIM Standards** repository - the authoritative source for coding, testing, security, and deployment standards used across all TIM projects.
 
 **Philosophy**: Defense in depth. Never trust. Always verify. Build systems that ENFORCE rules, not just document them. If a rule can be bypassed, an AI will bypass it.
 
@@ -783,9 +783,9 @@ See `standards/operations/plan-management.md` for full documentation.
 
 ---
 
-## TIM Design Standards Reference
+## TIM Standards Reference
 
-This project defines TIM Design Standards. Key requirements for all TIM projects:
+This project defines TIM Standards. Key requirements for all TIM projects:
 
 | Requirement | Threshold |
 |-------------|-----------|

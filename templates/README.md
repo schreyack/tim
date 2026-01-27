@@ -41,7 +41,7 @@ AI behavioral gates (code quality validator, excuse detector) are bundled with t
 
 ```
 /plugin marketplace add schreyack/tim
-/plugin install tim-loop@tim-design-standards
+/plugin install tim-loop@tim
 ```
 
 See [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) for documentation.
@@ -71,7 +71,7 @@ cd my-project && pre-commit install
 
 # Install Tim Loop plugin for AI behavioral gates (in Claude Code)
 # /plugin marketplace add schreyack/tim
-# /plugin install tim-loop@tim-design-standards
+# /plugin install tim-loop@tim
 ```
 
 ### New Node.js Project
@@ -89,7 +89,7 @@ cd my-project && pre-commit install
 
 # Install Tim Loop plugin for AI behavioral gates (in Claude Code)
 # /plugin marketplace add schreyack/tim
-# /plugin install tim-loop@tim-design-standards
+# /plugin install tim-loop@tim
 ```
 
 ## Template-to-Gate Mapping

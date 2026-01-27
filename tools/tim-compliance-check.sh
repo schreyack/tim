@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tim-compliance-check.sh
-# TIM Design Standards Compliance Checker
+# TIM Standards Compliance Checker
 #
 # Verifies a project meets TIM standards before deployment.
 # Exits non-zero if compliance fails (blocks deploy).
