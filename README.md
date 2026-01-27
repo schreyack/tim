@@ -16,7 +16,7 @@
 
 ---
 
-**TIM is a set of design standards for AI-driven software development.**
+**TIM (Trust Inspect Model) is a set of design standards for AI-driven software development.**
 
 ### The Problem
 
