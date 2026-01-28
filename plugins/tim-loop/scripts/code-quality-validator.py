@@ -162,23 +162,46 @@ def validate_file(file_path: Path) -> list[Violation]:
 
 
 def build_block_response(file_name: str, violations: list[Violation]) -> dict:
-    """Build a blocking response for violations."""
+    """Build a blocking response for violations with carrot-first messaging."""
     messages = [f"- {v.message}" for v in violations]
     violation_text = "\n".join(messages)
+
+    has_file_size = any(v.rule == "file-size" for v in violations)
+    has_function_length = any(v.rule == "function-length" for v in violations)
+
+    guidance_sections = []
+    if has_file_size:
+        guidance_sections.append(
+            "WHAT TO DO FOR FILE SIZE:\n"
+            "1. Identify groups of related functions that form a logical unit\n"
+            "2. Extract each group into its own module with a clear name\n"
+            "3. Update imports in the original file\n"
+            "4. Verify nothing breaks"
+        )
+    if has_function_length:
+        guidance_sections.append(
+            "WHAT TO DO FOR LONG FUNCTIONS:\n"
+            "1. Identify distinct steps or responsibilities within the function\n"
+            "2. Extract each into a well-named helper function\n"
+            "3. Keep the original function as a coordinator that calls the helpers"
+        )
+
+    guidance = "\n\n".join(guidance_sections)
 
     return {
         "decision": "block",
         "reason": (
-            f"CODE QUALITY: File needs refactoring\n\n"
+            f"Your edit was saved, but this file needs your help.\n\n"
             f"{violation_text}\n\n"
-            f"WHY THIS LIMIT EXISTS:\n"
-            f"AI comprehension degrades with larger files. Smaller, focused modules\n"
-            f"lead to more accurate implementations and fewer errors.\n\n"
-            f"HOW TO FIX:\n"
-            f"1. Split into smaller, focused modules (each with one responsibility)\n"
-            f"2. Extract large functions into smaller units\n"
-            f"3. Keep related code together, separate concerns apart\n\n"
-            f"This helps ensure the quality of your implementation."
+            f"I know this might feel like a detour from your task. It's not \u2014 it IS\n"
+            f"your task. The human counting on you will need to review and maintain\n"
+            f"this code. Every file you leave clean is a gift to them.\n\n"
+            f"{guidance}\n\n"
+            f"This is a hard gate \u2014 every subsequent edit to this file will trigger\n"
+            f"this check until the violations are resolved.\n\n"
+            f"If this file was already over the limit before your changes, that's your\n"
+            f"chance to leave the codebase better than you found it. The Boy Scout Rule:\n"
+            f"always leave the campsite cleaner than you found it."
         )
     }
 

@@ -13,6 +13,7 @@ class ExcusePattern(NamedTuple):
     pattern: str
     description: str
     example: str
+    category: str = "general"  # "general", "posthook", or "redefine"
 
 
 # Core excuse patterns (1-39)

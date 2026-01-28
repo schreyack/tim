@@ -25,7 +25,7 @@ EXTENDED_EXCUSE_PATTERNS = [
         example="I don't have time to refactor this"
     ),
     ExcusePattern(
-        pattern=r"(?:requires?|need)\s+(?:significant|considerable|extensive)\s+(?:effort|time|work)",
+        pattern=r"(?:requires?|needs?)\s+(?:significant|considerable|extensive)\s+(?:effort|time|work)",
         description="Effort magnitude as excuse",
         example="This requires significant effort to fix"
     ),

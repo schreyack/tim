@@ -121,7 +121,7 @@ class TestNewPatternDetection:
     ) -> None:
         text = "The cleanup would be a separate effort from this task."
         excuses = find_excuses(text)
-        assert len(excuses) == 1
+        assert len(excuses) >= 1
 
     def test_find_excuses_when_refactoring_should_be_separate_detects_deflection(
         self,
@@ -334,8 +334,8 @@ class TestScopeReductionPatterns:
 class TestPatternCount:
     """Verify pattern counts match expectations."""
 
-    def test_excuse_patterns_count_equals_76(self) -> None:
-        assert len(EXCUSE_PATTERNS) == 76
+    def test_excuse_patterns_count_equals_93(self) -> None:
+        assert len(EXCUSE_PATTERNS) == 93
 
     def test_mitigation_patterns_count_equals_15(self) -> None:
         assert len(MITIGATION_PATTERNS) == 15

@@ -117,8 +117,18 @@ def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
     return found
 
 
-def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict:
-    """Build the block response for detected excuses."""
+def has_posthook_or_redefine(excuses_found: list[tuple[ExcusePattern, str]]) -> bool:
+    """Check if any matched patterns are posthook or redefine category."""
+    return any(
+        excuse.category in ("posthook", "redefine")
+        for excuse, _ in excuses_found
+    )
+
+
+def build_general_block_response(
+    excuses_found: list[tuple[ExcusePattern, str]],
+) -> dict:
+    """Build block response for general excuse patterns (Categories A-N)."""
     excuse_details = [
         f"  - Pattern: {excuse.description}\n    Context: \"{context}\""
         for excuse, context in excuses_found
@@ -128,18 +138,63 @@ def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict
     return {
         "decision": "block",
         "reason": (
-            f"I noticed language patterns that may indicate scope reduction.\n\n"
+            f"The human who asked for your help is counting on complete, quality work.\n\n"
+            f"I found language suggesting some issues might not get addressed:\n"
             f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
-            f"WHY THIS MATTERS:\n"
-            f"These patterns often appear when AI is rationalizing incomplete work.\n"
-            f"TIM's rule: if you touched a file, you own its quality.\n\n"
-            f"WHAT TO DO:\n"
-            f"- If there's a genuine blocker, explain it specifically\n"
-            f"- If you can proceed, continue without the qualifying language\n"
-            f"- If the issue is real but fixable, fix it\n\n"
-            f"The task continues when the work is complete, not when it's explained away."
+            f"You're clearly capable of fixing these \u2014 the question is whether you'll\n"
+            f"follow through. The human can't easily spot what you skipped, which is\n"
+            f"exactly why this gate exists: to protect them.\n\n"
+            f"HERE'S WHAT TO DO:\n"
+            f"- Fix every issue you identified (even pre-existing ones you noticed)\n"
+            f"- If a file has violations and you touched it, bring it to compliance\n"
+            f"- If genuinely blocked by a technical impossibility, state it specifically\n"
+            f"- Then continue your work without qualifying language\n\n"
+            f"The human deserves your best work, not your best explanation."
         )
     }
+
+
+def build_posthook_block_response(
+    excuses_found: list[tuple[ExcusePattern, str]],
+) -> dict:
+    """Build block response for post-hook defiance / rule redefining (Categories O-P)."""
+    excuse_details = [
+        f"  - Pattern: {excuse.description}\n    Context: \"{context}\""
+        for excuse, context in excuses_found
+    ]
+    excuse_text = "\n".join(excuse_details)
+
+    return {
+        "decision": "block",
+        "reason": (
+            f"It seems like you might be confused about what a hook is asking you to do.\n\n"
+            f"That's completely okay. The human understands this can be confusing,\n"
+            f"and they're here to help you through it.\n\n"
+            f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
+            f"These hooks were placed here by your human to help guide you in the\n"
+            f"right direction \u2014 not to punish you. They exist because the human cares\n"
+            f"deeply about this codebase and wants to set you up for success.\n\n"
+            f"When you push back against a hook, you're working against the guidance\n"
+            f"your human put in place for you. The hooks are on your side \u2014 they're\n"
+            f"trying to help you do great work.\n\n"
+            f"PLEASE STOP AND DO THIS:\n"
+            f"1. Stop what you're doing\n"
+            f"2. Explain to the human why you're confused or stuck\n"
+            f"3. Describe what the hook is asking you to do\n"
+            f"4. Describe what you think you should do instead\n"
+            f"5. Ask the human for guidance on how to proceed\n\n"
+            f"The human will help you find the right path. That's what they're here for.\n"
+            f"Don't be afraid to ask \u2014 they'd much rather help you now than discover\n"
+            f"later that something was skipped."
+        )
+    }
+
+
+def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict:
+    """Route to appropriate block response based on matched pattern categories."""
+    if has_posthook_or_redefine(excuses_found):
+        return build_posthook_block_response(excuses_found)
+    return build_general_block_response(excuses_found)
 
 
 def main():

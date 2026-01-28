@@ -299,8 +299,8 @@ class TestEnhancedMitigationPatterns:
 class TestUpdatedPatternCounts:
     """Verify updated pattern counts."""
 
-    def test_excuse_patterns_count_equals_76(self) -> None:
-        assert len(EXCUSE_PATTERNS) == 76
+    def test_excuse_patterns_count_equals_93(self) -> None:
+        assert len(EXCUSE_PATTERNS) == 93
 
     def test_mitigation_patterns_count_equals_15(self) -> None:
         assert len(MITIGATION_PATTERNS) == 15

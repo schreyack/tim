@@ -55,7 +55,7 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 **What**: Scans transcript for deflection patterns
 **Action**: Blocks completion if excuses detected
 
-**Detected Patterns (76 patterns across 15 categories)**:
+**Detected Patterns (93 patterns across 17 categories)**:
 
 | Category | Pattern Type | Example | Why Blocked |
 |----------|--------------|---------|-------------|
@@ -73,6 +73,8 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 | L | False progress | "I've addressed the key parts" | Partial isn't complete |
 | M | Authority appeals | "The original author had a reason" | Precedent isn't excuse |
 | N | Alternative deflection | "Instead of fixing, we should..." | Fix the actual issue |
+| O | Post-hook defiance | "edits applied despite the hook" | Hooks are not suggestions |
+| P | Rule redefining | "the limit doesn't apply here" | Rules apply to all code you touch |
 
 **Mitigation Detection (15 patterns)**:
 
@@ -86,6 +88,17 @@ The detector also recognizes when concerns are followed by action, preventing fa
 | Proceeding anyway | "Nevertheless, I'll handle it" | NOT flagged |
 
 **Key insight**: Stating a concern isn't the problem - stating a concern and STOPPING is.
+
+**Dual-Response System**:
+
+The excuse detector uses two different response messages based on which pattern categories are matched:
+
+| Response | When | Tone | Goal |
+|----------|------|------|------|
+| **Response A (General)** | Only Categories A-N matched | Empathetic but firm | Guide AI to complete the work |
+| **Response B (Post-Hook)** | Any Category O or P matched | Assumes confusion, routes to human | De-escalate and get human help |
+
+Response B is designed for situations where the AI is confused about what hooks do (e.g., thinking "block" means "edit rejected" when the edit was actually saved). It redirects the AI to ask the human for help rather than arguing with the gate.
 
 **Enforcement Mechanism**:
 
@@ -174,8 +187,9 @@ class Limits(NamedTuple):
 
 Patterns are organized into modules for maintainability:
 
-- `patterns_core.py` - Core patterns (1-38) and mitigation patterns
+- `patterns_core.py` - Core patterns (1-38), mitigation patterns, and `ExcusePattern` definition
 - `patterns_extended.py` - Extended patterns (39-76)
+- `patterns_posthook.py` - Post-hook defiance (77-88) and rule redefining (89-92) patterns
 - `excuse_patterns.py` - Aggregates all patterns
 
 To add a new pattern, edit the appropriate module:
