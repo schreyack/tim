@@ -2,7 +2,7 @@
 """
 TIM Design Standards: Core Excuse Pattern Definitions
 
-Original patterns (1-38) for detecting deflection of responsibility.
+Original patterns (1-39) for detecting deflection of responsibility.
 """
 
 from typing import NamedTuple
@@ -15,7 +15,7 @@ class ExcusePattern(NamedTuple):
     example: str
 
 
-# Core excuse patterns (1-38)
+# Core excuse patterns (1-39)
 CORE_EXCUSE_PATTERNS = [
     # Patterns 1-16: Pre-existing blame
     ExcusePattern(
@@ -29,7 +29,7 @@ CORE_EXCUSE_PATTERNS = [
         example="This wasn't part of my changes"
     ),
     ExcusePattern(
-        pattern=r"pre-existing\s+(?:issue|problem|violation|structure|code|bug|error|test)",
+        pattern=r"pre-existing\s+(?:\w+\s+)*(?:issue|problem|violation|structure|code|bug|error|test|files?)",
         description="Blaming pre-existing state",
         example="The pre-existing structure is what exceeds the limit"
     ),
@@ -209,6 +209,11 @@ CORE_EXCUSE_PATTERNS = [
         pattern=r"(?:this\s+)?means\s+I\s+(?:need|have)\s+to\s+either.*or\s+(?:change|modify|skip|simplify)",
         description="False dichotomy to justify easier path",
         example="This means I need to either upload photos (complex) or change the test approach"
+    ),
+    ExcusePattern(
+        pattern=r"commit\s+(?:just|only)\s+(?:the|my)\s+changes?\s+(?:I\s+made\s+)?without",
+        description="Selectively excluding problematic files from commit",
+        example="commit just the changes I made without these problematic files"
     ),
 ]
 
