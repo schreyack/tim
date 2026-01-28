@@ -4,8 +4,7 @@
 #
 # Dependencies: core.sh, search.sh, security.sh, status.sh, approval.sh, verification.sh
 # Exports: cmd_wizard, wizard_step_import, wizard_step_ralph, wizard_step_promote,
-#          wizard_step_ai_ready, wizard_step_execute_request, wizard_step_execute_approve,
-#          wizard_step_tim_loop, wizard_step_complete
+#          wizard_step_ai_ready, wizard_step_tim_loop, wizard_step_complete
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -117,8 +116,6 @@ cmd_wizard() {
             ralph)           wizard_step_ralph ;;
             promote)         wizard_step_promote ;;
             ai-ready)        wizard_step_ai_ready ;;
-            execute-request) wizard_step_execute_request ;;
-            execute-approve) wizard_step_execute_approve ;;
             tim-loop)        wizard_step_tim_loop ;;
             complete)        wizard_step_complete ;;
             not-found)
@@ -292,83 +289,6 @@ wizard_step_ai_ready() {
         return 1
     fi
     log_info "AI Developer Ready approval recorded."
-}
-
-wizard_step_execute_request() {
-    print_step_header "execute" "Execution Approval"
-
-    echo "Creating execution request..."
-
-    # Use helper function directly (don't call cmd_execute which exits)
-    local request_id
-    request_id=$(create_execution_request "$WIZARD_PLAN_FILE")
-
-    echo ""
-    echo "Request ID: $request_id"
-    echo ""
-    echo "Run this command in a SEPARATE TERMINAL to approve:"
-    local cmd="$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\""
-    show_command "$cmd"
-    echo -n "Press Enter when approved..."
-    read -r </dev/tty
-
-    # Verify approval succeeded before continuing
-    local approval
-    approval=$(find_valid_approval "$WIZARD_PLAN_FILE")
-    if [[ -z "$approval" ]]; then
-        log_error "Approval not found or expired. Please approve and try again."
-        # Don't exit - let the wizard loop retry (state will still be execute-request or execute-approve)
-        return
-    fi
-
-    # Update execution status in plan
-    if ! update_execution_status "$WIZARD_PLAN_FILE" "$approval"; then
-        log_error "Failed to update execution status"
-        return
-    fi
-    if ! update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"; then
-        log_error "Failed to update progress log"
-        return
-    fi
-    log_info "Execution APPROVED!"
-}
-
-wizard_step_execute_approve() {
-    print_step_header "execute" "Execution Approval (pending request found)"
-
-    # Find the pending request
-    local request_file
-    request_file=$(find_pending_request "$WIZARD_PLAN_FILE")
-    local request_id
-    request_id=$(basename "$request_file" .json)
-
-    echo ""
-    echo "Found pending approval request: $request_id"
-    echo ""
-    echo "Run this command in a SEPARATE TERMINAL to approve:"
-    local cmd="$SCRIPT_PATH approve-execute $request_id --approver \"Your Name\""
-    show_command "$cmd"
-    echo -n "Press Enter when approved..."
-    read -r </dev/tty
-
-    # Verify approval
-    local approval
-    approval=$(find_valid_approval "$WIZARD_PLAN_FILE")
-    if [[ -z "$approval" ]]; then
-        log_error "Approval not found or expired. Please approve and try again."
-        # Don't exit - let the wizard loop retry
-        return
-    fi
-
-    if ! update_execution_status "$WIZARD_PLAN_FILE" "$approval"; then
-        log_error "Failed to update execution status"
-        return
-    fi
-    if ! update_status "$WIZARD_PLAN_FILE" "active" "Execution approved, starting tim-loop"; then
-        log_error "Failed to update progress log"
-        return
-    fi
-    log_info "Execution APPROVED!"
 }
 
 wizard_step_tim_loop() {

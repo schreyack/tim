@@ -148,27 +148,16 @@ Single-phase plans can skip Plan Review and promote directly.
 
 Note: The `ralph` command still works for backward compatibility but is deprecated.
 
-### Tim Loop Execution Gate (HARD ENFORCED)
+### Tim Loop Execution
 
-Active plans require **human approval** before execution. AI cannot bypass this.
+After AI Developer Ready approval, execute the plan:
 
 ```bash
-# 1. AI requests execution (creates approval request, BLOCKS)
+# 1. Run execute to get the tim-loop command
 plan-ops execute plans/active/my-plan.md
 
-# 2. HUMAN approves in separate terminal
-plan-ops approve-execute <request-id> --approver "Name"
-
-# 3. AI retries (now outputs tim-loop command)
-plan-ops execute plans/active/my-plan.md
-
-# 4. Run the /tim-loop command
+# 2. Run the /tim-loop command in Claude Code
 ```
-
-**Why AI cannot bypass:**
-- No `--approver` flag exists
-- Approval requires separate terminal session
-- Tokens expire after 15 minutes
 
 ### Designing for Parallel Agent Execution
 
@@ -246,8 +235,7 @@ Use `plan-ops` for lifecycle operations (requires PATH setup, see above):
 - `import` - Import from ~/.claude/plans (auto-deletes original)
 - `review` - Start/complete Plan Review (multi-phase plans)
 - `promote` - Move draft to active (blocked for multi-phase until reviewed)
-- `execute` - Request execution approval (requires human approval)
-- `approve-execute` - Human approves execution (run in separate terminal)
+- `execute` - Output tim-loop command for active plan
 - `complete` - Move active to completed
 - `abandon` - Move to abandoned with reason
 

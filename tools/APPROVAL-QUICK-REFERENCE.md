@@ -9,15 +9,14 @@ Quick reference for human approval commands in `plan-ops.sh`.
 ## Approval Workflow Overview
 
 ```
-Draft → [Ralph Review] → Promote → AI Ready → Execute Approval → Tim Loop
+Draft → [Plan Review] → Promote → AI Ready → Execute → Tim Loop
 ```
 
 | Step | Command | Who Runs |
 |------|---------|----------|
-| Ralph Review | `ralph --mark-complete` | Human |
+| Plan Review | `review --mark-complete` | Human |
 | Promotion | `promote --approver` | Human |
 | AI Developer Ready | `ai-ready --reviewer` | Human |
-| Execution Approval | `approve-execute --approver` | Human |
 
 ---
 
@@ -69,28 +68,15 @@ Human reviews plan for AI implementation concerns before execution.
 
 ---
 
-## 4. Execution Approval
+## 4. Execute Plan
 
-Two-step process requiring separate terminal.
+After AI Developer Ready approval, run execute to get the tim-loop command:
 
-### Step 1: AI requests execution (creates approval request)
 ```bash
-# AI runs this - it BLOCKS and outputs a request ID
 ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
 ```
 
-### Step 2: Human approves in SEPARATE terminal
-```bash
-./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Your Name"
-```
-
-### Step 3: AI retries (now succeeds)
-```bash
-# AI runs again - now outputs the /tim-loop command
-./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
-```
-
-**Approval expires after 15 minutes.**
+This outputs the `/tim-loop --implement` command to paste into Claude Code.
 
 ---
 
@@ -123,8 +109,8 @@ Two-step process requiring separate terminal.
 # 4. Mark AI Developer Ready
 ./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/2025-01-16-feature-auth.md --reviewer "Tim"
 
-# 5. Approve execution (AI requests, human approves in separate terminal)
-./plugins/tim-loop/scripts/plan-ops.sh approve-execute abc123 --approver "Tim"
+# 5. Execute (outputs tim-loop command)
+./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/2025-01-16-feature-auth.md
 
 # 6. After /tim-loop completes: Mark complete
 ./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/2025-01-16-feature-auth.md
@@ -140,7 +126,6 @@ Two-step process requiring separate terminal.
 | "Cannot approve from within Claude Code session" | Running in Claude terminal | Use separate terminal |
 | "Multi-phase plan requires Ralph Loop review" | Trying to promote without Ralph | Complete Ralph Loop first |
 | "Plan has not been marked AI Developer Ready" | Missing ai-ready approval | Run ai-ready command |
-| "Request has EXPIRED" | Approval token expired | AI must re-run execute |
 
 ---
 

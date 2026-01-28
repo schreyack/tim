@@ -124,12 +124,8 @@ PLAN REVIEW WORKFLOW (for multi-phase plans):
 
 EXECUTION WORKFLOW (for active plans):
 1. ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
-   (BLOCKED - creates approval request)
-2. HUMAN runs in separate terminal:
-   ./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Name"
-3. ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
    (Outputs /tim-loop command)
-4. Run the /tim-loop command
+2. Run the /tim-loop command
 
 See standards/operations/plan-management.md for full documentation.
 -->

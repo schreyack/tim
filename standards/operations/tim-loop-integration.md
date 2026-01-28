@@ -130,88 +130,40 @@ The standard command for plan review:
 
 ## Implementation Mode Execution
 
-### Hard Enforcement
-
-#### Why Hard Enforcement?
-
-AI developers can produce plausible-looking work while bypassing safeguards. The execution gate prevents:
-
-- AI executing plans without human oversight
-- Plans being implemented incorrectly or incompletely
-- Bypassing the approval process via flags or workarounds
-
-#### Attack Vectors Blocked
-
-| Attack Vector | Defense |
-|---------------|---------|
-| AI adds `--approver` flag | No such flag - approval is separate command |
-| AI runs approve-execute | Can't - requires separate terminal session |
-| AI guesses request ID | Random UUID, time-limited |
-| AI waits indefinitely | Tokens expire (15 min default) |
-| AI modifies approval files | Files are validated on read |
-
 ### Execution Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│              PLAN EXECUTION WORKFLOW (HARD ENFORCED)            │
+│                    PLAN EXECUTION WORKFLOW                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  1. Plan promoted to active/ (existing workflow)                │
+│  1. Plan promoted to active/ and marked AI Developer Ready      │
 │           │                                                     │
 │           ▼                                                     │
-│  2. AI: plan-ops.sh execute plans/active/my-plan.md             │
-│     → Creates approval request, outputs request ID              │
-│     → BLOCKED - no tim-loop command yet                         │
-│           │                                                     │
-│           ▼                                                     │
-│  3. HUMAN (separate terminal):                                  │
-│     plan-ops.sh approve-execute <request-id> --approver "Name"  │
-│     → Validates and approves request                            │
-│           │                                                     │
-│           ▼                                                     │
-│  4. AI: plan-ops.sh execute plans/active/my-plan.md             │
-│     → Finds valid approval                                      │
+│  2. plan-ops.sh execute plans/active/my-plan.md                 │
 │     → Outputs tim-loop command                                  │
 │           │                                                     │
 │           ▼                                                     │
-│  5. Run the /tim-loop command to execute the plan               │
+│  3. Run the /tim-loop command to execute the plan               │
 │     (Tim Loop runs with structured methodology)                 │
 │           │                                                     │
 │           ▼                                                     │
-│  6. plan-ops.sh complete plans/active/my-plan.md                │
+│  4. plan-ops.sh complete plans/active/my-plan.md                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Execution Commands
 
-#### Request Execution
+#### Execute Plan
 
 ```bash
 plan-ops.sh execute plans/active/my-plan.md
 ```
 
-**First call (no approval):**
-- Creates approval request file: `.tim-execution-requests/<request-id>.json`
-- Outputs request ID and approval command
-- Exits with error (BLOCKED)
-
-**After approval:**
-- Finds valid approval for this plan
-- Updates Status Header with execution approval
+- Checks AI Developer Ready approval (required)
+- Updates Status Header with execution fields
 - Outputs the tim-loop command to run
-
-#### Approve Execution (Human Only)
-
-```bash
-plan-ops.sh approve-execute <request-id> --approver "Name"
-```
-
-- **Must be run in a separate terminal by a human**
-- Validates request exists and is not expired
-- Marks approval in request file
-- Updates plan Status Header
 
 #### Tim Loop Implement Command
 
@@ -247,55 +199,10 @@ Note: For backward compatibility, `Ralph Review` and `Ralph Date` field names ar
 
 ---
 
-## Approval Request Files
-
-### Location
-
-`.tim-execution-requests/<request-id>.json`
-
-### Format
-
-```json
-{
-  "request_id": "abc12345",
-  "plan_file": "plans/active/my-plan.md",
-  "created_at": "2026-01-16T12:00:00Z",
-  "expires_at": "2026-01-16T12:15:00Z",
-  "approved": false,
-  "approved_by": null,
-  "approved_at": null
-}
-```
-
-### After Approval
-
-```json
-{
-  "request_id": "abc12345",
-  "plan_file": "plans/active/my-plan.md",
-  "created_at": "2026-01-16T12:00:00Z",
-  "expires_at": "2026-01-16T12:15:00Z",
-  "approved": true,
-  "approved_by": "Tim",
-  "approved_at": "2026-01-16T12:05:00Z"
-}
-```
-
----
-
-## Configuration
-
-| Setting | Value | Description |
-|---------|-------|-------------|
-| `EXECUTION_EXPIRY_MINUTES` | 15 | Time before approval request expires |
-| `EXECUTION_REQUESTS_DIR` | `.tim-execution-requests` | Directory for request files |
-
----
-
 ## Integration with Plan Lifecycle
 
 ```
-Draft → Plan Review → Active → Execution Approval → Tim Loop → Completed
+Draft → Plan Review → Active → AI Developer Ready → Execute → Tim Loop → Completed
               ↓
     (multi-phase only)
 ```
@@ -305,8 +212,8 @@ Draft → Plan Review → Active → Execution Approval → Tim Loop → Complet
 1. **Draft** - Plan created in `plans/drafts/`
 2. **Plan Review** - Multi-phase plans reviewed via Tim Loop `--review` mode
 3. **Promote** - Human approves, plan moves to `plans/active/`
-4. **Execute Request** - AI requests execution approval
-5. **Human Approval** - Human approves in separate terminal
+4. **AI Developer Ready** - Human reviews plan for AI implementation concerns
+5. **Execute** - Outputs the tim-loop command
 6. **Tim Loop** - Plan executed via `--implement` mode
 7. **Complete** - Plan moves to `plans/completed/`
 
@@ -360,18 +267,6 @@ The `--max-iterations 10` parameter prevents infinite loops. If hitting max iter
 1. The task may be too complex
 2. Consider breaking into smaller plans
 3. Manually mark complete after reviewing iterations
-
-### "BLOCKED: Execution requires human approval"
-
-This is expected. A human must run the approve-execute command in a separate terminal.
-
-### "Request not found"
-
-The request ID may be incorrect, or the request may have expired. Have AI create a new request with `execute`.
-
-### "Request has EXPIRED"
-
-Approval requests expire after 15 minutes. Create a new request by running `execute` again.
 
 ### Execution started but tim-loop not running
 

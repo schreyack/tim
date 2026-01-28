@@ -4,9 +4,7 @@
 #
 # Dependencies: core.sh, status.sh
 # Exports: has_ai_ready_approval, update_ai_ready_status, update_verification_status,
-#          add_ai_ready_stamp, update_ralph_status, generate_request_id,
-#          create_execution_request, find_valid_approval, find_pending_request,
-#          update_execution_status
+#          add_ai_ready_stamp, update_ralph_status, update_execution_status
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -261,113 +259,17 @@ update_review_status() {
 update_ralph_status() { update_review_status "$@"; }
 
 # =============================================================================
-# EXECUTION REQUEST MANAGEMENT
-# =============================================================================
-
-# Generate a random request ID
-generate_request_id() {
-    # Use uuidgen if available, otherwise fallback to date-based
-    if command -v uuidgen &> /dev/null; then
-        uuidgen | tr '[:upper:]' '[:lower:]' | cut -c1-8
-    else
-        date +%s%N | sha256sum | cut -c1-8
-    fi
-}
-
-# Create an execution request file
-create_execution_request() {
-    local plan_file="$1"
-    local request_id
-    request_id=$(generate_request_id)
-    local request_file="${EXECUTION_REQUESTS_DIR}/${request_id}.json"
-    local ts
-    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    local expiry
-    expiry=$(date -u -v+${EXECUTION_EXPIRY_MINUTES}M +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
-             date -u -d "+${EXECUTION_EXPIRY_MINUTES} minutes" +"%Y-%m-%dT%H:%M:%SZ")
-
-    # Ensure directory exists
-    mkdir -p "${EXECUTION_REQUESTS_DIR}"
-
-    # Create request file
-    cat > "$request_file" << EOF
-{
-  "request_id": "${request_id}",
-  "plan_file": "${plan_file}",
-  "created_at": "${ts}",
-  "expires_at": "${expiry}",
-  "approved": false,
-  "approved_by": null,
-  "approved_at": null
-}
-EOF
-    echo "$request_id"
-}
-
-# Find a valid (approved, not expired) execution request for a plan
-find_valid_approval() {
-    local plan_file="$1"
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-    if [[ ! -d "$EXECUTION_REQUESTS_DIR" ]]; then
-        return
-    fi
-
-    for request_file in "${EXECUTION_REQUESTS_DIR}"/*.json; do
-        [[ -f "$request_file" ]] || continue
-
-        # Parse JSON (simple grep-based for portability)
-        local req_plan req_approved req_expiry
-        req_plan=$(grep '"plan_file"' "$request_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
-        req_approved=$(grep '"approved"' "$request_file" | grep -o 'true\|false')
-        req_expiry=$(grep '"expires_at"' "$request_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
-
-        # Check if this is for our plan and is approved
-        if [[ "$req_plan" == "$plan_file" && "$req_approved" == "true" ]]; then
-            # Check if not expired (simple string comparison works for ISO 8601)
-            if [[ "$req_expiry" > "$now" ]]; then
-                echo "$request_file"
-                return
-            fi
-        fi
-    done
-}
-
-# Find an unapproved (pending) execution request for a plan
-# Returns: request file path if found, empty otherwise
-find_pending_request() {
-    local plan_file="$1"
-
-    if [[ ! -d "$EXECUTION_REQUESTS_DIR" ]]; then
-        return
-    fi
-
-    for request_file in "${EXECUTION_REQUESTS_DIR}"/*.json; do
-        [[ -f "$request_file" ]] || continue
-
-        # Parse JSON (simple grep-based for portability)
-        local req_plan req_approved
-        req_plan=$(grep '"plan_file"' "$request_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
-        req_approved=$(grep '"approved"' "$request_file" | grep -o 'true\|false')
-
-        # Check if this is for our plan and is NOT yet approved
-        if [[ "$req_plan" == "$plan_file" && "$req_approved" == "false" ]]; then
-            echo "$request_file"
-            return
-        fi
-    done
-}
-
-# =============================================================================
 # EXECUTION STATUS UPDATES
 # =============================================================================
 
 # Update execution status in plan's Status Header
 # Adds fields if they don't exist
+# Usage: update_execution_status "$plan_file" ["$approver"]
+#   - If approver is provided, uses it directly
+#   - If no approver, stamps "auto" as approver
 update_execution_status() {
     local plan_file="$1"
-    local approval_file="$2"
+    local approver="${2:-auto}"
     local ts
     ts=$(timestamp)
 
@@ -383,10 +285,6 @@ update_execution_status() {
             return 1
         fi
     fi
-
-    # Get approver from approval file
-    local approver
-    approver=$(grep '"approved_by"' "$approval_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
     # Find the best anchor field (use regex to handle variable whitespace)
     # Check both Review Date/Plan Review and Ralph Date/Ralph Review for backward compatibility

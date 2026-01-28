@@ -16,8 +16,7 @@ set -euo pipefail
 #   import            Import plan from ~/.claude/plans to drafts
 #   ralph             Start Ralph Loop review for a draft plan
 #   promote           Move plan from drafts to active
-#   execute           Request execution approval for active plan
-#   approve-execute   Human approval for plan execution
+#   execute           Output tim-loop command for active plan
 #   fast-track        Skip workflow and go directly to implementation
 #   complete          Move plan from active to completed
 #   abandon           Move plan to abandoned
@@ -82,7 +81,6 @@ case "${1:-help}" in
     promote) cmd_promote "${@:2}" ;;
     ai-ready) cmd_ai_ready "${@:2}" ;;
     execute) cmd_execute "${@:2}" ;;
-    approve-execute) cmd_approve_execute "${@:2}" ;;
     fast-track) cmd_fast_track "${@:2}" ;;
     complete) cmd_complete "${@:2}" ;;
     abandon) cmd_abandon "${@:2}" ;;

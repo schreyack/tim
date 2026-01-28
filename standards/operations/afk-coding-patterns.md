@@ -80,8 +80,8 @@ Tim-loop is designed for AFK development. It provides:
 ### Typical AFK Session
 
 ```bash
-# Human approves execution, then steps away
-./plugins/tim-loop/scripts/plan-ops.sh approve-execute <request-id> --approver "Human"
+# Human runs execute to get the tim-loop command, then steps away
+./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
 
 # AI runs tim-loop (can take hours for complex plans)
 /tim-loop --implement plans/active/my-plan.md

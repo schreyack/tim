@@ -70,7 +70,7 @@ get_status_field() {
 }
 
 # Get current workflow state for a plan
-# Returns: import|ralph|promote|ai-ready|execute-request|execute-approve|tim-loop|complete|done|abandoned|unknown|not-found
+# Returns: import|ralph|promote|ai-ready|tim-loop|complete|done|abandoned|unknown|not-found
 get_plan_state() {
     local plan_file="$1"
 
@@ -88,12 +88,11 @@ get_plan_state() {
 
     # Read status fields from Status Header using helper
     # Check both Plan Review and Ralph Review for backward compatibility
-    local stage plan_review ai_ready exec_approved impl_verified
+    local stage plan_review ai_ready impl_verified
     stage=$(get_status_field "$plan_file" "Stage")
     plan_review=$(get_status_field "$plan_file" "Plan Review")
     [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$plan_file" "Ralph Review")
     ai_ready=$(get_status_field "$plan_file" "AI Developer Ready")
-    exec_approved=$(get_status_field "$plan_file" "Execution Approved")
     impl_verified=$(get_status_field "$plan_file" "Implementation Verified")
 
     # Override stage based on folder location (folder is authoritative over Status Header)
@@ -131,15 +130,6 @@ get_plan_state() {
         active|in_progress)
             if [[ "$ai_ready" != "yes" ]]; then
                 echo "ai-ready"
-            elif [[ "$exec_approved" != "yes" ]]; then
-                # Check for pending approval request
-                local pending
-                pending=$(find_pending_request "$plan_file")
-                if [[ -n "$pending" ]]; then
-                    echo "execute-approve"
-                else
-                    echo "execute-request"
-                fi
             elif [[ "$impl_verified" == "yes" ]]; then
                 echo "complete"
             else
@@ -166,19 +156,17 @@ show_plan_status() {
 
     # Read status fields using the helper
     # Check both Plan Review and Ralph Review for backward compatibility
-    local stage plan_review ai_ready exec_approved impl_verified
+    local stage plan_review ai_ready impl_verified
     stage=$(get_status_field "$plan_file" "Stage")
     plan_review=$(get_status_field "$plan_file" "Plan Review")
     [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$plan_file" "Ralph Review")
     ai_ready=$(get_status_field "$plan_file" "AI Developer Ready")
-    exec_approved=$(get_status_field "$plan_file" "Execution Approved")
     impl_verified=$(get_status_field "$plan_file" "Implementation Verified")
 
     # Default empty fields to "-"
     [[ -z "$stage" ]] && stage="-"
     [[ -z "$plan_review" ]] && plan_review="-"
     [[ -z "$ai_ready" ]] && ai_ready="-"
-    [[ -z "$exec_approved" ]] && exec_approved="-"
     [[ -z "$impl_verified" ]] && impl_verified="-"
 
     echo ""
@@ -186,7 +174,6 @@ show_plan_status() {
     echo "Stage: $stage"
     echo "Plan Review: $plan_review"
     echo "AI Developer Ready: $ai_ready"
-    echo "Execution Approved: $exec_approved"
     echo "Implementation Verified: $impl_verified"
     echo ""
     echo "Current State: $state"
@@ -200,8 +187,6 @@ get_state_description() {
         ralph)           echo "Run Plan Review, then mark complete" ;;
         promote)         echo "Promote plan to active" ;;
         ai-ready)        echo "Run AI-ready review, then mark ai-ready" ;;
-        execute-request) echo "Create execution request" ;;
-        execute-approve) echo "Approve execution in separate terminal" ;;
         tim-loop)        echo "Run Tim Loop implementation" ;;
         complete)        echo "Mark plan complete" ;;
         done)            echo "Plan already complete" ;;

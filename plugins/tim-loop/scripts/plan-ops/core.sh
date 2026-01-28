@@ -20,8 +20,6 @@ fi
 
 PLANS_DIR="${PLANS_DIR:-plans}"
 CLAUDE_PLANS_DIR="${HOME}/.claude/plans"
-EXECUTION_REQUESTS_DIR=".tim-execution-requests"
-EXECUTION_EXPIRY_MINUTES=15
 
 # Colors for output
 RED='\033[0;31m'

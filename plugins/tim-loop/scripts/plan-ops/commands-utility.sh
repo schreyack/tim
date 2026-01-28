@@ -95,14 +95,8 @@ COMMANDS:
         See: standards/enforcement/ai-developer-ready-checklist.md
 
     execute <plan-file>
-        Request execution approval for an active plan
-        First call: Creates approval request, BLOCKS until approved
-        After approval: Outputs tim-loop command to run
-
-    approve-execute <request-id> --approver <name>
-        Human approval for plan execution (run in SEPARATE TERMINAL)
-        Required before execute will output the tim-loop command
-        Approval expires after 15 minutes
+        Output tim-loop command for an active plan
+        Requires AI Developer Ready approval before it will succeed
 
     fast-track <plan-file> --approver <name> [--reason <reason>]
         Skip the normal approval workflow and go directly to implementation
@@ -153,21 +147,15 @@ PLAN REVIEW WORKFLOW:
     4. $SCRIPT_PATH promote plans/drafts/my-plan.md --approver "Name"
        (Now promotion is allowed)
 
-EXECUTION WORKFLOW (HARD ENFORCED):
-    Active plans require human approval before execution:
+EXECUTION WORKFLOW:
+    Active plans with AI Developer Ready approval can be executed:
 
-    1. AI runs: $SCRIPT_PATH execute plans/active/my-plan.md
-       → BLOCKED, creates approval request, outputs request ID
-
-    2. HUMAN runs in SEPARATE TERMINAL:
-       $SCRIPT_PATH approve-execute <request-id> --approver "Name"
-
-    3. AI retries: $SCRIPT_PATH execute plans/active/my-plan.md
+    1. $SCRIPT_PATH execute plans/active/my-plan.md
        → Outputs /tim-loop:tim-loop command
 
-    4. Run the /tim-loop:tim-loop command to execute the plan
+    2. Run the /tim-loop:tim-loop command to execute the plan
 
-    5. $SCRIPT_PATH complete plans/active/my-plan.md
+    3. $SCRIPT_PATH complete plans/active/my-plan.md
 
 FAST-TRACK WORKFLOW:
     For well-established plans that have already been reviewed:
@@ -179,7 +167,7 @@ FAST-TRACK WORKFLOW:
     - Promotes from drafts/ to active/ if needed
     - Marks Plan Review as completed
     - Marks AI Developer Ready as yes
-    - Auto-approves execution
+    - Marks execution as approved
     - Outputs the wizard command to continue (copied to clipboard)
 
     Then run the wizard to start implementation via tim-loop.
@@ -225,7 +213,6 @@ EXAMPLES:
     $SCRIPT_PATH review plans/drafts/2025-01-16-feature-auth.md --mark-complete
     $SCRIPT_PATH promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
     $SCRIPT_PATH execute plans/active/2025-01-16-feature-auth.md
-    $SCRIPT_PATH approve-execute abc123 --approver "Tim"
     $SCRIPT_PATH fast-track my-plan.md --approver "Tim" --reason "Already reviewed in design meeting"
     $SCRIPT_PATH complete plans/active/2025-01-16-feature-auth.md
     $SCRIPT_PATH abandon plans/drafts/old-plan.md --reason "Requirements changed"

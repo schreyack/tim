@@ -301,44 +301,25 @@ Note: The `ralph` command still works for backward compatibility but is deprecat
 
 ---
 
-## Tim Loop Execution Gate (HARD ENFORCED)
+## Tim Loop Execution
 
-Active plans **MUST** be executed via `/tim-loop` with human approval. This is a hard gate that AI cannot bypass.
-
-### Why Hard Enforcement?
-
-- AI cannot add an `--approver` flag to bypass (no such flag exists)
-- Approval requires human action in a **separate terminal**
-- Approval tokens expire after 15 minutes
-- Request IDs are unique per attempt
+Active plans are executed via `/tim-loop` after AI Developer Ready approval.
 
 ### Execution Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│              PLAN EXECUTION WORKFLOW (HARD ENFORCED)             │
+│                    PLAN EXECUTION WORKFLOW                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  1. AI: plan-ops execute plans/active/my-plan.md     │
-│     → Creates approval request, outputs request ID              │
-│     → BLOCKED - no tim-loop command yet                         │
-│           │                                                     │
-│           ▼                                                     │
-│  2. HUMAN (separate terminal):                                  │
-│     plan-ops approve-execute <request-id>            │
-│        --approver "Name"                                        │
-│     → Validates and approves request                            │
-│           │                                                     │
-│           ▼                                                     │
-│  3. AI: plan-ops execute plans/active/my-plan.md     │
-│     → Finds valid approval                                      │
+│  1. plan-ops execute plans/active/my-plan.md                    │
 │     → Outputs tim-loop command                                  │
 │           │                                                     │
 │           ▼                                                     │
-│  4. Run the /tim-loop command to execute the plan               │
+│  2. Run the /tim-loop command to execute the plan               │
 │           │                                                     │
 │           ▼                                                     │
-│  5. plan-ops complete plans/active/my-plan.md        │
+│  3. plan-ops complete plans/active/my-plan.md                   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -348,7 +329,7 @@ Active plans **MUST** be executed via `/tim-loop` with human approval. This is a
 When `execute` succeeds, it outputs:
 
 ```bash
-/tim-loop "implement plans/active/[plan-name]. you are not done until all iterations and phases of the plan are complete."
+/tim-loop:tim-loop --implement plans/active/[plan-name].md
 ```
 
 ### Status Header Execution Fields
@@ -356,7 +337,7 @@ When `execute` succeeds, it outputs:
 | Field | Value |
 |-------|-------|
 | Execution Approved | yes / no |
-| Execution Approved By | [human name or "-"] |
+| Execution Approved By | [name or "-"] |
 | Execution Started | [YYYY-MM-DD HH:MM or "-"] |
 
 ---
@@ -459,7 +440,6 @@ A Claude Code hook intercepts Bash commands and blocks approval patterns:
 # ~/.claude/hooks/block-ai-approvals.sh blocks:
 # - plan-ops.sh promote --approver
 # - plan-ops.sh ai-ready --reviewer
-# - plan-ops.sh approve-execute
 # - plan-ops.sh ralph --mark-complete
 ```
 
@@ -590,13 +570,7 @@ plan-ops review plans/drafts/my-plan.md --mark-complete
 # Promote draft to active (blocked for multi-phase without review)
 plan-ops promote plans/drafts/my-plan.md --approver "Tim"
 
-# Request execution approval (first call creates request, blocks)
-plan-ops execute plans/active/my-plan.md
-
-# Human approves execution in separate terminal
-plan-ops approve-execute <request-id> --approver "Tim"
-
-# Retry execute after approval (outputs tim-loop command)
+# Execute (outputs tim-loop command)
 plan-ops execute plans/active/my-plan.md
 
 # Complete an active plan
@@ -623,8 +597,7 @@ plan-ops list [drafts|active|completed|abandoned|all]
 | Start Plan Review | `plan-ops review plans/drafts/plan.md` |
 | Complete Plan Review | `plan-ops review plans/drafts/plan.md --mark-complete` |
 | Approve plan | `plan-ops promote plans/drafts/plan.md --approver "Name"` |
-| Request execution | `plan-ops execute plans/active/plan.md` |
-| Approve execution (human) | `plan-ops approve-execute <id> --approver "Name"` |
+| Execute plan | `plan-ops execute plans/active/plan.md` |
 | Finish plan | `plan-ops complete plans/active/plan.md` |
 | Cancel plan | `plan-ops abandon plans/*/plan.md --reason "why"` |
 | View all plans | `plan-ops list all` |

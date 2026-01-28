@@ -87,7 +87,6 @@ When detected, completion is **blocked**. Claude cannot finish until issues are 
 
 Through integration with plan-ops.sh, Tim Loop enforces:
 - **AI Developer Ready approval** - Human verifies plan is unambiguous before AI implements
-- **Execution approval** - Human authorizes implementation (tokens expire after 15 minutes)
 - **No bypass flags** - AI cannot auto-approve itself; approval requires interactive terminal
 
 **5. Session-Isolated State**
@@ -153,7 +152,7 @@ Tim Loop works as a system of two tools that handle different concerns:
 │       ▼                 ▼                 ▼               ▼      │
 │  plan-ops.sh       plan-ops.sh       plan-ops.sh    plan-ops.sh │
 │  import            review            ai-ready        complete   │
-│                    promote           approve-execute            │
+│                    promote           execute                    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -192,7 +191,7 @@ Tim Loop works as a system of two tools that handle different concerns:
 3. **Review** - `plan-ops.sh review plans/drafts/my-plan.md` (for multi-phase plans)
 4. **Promote** - `plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"`
 5. **AI Ready** - `plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"`
-6. **Execute** - `plan-ops.sh execute plans/active/my-plan.md` then approve in separate terminal
+6. **Execute** - `plan-ops.sh execute plans/active/my-plan.md` (outputs tim-loop command)
 7. **Implement** - `/tim-loop --implement plans/active/my-plan.md`
 8. **Complete** - `plan-ops.sh complete plans/active/my-plan.md`
 
@@ -614,7 +613,7 @@ The `--wizard` mode delegates to plan-ops.sh wizard, which guides you through:
 2. **Plan Review** - Multi-phase validation (2+ phases require this)
 3. **Promote** - Move from drafts to active
 4. **AI-Ready** - Human verifies plan is suitable for AI implementation
-5. **Execute** - Request execution approval
+5. **Execute** - Get tim-loop command
 6. **Tim-Loop** - Run implementation with verification loop
 7. **Complete** - Move to completed folder
 
@@ -624,7 +623,6 @@ Plans must meet these criteria before `--implement` will work:
 
 1. Located in `plans/active/` (not drafts or completed)
 2. Have `| AI Developer Ready | yes |` in status table
-3. Execution approval granted (via plan-ops.sh approve-execute)
 
 ## PreCompact Hook (Prompt Preservation)
 
@@ -744,7 +742,6 @@ The `scripts/tim-loop-prompt-manager.sh` script (bundled with the plugin) manage
 Tim Loop automatically cleans up:
 
 - Orphan state files older than 24 hours (on each loop start)
-- Expired approval requests
 - Orphan hooks when no active sessions exist
 
 ### Manual Cleanup

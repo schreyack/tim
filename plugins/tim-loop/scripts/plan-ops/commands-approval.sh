@@ -3,7 +3,7 @@
 # Part of plan-ops.sh modular refactor
 #
 # Dependencies: core.sh, status.sh, approval.sh, security.sh
-# Exports: cmd_ralph, cmd_ai_ready, cmd_execute
+# Exports: cmd_review, cmd_ralph, cmd_ai_ready, cmd_execute
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -171,7 +171,7 @@ cmd_ai_ready() {
     # Check if already approved
     if has_ai_ready_approval "$plan_file"; then
         log_warn "Plan is already marked AI Developer Ready"
-        log_info "NEXT STEP: Continue with the wizard to request execution approval:"
+        log_info "NEXT STEP: Continue with the wizard to execute the plan:"
         show_command "$SCRIPT_PATH wizard $plan_file"
         exit 0
     fi
@@ -196,7 +196,7 @@ cmd_ai_ready() {
     log_info "Reviewer: $reviewer"
     log_info "Iteration: $iteration (FINAL)"
 
-    log_info "NEXT STEP: Continue with the wizard to request execution approval:"
+    log_info "NEXT STEP: Continue with the wizard to execute the plan:"
     show_command "$SCRIPT_PATH wizard $plan_file"
 }
 
@@ -240,39 +240,18 @@ cmd_execute() {
         exit 1
     fi
 
-    # Check for existing valid approval
-    local approval
-    approval=$(find_valid_approval "$plan_file")
-
-    if [[ -z "$approval" ]]; then
-        # No approval - create request and block
-        local request_id
-        request_id=$(create_execution_request "$plan_file")
-
-        log_error "BLOCKED: Execution requires human approval."
-        echo ""
-        log_info "STEP 1 of 2: A human must approve execution in a SEPARATE TERMINAL:"
-        echo -e "  ${GREEN}$SCRIPT_PATH approve-execute ${request_id} --approver \"Your Name\"${NC}"
-        echo ""
-        log_info "STEP 2 of 2: Then retry this command:"
-        echo -e "  ${GREEN}$SCRIPT_PATH execute $plan_file${NC}"
-        echo ""
-        log_warn "Approval expires in ${EXECUTION_EXPIRY_MINUTES} minutes."
-        exit 1
-    fi
-
-    # Valid approval found - output tim-loop command
-    if ! update_execution_status "$plan_file" "$approval"; then
+    # Update execution status in plan
+    if ! update_execution_status "$plan_file"; then
         log_error "Failed to update execution status"
         exit 1
     fi
-    if ! update_status "$plan_file" "active" "Execution approved, starting tim-loop"; then
+    if ! update_status "$plan_file" "active" "Execution started, launching tim-loop"; then
         log_error "Failed to update progress log"
         exit 1
     fi
 
     echo ""
-    log_info "Execution APPROVED!"
+    log_info "Execution ready!"
     echo ""
 
     # Check for prompt manager and save prompt automatically

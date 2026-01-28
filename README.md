@@ -83,7 +83,7 @@ Adopt the full framework for new projects, or install Tim Loop standalone for im
 
 ### Recommended Workflow
 
-The TIM standards work best with a **3-terminal setup** that keeps human oversight smooth while AI executes:
+The TIM standards work best with a **2-terminal setup** that keeps human oversight smooth while AI executes:
 
 **Setup (iTerm2, VS Code integrated terminals, tmux, or any multi-pane terminal):**
 
@@ -91,9 +91,6 @@ The TIM standards work best with a **3-terminal setup** that keeps human oversig
 |----------|---------|----------------|
 | **Tab 1** | Claude Code | `/tim-loop` commands |
 | **Tab 2** | plan-ops | `plan-ops` commands to manage lifecycle |
-| **Tab 3** | Approvals | `plan-ops approve-execute` and other approval commands |
-
-**Why Tab 3?** AI cannot be its own judge. Separating execution (Tab 1) from approval (Tab 3) creates a physical "air-gap" that prevents autonomous agents from accidentally or intentionally bypassing human oversight. Tab 3 keeps approvals from interrupting your Claude Code session.
 
 **The workflow:**
 
@@ -101,31 +98,30 @@ The TIM standards work best with a **3-terminal setup** that keeps human oversig
 2. **Tab 2**: plan-ops outputs the exact command to paste into Claude—just copy it
 3. **Tab 1**: Run `/clear` then paste the command from plan-ops
 4. **Tab 1**: Claude executes the task via Tim Loop
-5. **Tab 3**: When approval is needed, plan-ops tells you—run the approval command here
-6. **Repeat**: plan-ops always shows the next step and gives you the command to paste
+5. **Repeat**: plan-ops always shows the next step and gives you the command to paste
 
 **Why this works:**
 - **plan-ops keeps you on track**—it always knows where you are in the lifecycle
 - **Commands are pre-formatted**—copy from Tab 2, paste into Tab 1
 - **`/clear` before every command**—starts Claude with fresh context
-- **Approvals in Tab 3**—never interrupts your Claude session
 - **Human stays in control**—you decide when to proceed, AI executes
 
 **Example session:**
 
 ```bash
 # Tab 2: Check status and get next command
-$ plan-ops status
-Active plan: 2025-01-26-auth-system.md (Phase 2 of 3)
-Next step: Run in Claude Code:
-  /tim-loop --implement plans/active/2025-01-26-auth-system.md
+$ plan-ops wizard my-plan
+Next step: execute
+  plan-ops execute plans/active/2025-01-26-auth-system.md
+
+# Tab 2: Run execute to get the tim-loop command
+$ plan-ops execute plans/active/2025-01-26-auth-system.md
+STEP 1 of 2: Run /clear first, then paste this command in Claude Code:
+  /tim-loop:tim-loop --implement plans/active/2025-01-26-auth-system.md
 
 # Tab 1: Clear and paste
 /clear
 /tim-loop --implement plans/active/2025-01-26-auth-system.md
-
-# Tab 3: (when plan-ops says approval needed)
-$ plan-ops approve-execute abc123 --approver "Tim"
 ```
 
 ---

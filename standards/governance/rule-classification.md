@@ -211,7 +211,6 @@ These are calibrations based on current understanding. They may change as AI cap
 | Auto-rollback latency threshold | 2x P99 baseline | Operational data suggests different threshold |
 | Secrets rotation (JWT) | Quarterly | Security guidance changes |
 | Secrets rotation (API keys) | Annually | Security guidance changes |
-| Execution approval expiration | 15 minutes | Operational needs change |
 
 ## Style & Formatting
 
