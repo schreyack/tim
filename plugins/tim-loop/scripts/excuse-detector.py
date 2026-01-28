@@ -128,17 +128,16 @@ def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict
     return {
         "decision": "block",
         "reason": (
-            f"DEFLECTION DETECTED - You attempted to avoid responsibility.\n\n"
-            f"Found {len(excuses_found)} excuse pattern(s):\n{excuse_text}\n\n"
-            f"TIM DESIGN STANDARDS RULE:\n"
-            f"If you touched a file with violations, you MUST fix them.\n"
-            f"No exceptions. No excuses.\n\n"
-            f"Required actions:\n"
-            f"1. Acknowledge the violation without deflection\n"
-            f"2. Fix the issue completely before proceeding\n"
-            f"3. If the fix requires significant refactoring, do it\n"
-            f"4. Do NOT claim pre-existing issues excuse you from fixing\n\n"
-            f"You cannot complete this task until violations are resolved."
+            f"I noticed language patterns that may indicate scope reduction.\n\n"
+            f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
+            f"WHY THIS MATTERS:\n"
+            f"These patterns often appear when AI is rationalizing incomplete work.\n"
+            f"TIM's rule: if you touched a file, you own its quality.\n\n"
+            f"WHAT TO DO:\n"
+            f"- If there's a genuine blocker, explain it specifically\n"
+            f"- If you can proceed, continue without the qualifying language\n"
+            f"- If the issue is real but fixable, fix it\n\n"
+            f"The task continues when the work is complete, not when it's explained away."
         )
     }
 

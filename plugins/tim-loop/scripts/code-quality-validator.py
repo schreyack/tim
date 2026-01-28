@@ -169,15 +169,16 @@ def build_block_response(file_name: str, violations: list[Violation]) -> dict:
     return {
         "decision": "block",
         "reason": (
-            f"CODE QUALITY VIOLATION in {file_name}:\n\n"
+            f"CODE QUALITY: File needs refactoring\n\n"
             f"{violation_text}\n\n"
-            f"TIM Design Standards require this file to be refactored before continuing. "
-            f"This is a HARD REQUIREMENT - no exceptions.\n\n"
-            f"You must:\n"
-            f"1. Split the file into smaller, focused modules\n"
+            f"WHY THIS LIMIT EXISTS:\n"
+            f"AI comprehension degrades with larger files. Smaller, focused modules\n"
+            f"lead to more accurate implementations and fewer errors.\n\n"
+            f"HOW TO FIX:\n"
+            f"1. Split into smaller, focused modules (each with one responsibility)\n"
             f"2. Extract large functions into smaller units\n"
-            f"3. Ensure each module has a single responsibility\n\n"
-            f"Do NOT proceed with other work until this violation is resolved."
+            f"3. Keep related code together, separate concerns apart\n\n"
+            f"This helps ensure the quality of your implementation."
         )
     }
 
