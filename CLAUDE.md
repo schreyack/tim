@@ -154,7 +154,8 @@ tim/
 │   ├── testing/                 # Test requirements and patterns
 │   ├── security/                # Security requirements + secrets.md
 │   ├── database/                # Migration and backup requirements
-│   └── deployment/              # CI/CD, ops, feature flags, canary, observability
+│   ├── deployment/              # CI/CD, ops, feature flags, canary, observability
+│   └── governance/              # Rule classification (principles vs. contextual)
 ├── libs/                        # Shared libraries (REQUIRED in all projects)
 │   ├── python/                  # tim-lib Python package
 │   └── node/                    # @tim/lib Node.js package
@@ -380,6 +381,55 @@ BLOCKED operations MUST be performed manually via SSH.
 - **Registry required**: Every design pattern must be in `.tim-patterns.yaml`
 - **CUSTOM requires approval**: Human must approve with ticket reference
 - **Standards first**: Check for existing standard before creating CUSTOM
+
+---
+
+## Principles vs. Contextual Rules
+
+TIM distinguishes between two types of rules:
+
+### Principles (Immutable)
+
+Core philosophical commitments that define what TIM *is*. These will never change.
+
+**Core Philosophy:**
+- Trust, but verify
+- Defense in depth
+- Hard gates that AI cannot bypass
+- Human oversight for consequential decisions
+- No bypass flags anywhere
+- Accountability (if you touched it, you own it)
+- Completeness over speed (100% verification)
+- TDD for new features
+
+**Type Safety:**
+- 100% type coverage required
+- No `any` types
+- All functions must have type hints
+
+**Code Quality:**
+- Zero warnings policy
+- No print/console.log in committed code
+- Must have coverage threshold
+
+**Security:**
+- All security rules are principles (secrets, validation, headers, etc.)
+
+### Contextual Rules (Subject to Review)
+
+Calibrations based on current constraints. May change as AI capabilities evolve.
+
+| Category | Examples | Review Trigger |
+|----------|----------|----------------|
+| File size limits | 400 lines max | AI context windows improve |
+| Complexity thresholds | Cyclomatic 10 | Evidence of successful higher complexity |
+| Coverage percentages | 90% minimum | Evidence different threshold works better |
+| Tool choices | ruff, mypy, ESLint | Better tools emerge |
+| Deployment parameters | Canary 10%, 5 min | Operational data suggests change |
+
+**Key insight:** The *existence* of limits is a principle. The *specific numbers* are contextual.
+
+See `standards/governance/rule-classification.md` for the complete list with review triggers and change procedures.
 
 ---
 

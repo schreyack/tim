@@ -1,4 +1,4 @@
-# TIM Standards
+# The Trust Inspect Model (TIM)
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -16,7 +16,7 @@
 
 ---
 
-**TIM (Trust Inspect Model) is a set of design standards for AI-driven software development.**
+**The Trust Inspect Model (TIM) is a set of design standards for AI-driven software development.**
 
 ### The Problem
 
