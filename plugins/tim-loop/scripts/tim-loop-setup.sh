@@ -352,7 +352,7 @@ FULL_PROMPT=$(build_prompt)
 TIM_LOOP_SESSION_ID="$$"
 TIM_LOOP_STATE_FILE="$HOME/.claude/.tim-loop-state-${TIM_LOOP_SESSION_ID}"
 TIM_LOOP_PROMPT_FILE="$HOME/.claude/.tim-loop-prompt-${TIM_LOOP_SESSION_ID}"
-TIM_LOOP_HOOK_SCRIPT="${PLUGIN_ROOT}/scripts/tim-loop-hook.sh"
+TIM_LOOP_HOOK_SCRIPT="python3 ${PLUGIN_ROOT}/scripts/tim-loop-hook.py"
 
 # Cleanup on error/interrupt
 cleanup_on_exit() {
@@ -388,7 +388,7 @@ fi
 
 # Setup session
 [[ "$AUTO_APPROVE" == true ]] && echo "$TIM_LOOP_SESSION_ID" > "$HOME/.claude/.tim-loop-auto-approve" && echo "WARNING: Auto-approve enabled" >&2
-[[ ! -x "$TIM_LOOP_HOOK_SCRIPT" ]] && echo "Error: tim-loop-hook.sh not found at: $TIM_LOOP_HOOK_SCRIPT" >&2 && exit 1
+[[ ! -f "${PLUGIN_ROOT}/scripts/tim-loop-hook.py" ]] && echo "Error: tim-loop-hook.py not found at: ${PLUGIN_ROOT}/scripts/tim-loop-hook.py" >&2 && exit 1
 
 echo "$TIM_LOOP_STATE_FILE" > "$HOME/.claude/.tim-loop-active"
 CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

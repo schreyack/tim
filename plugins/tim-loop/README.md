@@ -776,7 +776,7 @@ plugins/tim-loop/
 │   └── tim-loop.md           # Skill definition (command syntax, allowed tools)
 ├── scripts/
 │   ├── tim-loop-setup.sh     # Main setup script (parses args, creates state, registers hooks)
-│   ├── tim-loop-hook.sh      # Stop hook (checks completion, re-injects prompt)
+│   ├── tim-loop-hook.py      # Stop hook (checks completion, re-injects prompt)
 │   ├── tim-loop-permission-hook.sh  # PreToolUse hook (auto-approve when enabled)
 │   ├── tim-loop-prompt-manager.sh   # PreCompact hook (preserves prompt across compaction)
 │   ├── code-quality-validator.py    # PostToolUse hook (file/function size limits)
