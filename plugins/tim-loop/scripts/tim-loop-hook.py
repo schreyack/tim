@@ -164,13 +164,33 @@ def save_state(state: dict) -> None:
         log_message(f"Failed to save state: {e}")
 
 
-def build_continue_response(prompt: str, iteration: int, max_iter: int) -> dict:
+def build_continue_response(
+    prompt: str, iteration: int, max_iter: int, review_mode: str = ""
+) -> dict:
     """Build a block response that re-injects the prompt."""
+    if review_mode in ("tech-review", "ai-ready"):
+        # For reviews: emphasize fresh pass, finding NEW issues
+        guidance = (
+            f"ITERATION {iteration} OF {max_iter} - TAKE A FRESH PASS\n\n"
+            f"Previous iterations may have improved the plan, but likely missed issues. "
+            f"Do NOT assume prior reviews were thorough.\n\n"
+            f"Your task for this iteration:\n"
+            f"1. Re-read the plan AS IT CURRENTLY EXISTS (it may have changed)\n"
+            f"2. Evaluate with FRESH EYES - pretend you haven't seen it before\n"
+            f"3. Look for issues the previous iteration(s) missed\n"
+            f"4. Make improvements if you find any\n\n"
+            f"Output the completion promise ONLY when you genuinely cannot find "
+            f"any more ways to improve the plan - not because it was already reviewed."
+        )
+    else:
+        # For implementation: continue working
+        guidance = "The task is not yet complete. Continue working on it."
+
     return {
         "decision": "block",
         "reason": (
             f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
-            f"The task is not yet complete. Continue working on it.\n\n"
+            f"{guidance}\n\n"
             f"---\n\n{prompt}"
         ),
     }
@@ -184,6 +204,26 @@ def build_verification_response(prompt: str, iteration: int, max_iter: int) -> d
             f"Tim Loop: Iteration {iteration} of {max_iter} (verification required)\n\n"
             f"You output the completion promise but the plan is not verified.\n"
             f"Add <!-- VERIFIED: YES --> after verifying all objectives.\n\n"
+            f"---\n\n{prompt}"
+        ),
+    }
+
+
+def build_early_completion_challenge(
+    prompt: str, iteration: int, max_iter: int, min_iter: int
+) -> dict:
+    """Build a response challenging early completion in review mode."""
+    return {
+        "decision": "block",
+        "reason": (
+            f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
+            f"The human has found that it usually takes ~{min_iter} iterations to discover "
+            f"all the ways to improve a plan. You're only on iteration {iteration}.\n\n"
+            f"Are you sure you can't find anything else to improve? "
+            f"Take another fresh look at the plan - read it from the beginning, "
+            f"check each section with fresh eyes. Previous iterations often miss things.\n\n"
+            f"If you genuinely cannot find any more improvements after a thorough re-read, "
+            f"you may output the completion promise again.\n\n"
             f"---\n\n{prompt}"
         ),
     }
@@ -221,6 +261,22 @@ def handle_completion_promise(state: dict, prompt: str) -> dict | None:
     prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
     current_iteration = int(state.get("CURRENT_ITERATION", "1"))
     max_iterations = int(state.get("MAX_ITERATIONS", "30"))
+    review_mode = state.get("REVIEW_MODE", "")
+    min_review_iterations = int(state.get("MIN_REVIEW_ITERATIONS", "5"))
+
+    # For review modes, challenge early completion
+    if review_mode in ("tech-review", "ai-ready"):
+        if current_iteration < min_review_iterations:
+            log_stderr(
+                f"Tim Loop: Early completion attempt at iteration {current_iteration} "
+                f"(minimum {min_review_iterations}) - challenging"
+            )
+            current_iteration += 1
+            state["CURRENT_ITERATION"] = str(current_iteration)
+            save_state(state)
+            return build_early_completion_challenge(
+                prompt, current_iteration, max_iterations, min_review_iterations
+            )
 
     plan_file = get_plan_file(state, prompt)
     verification = check_plan_verification(plan_file)
@@ -248,6 +304,7 @@ def handle_continue_loop(state: dict, prompt: str) -> dict:
     prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
     current_iteration = int(state.get("CURRENT_ITERATION", "1")) + 1
     max_iterations = int(state.get("MAX_ITERATIONS", "30"))
+    review_mode = state.get("REVIEW_MODE", "")
 
     if current_iteration >= max_iterations:
         cleanup_tim_loop(
@@ -260,7 +317,7 @@ def handle_continue_loop(state: dict, prompt: str) -> dict:
     state["CURRENT_ITERATION"] = str(current_iteration)
     save_state(state)
     log_stderr(f"Tim Loop: Iteration {current_iteration} of {max_iterations}")
-    return build_continue_response(prompt, current_iteration, max_iterations)
+    return build_continue_response(prompt, current_iteration, max_iterations, review_mode)
 
 
 def main() -> None:

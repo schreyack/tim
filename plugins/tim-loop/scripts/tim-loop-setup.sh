@@ -53,6 +53,7 @@ MODIFIER OPTIONS:
   --no-verify               Skip verification phase (WARNING: incomplete work)
   --auto-approve            Auto-approve all tool permissions
   --max-iterations <n>      Safety limit (default: 30)
+  --min-review-iterations <n> Minimum review passes before allowing completion (default: 5)
   --completion-promise      Phrase signaling completion (default: COMPLETE)
   --dry-run                 Preview prompt without executing
 
@@ -79,7 +80,7 @@ HELP_EOF
 MAX_ITERATIONS=30 COMPLETION_PROMISE="COMPLETE" TASK_PARTS=() DRY_RUN=false
 PLAN_ONLY=false IMPLEMENT_FILE="" REVIEW_FILE="" REVIEW_MODE="" VERIFY_FILE=""
 NO_REVIEW=false NO_VERIFY=false
-MAX_VERIFY_CYCLES=999999 REVIEW_ITERATIONS=10 AUTO_APPROVE=false
+MAX_VERIFY_CYCLES=999999 REVIEW_ITERATIONS=10 MIN_REVIEW_ITERATIONS=5 AUTO_APPROVE=false
 FORCE_NEW_SESSION=false
 
 # Parse arguments
@@ -121,6 +122,7 @@ while [[ $# -gt 0 ]]; do
         --force|-f) FORCE_NEW_SESSION=true; shift ;;
         --max-verify-cycles) MAX_VERIFY_CYCLES="$2"; shift 2 ;;
         --review-iterations) REVIEW_ITERATIONS="$2"; shift 2 ;;
+        --min-review-iterations) MIN_REVIEW_ITERATIONS="$2"; shift 2 ;;
         --max-iterations) MAX_ITERATIONS="$2"; shift 2 ;;
         --completion-promise) COMPLETION_PROMISE="$2"; shift 2 ;;
         *) TASK_PARTS+=("$1"); shift ;;
@@ -525,6 +527,8 @@ PROJECT_PATH="$CONTEXT_PWD"
 PLAN_FILE="$PLAN_FILEPATH"
 CREATED_AT="$CREATED_AT"
 SESSION_ID="$TIM_LOOP_SESSION_ID"
+REVIEW_MODE="$REVIEW_MODE"
+MIN_REVIEW_ITERATIONS="$MIN_REVIEW_ITERATIONS"
 EOF
 echo "$FULL_PROMPT" > "$TIM_LOOP_PROMPT_FILE"
 
