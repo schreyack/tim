@@ -59,7 +59,8 @@ get_status_field() {
     local field="$2"
     # Match: | Field | value | where Field is at the START of the row (first column)
     # This avoids matching table headers like "| Timestamp | Stage | Event |"
-    grep -E "^\\| *${field} *\\|" "$file" 2>/dev/null | head -1 | sed -E "s/^\\| *${field} *\\| *([^|]*) *\\|.*/\\1/" | xargs
+    # Note: Use { ... || true; } to prevent pipefail from exiting on no match
+    { grep -E "^\\| *${field} *\\|" "$file" 2>/dev/null || true; } | head -1 | sed -E "s/^\\| *${field} *\\| *([^|]*) *\\|.*/\\1/" | xargs
 }
 
 # Get current workflow state for a plan
