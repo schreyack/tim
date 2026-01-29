@@ -5,6 +5,20 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.6] - 2025-01-29
+
+### Added
+- Category Q: Shortcut Reasoning patterns (93-100) for excuse detector
+  - Catches "simplest fix", "easiest solution", "quickest approach" language
+  - Gentle response that encourages analysis of alternatives, not accusatory
+  - New mitigation patterns (16-20) for when Claude considers alternatives
+- New file: `plugins/tim-loop/scripts/patterns_shortcut.py`
+- New test file: `plugins/tim-loop/scripts/test_excuse_patterns_shortcut.py`
+
+### Changed
+- tim-loop plugin version: 2.14.0 -> 2.15.0
+- Excuse detector now routes shortcut patterns to gentle "consider alternatives" response
+
 ## [2.5.5] - 2025-01-26
 
 ### Added

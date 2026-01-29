@@ -237,4 +237,10 @@ MITIGATION_PATTERNS = [
     r"so\s+instead\s+(?:I'll|let\s+me)",
     r"here'?s?\s+how\s+(?:I'll|we\s+can|to)\s+(?:handle|address|fix)",
     r"(?:I'll|let\s+me)\s+(?:proceed|continue)\s+(?:with|by|to)",
+    # Shortcut mitigation patterns (16-20) - when considering alternatives
+    r"(?:but\s+)?let\s+me\s+(?:consider|explore|analyze)\s+(?:other\s+)?(?:options|alternatives|approaches)",
+    r"(?:however|but),?\s+(?:I'll|let\s+me)\s+(?:first\s+)?(?:consider|think\s+about|evaluate)",
+    r"(?:before\s+)?(?:doing\s+that|proceeding),?\s+let\s+me\s+(?:consider|check|explore)",
+    r"(?:I'll|let\s+me)\s+(?:compare|weigh)\s+(?:the\s+)?(?:options|alternatives|approaches)",
+    r"(?:but\s+)?(?:I\s+should|let\s+me)\s+(?:first\s+)?(?:analyze|investigate)\s+(?:the\s+)?(?:root\s+cause|underlying)",
 ]

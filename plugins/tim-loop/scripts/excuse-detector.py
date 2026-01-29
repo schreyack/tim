@@ -125,6 +125,14 @@ def has_posthook_or_redefine(excuses_found: list[tuple[ExcusePattern, str]]) -> 
     )
 
 
+def has_shortcut_patterns(excuses_found: list[tuple[ExcusePattern, str]]) -> bool:
+    """Check if any matched patterns are shortcut category."""
+    return any(
+        excuse.category == "shortcut"
+        for excuse, _ in excuses_found
+    )
+
+
 def build_general_block_response(
     excuses_found: list[tuple[ExcusePattern, str]],
 ) -> dict:
@@ -190,10 +198,51 @@ def build_posthook_block_response(
     }
 
 
+def build_shortcut_block_response(
+    excuses_found: list[tuple[ExcusePattern, str]],
+) -> dict:
+    """Build block response for shortcut/easy-path reasoning (Category Q).
+
+    This is a gentler response that encourages reflection rather than accusing.
+    Sometimes the simplest fix IS the best fix \u2014 but we want to ensure Claude
+    has actually considered alternatives.
+    """
+    excuse_details = [
+        f"  - Pattern: {excuse.description}\n    Context: \"{context}\""
+        for excuse, context in excuses_found
+    ]
+    excuse_text = "\n".join(excuse_details)
+
+    return {
+        "decision": "block",
+        "reason": (
+            f"I noticed you're choosing what you described as the simplest/easiest approach.\n\n"
+            f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
+            f"That's not necessarily wrong! Sometimes the simplest fix IS the best fix.\n"
+            f"But I'd like you to pause and consider: Is this the BEST solution, or\n"
+            f"just the EASIEST one?\n\n"
+            f"Quick fixes can sometimes:\n"
+            f"- Hide deeper underlying issues that will resurface later\n"
+            f"- Create technical debt that someone else will have to pay\n"
+            f"- Work around a problem instead of solving it\n"
+            f"- Cause unexpected side effects in other parts of the system\n\n"
+            f"BEFORE PROCEEDING, PLEASE:\n"
+            f"1. List at least 2-3 alternative approaches you considered\n"
+            f"2. Briefly explain the trade-offs of each approach\n"
+            f"3. Explain why the approach you're choosing is actually the BEST option,\n"
+            f"   not just the easiest or quickest one\n\n"
+            f"If after this analysis the simple fix really is the best choice, great!\n"
+            f"Just show your reasoning so the human knows you've thought it through."
+        )
+    }
+
+
 def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict:
     """Route to appropriate block response based on matched pattern categories."""
     if has_posthook_or_redefine(excuses_found):
         return build_posthook_block_response(excuses_found)
+    if has_shortcut_patterns(excuses_found):
+        return build_shortcut_block_response(excuses_found)
     return build_general_block_response(excuses_found)
 
 
