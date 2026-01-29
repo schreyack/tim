@@ -3,7 +3,7 @@
 # Part of plan-ops.sh modular refactor
 #
 # Dependencies: core.sh, search.sh, security.sh, status.sh, approval.sh, verification.sh
-# Exports: cmd_wizard, wizard_step_import, wizard_step_ralph, wizard_step_promote,
+# Exports: cmd_wizard, wizard_step_import, wizard_step_review, wizard_step_promote,
 #          wizard_step_ai_ready, wizard_step_tim_loop, wizard_step_complete
 #
 # This file is sourced by plan-ops.sh, not executed directly.
@@ -64,6 +64,9 @@ cmd_wizard() {
     echo "=== Plan Wizard ==="
     echo "Plan: $WIZARD_PLAN_FILE"
 
+    # Ask for user name once, reuse across all steps
+    WIZARD_USER_NAME=$(prompt_for_name "Enter your name")
+
     # Check if plan is in plans/ root but not in a subfolder - move to appropriate folder
     if [[ "$WIZARD_PLAN_FILE" == *"/plans/"* ]] && \
        [[ "$WIZARD_PLAN_FILE" != *"/plans/drafts/"* ]] && \
@@ -113,7 +116,7 @@ cmd_wizard() {
     while [[ "$state" != "done" ]]; do
         case "$state" in
             import)          wizard_step_import ;;
-            ralph)           wizard_step_ralph ;;
+            review)          wizard_step_review ;;
             promote)         wizard_step_promote ;;
             ai-ready)        wizard_step_ai_ready ;;
             tim-loop)        wizard_step_tim_loop ;;
@@ -185,21 +188,20 @@ wizard_step_import() {
     fi
 }
 
-wizard_step_ralph() {
-    print_step_header "ralph" "Plan Review (multi-phase plan)"
+wizard_step_review() {
+    print_step_header "review" "Plan Review (multi-phase plan)"
 
     # Ensure all required Status Header fields exist (including Approver)
     ensure_status_header_fields "$WIZARD_PLAN_FILE"
 
     # Ensure Plan Review field exists and is set to "required" (use regex for variable whitespace)
-    # Check both Plan Review and Ralph Review for backward compatibility
-    if ! grep -qE "\| (Plan Review|Ralph Review)[[:space:]]*\|[[:space:]]*required[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
+    if ! grep -qE "\| Plan Review[[:space:]]*\|[[:space:]]*required[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
         update_review_status "$WIZARD_PLAN_FILE" "required"
     fi
 
     echo ""
     echo "Run /clear first, then paste this command in Claude Code:"
-    local cmd="/tim-loop:tim-loop --review $WIZARD_PLAN_FILE --max-iterations 10 --completion-promise \"DONEDONE\""
+    local cmd="/tim-loop:tim-loop --tech-review $WIZARD_PLAN_FILE --max-iterations 10"
     show_command "$cmd"
     echo -n "Press Enter when Plan Review completes..."
     read -r </dev/tty
@@ -212,9 +214,6 @@ wizard_step_ralph() {
     cmd_review "$WIZARD_PLAN_FILE" --mark-complete
 }
 
-# Backward compatibility alias
-wizard_step_review() { wizard_step_ralph "$@"; }
-
 wizard_step_promote() {
     print_step_header "promote" "Promote to active"
 
@@ -222,7 +221,6 @@ wizard_step_promote() {
     local phase_count plan_review
     phase_count=$(count_phases "$WIZARD_PLAN_FILE")
     plan_review=$(get_status_field "$WIZARD_PLAN_FILE" "Plan Review")
-    [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$WIZARD_PLAN_FILE" "Ralph Review")
 
     if [[ "$phase_count" -lt 2 ]] && [[ "$plan_review" != "completed" ]]; then
         echo ""
@@ -230,21 +228,18 @@ wizard_step_promote() {
         echo -n "Run Plan Review before promoting? [y/N] "
         read -r response </dev/tty
         if [[ "$response" =~ ^[Yy] ]]; then
-            # Update status to required and run the ralph step
+            # Update status to required and run the review step
             update_review_status "$WIZARD_PLAN_FILE" "required"
-            wizard_step_ralph
+            wizard_step_review
             return
         fi
     fi
-
-    local name
-    name=$(prompt_for_name "Enter approver name")
 
     echo ""
     echo "Promoting plan..."
 
     # cmd_promote calls verify_interactive_terminal, which will pass since wizard runs interactively
-    cmd_promote "$WIZARD_PLAN_FILE" --approver "$name"
+    cmd_promote "$WIZARD_PLAN_FILE" --approver "$WIZARD_USER_NAME"
 
     # Update path after move (drafts -> active)
     local basename
@@ -269,22 +264,20 @@ wizard_step_ai_ready() {
 
     echo ""
     echo "Run /clear first, then paste this command in Claude Code:"
-    local cmd="/tim-loop:tim-loop --review $WIZARD_PLAN_FILE --max-iterations 5 --completion-promise \"AI-READY\""
+    local cmd="/tim-loop:tim-loop --ai-ready $WIZARD_PLAN_FILE --max-iterations 5"
     show_command "$cmd"
     echo -n "Press Enter when review completes..."
     read -r </dev/tty
 
     echo ""
     echo "Marking as AI Developer Ready..."
-    local name
-    name=$(prompt_for_name "Enter reviewer name")
 
     # Use helper directly to avoid cmd_ai_ready's exit calls
-    if ! update_ai_ready_status "$WIZARD_PLAN_FILE" "$name"; then
+    if ! update_ai_ready_status "$WIZARD_PLAN_FILE" "$WIZARD_USER_NAME"; then
         log_error "Failed to update AI Developer Ready status"
         return 1
     fi
-    if ! update_status "$WIZARD_PLAN_FILE" "active" "AI Developer Ready approved by ${name}"; then
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "AI Developer Ready approved by ${WIZARD_USER_NAME}"; then
         log_error "Failed to update progress log"
         return 1
     fi
@@ -315,10 +308,6 @@ wizard_step_tim_loop() {
     local cmd="/tim-loop:tim-loop --implement $WIZARD_PLAN_FILE"
     show_command "$cmd"
 
-    echo -n "Press Enter when Tim Loop completes..."
-    read -r </dev/tty
-
-    echo ""
     echo "Did Tim Loop complete successfully? (y/n)"
     echo -n "> "
     read -r response </dev/tty
@@ -343,13 +332,11 @@ wizard_step_tim_loop() {
         fi
 
         # Mark implementation as verified so state transitions to 'complete'
-        local reviewer
-        reviewer=$(prompt_for_name "Enter verifier name")
-        if ! update_verification_status "$WIZARD_PLAN_FILE" "$reviewer"; then
+        if ! update_verification_status "$WIZARD_PLAN_FILE" "$WIZARD_USER_NAME"; then
             log_error "Failed to update verification status"
             exit 1
         fi
-        if ! update_status "$WIZARD_PLAN_FILE" "active" "Implementation verified by ${reviewer}"; then
+        if ! update_status "$WIZARD_PLAN_FILE" "active" "Implementation verified by ${WIZARD_USER_NAME}"; then
             log_error "Failed to update progress log"
             exit 1
         fi

@@ -4,7 +4,7 @@
 #
 # Dependencies: core.sh, status.sh
 # Exports: has_ai_ready_approval, update_ai_ready_status, update_verification_status,
-#          add_ai_ready_stamp, update_ralph_status, update_execution_status
+#          add_ai_ready_stamp, update_review_status, update_execution_status
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -53,9 +53,8 @@ update_ai_ready_status() {
 
     # Find the best anchor field (last existing field before AI Developer Ready section)
     # Use regex to handle variable whitespace in markdown tables
-    # Check both Plan Review/Review Date and Ralph Review/Ralph Date for backward compatibility
     local anchor=""
-    for candidate in "Execution Started" "Execution Approved By" "Execution Approved" "Review Date" "Ralph Date" "Plan Review" "Ralph Review" "Approver"; do
+    for candidate in "Execution Started" "Execution Approved By" "Execution Approved" "Review Date" "Plan Review" "Approver"; do
         if grep -qE "\| ${candidate}[[:space:]]*\|" "$file"; then
             anchor="$candidate"
             break
@@ -118,9 +117,8 @@ update_verification_status() {
     fi
 
     # Find the best anchor field (use regex to handle variable whitespace)
-    # Check both Review Date/Plan Review and Ralph Date/Ralph Review for backward compatibility
     local anchor=""
-    for candidate in "AI Developer Ready Iteration" "AI Developer Ready Date" "AI Developer Ready By" "AI Developer Ready" "Execution Started" "Review Date" "Ralph Date" "Plan Review" "Ralph Review" "Approver"; do
+    for candidate in "AI Developer Ready Iteration" "AI Developer Ready Date" "AI Developer Ready By" "AI Developer Ready" "Execution Started" "Review Date" "Plan Review" "Approver"; do
         if grep -qE "\| ${candidate}[[:space:]]*\|" "$file"; then
             anchor="$candidate"
             break
@@ -199,12 +197,11 @@ EOF
 }
 
 # =============================================================================
-# PLAN REVIEW STATUS (formerly RALPH REVIEW)
+# PLAN REVIEW STATUS
 # =============================================================================
 
 # Update Plan Review fields in Status Header
 # If fields don't exist, adds them after Approver row
-# Handles both "Plan Review" and "Ralph Review" field names for backward compatibility
 update_review_status() {
     local file="$1"
     local status="$2"  # required / completed / not-required
@@ -215,16 +212,10 @@ update_review_status() {
         date_val=$(datestamp)
     fi
 
-    # Check which field name exists and update accordingly
-    # For reading: accept both, for writing new: use "Plan Review"
+    # Update or add Plan Review field
     if grep -qE "\| Plan Review[[:space:]]*\|" "$file"; then
-        # Update existing Plan Review field
         sed -i '' "s/| Plan Review[[:space:]]*|[^|]*|/| Plan Review | ${status} |/" "$file"
-    elif grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
-        # Update existing Ralph Review field (preserve field name for backward compatibility)
-        sed -i '' "s/| Ralph Review[[:space:]]*|[^|]*|/| Ralph Review | ${status} |/" "$file"
     else
-        # Add Plan Review field after Approver row (use new name for new fields)
         if grep -qE "\| Approver[[:space:]]*\|" "$file"; then
             insert_line_after "| Approver |" "| Plan Review | ${status} |" "$file"
             log_warn "Added missing Plan Review field to Status Header"
@@ -234,19 +225,12 @@ update_review_status() {
         fi
     fi
 
-    # Handle date field - check both names
+    # Update or add Review Date field
     if grep -qE "\| Review Date[[:space:]]*\|" "$file"; then
         sed -i '' "s/| Review Date[[:space:]]*|[^|]*|/| Review Date | ${date_val} |/" "$file"
-    elif grep -qE "\| Ralph Date[[:space:]]*\|" "$file"; then
-        # Update existing Ralph Date field (preserve field name)
-        sed -i '' "s/| Ralph Date[[:space:]]*|[^|]*|/| Ralph Date | ${date_val} |/" "$file"
     else
-        # Add Review Date field after Plan Review or Ralph Review row
         if grep -qE "\| Plan Review[[:space:]]*\|" "$file"; then
             insert_line_after "| Plan Review |" "| Review Date | ${date_val} |" "$file"
-            log_warn "Added missing Review Date field to Status Header"
-        elif grep -qE "\| Ralph Review[[:space:]]*\|" "$file"; then
-            insert_line_after "| Ralph Review |" "| Review Date | ${date_val} |" "$file"
             log_warn "Added missing Review Date field to Status Header"
         fi
     fi
@@ -254,9 +238,6 @@ update_review_status() {
     # Update Last Updated
     sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
 }
-
-# Backward compatibility alias
-update_ralph_status() { update_review_status "$@"; }
 
 # =============================================================================
 # EXECUTION STATUS UPDATES
@@ -287,9 +268,8 @@ update_execution_status() {
     fi
 
     # Find the best anchor field (use regex to handle variable whitespace)
-    # Check both Review Date/Plan Review and Ralph Date/Ralph Review for backward compatibility
     local anchor=""
-    for candidate in "Review Date" "Ralph Date" "Plan Review" "Ralph Review" "Approver"; do
+    for candidate in "Review Date" "Plan Review" "Approver"; do
         if grep -qE "\| ${candidate}[[:space:]]*\|" "$plan_file"; then
             anchor="$candidate"
             break

@@ -1,6 +1,6 @@
 ---
 description: "Goal in, working code out: iterative convergence with verification loop"
-argument-hint: "TASK [--plan] [--implement FILE] [--review FILE] [--wizard FILE] [--no-review] [--no-verify] [--auto-approve] [--cleanup] [--cleanup-all]"
+argument-hint: "TASK [--plan] [--implement FILE] [--tech-review FILE] [--ai-ready FILE] [--verify FILE] [--wizard FILE] [--no-review] [--no-verify] [--auto-approve] [--cleanup] [--cleanup-all]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-setup.sh:*)"]
 ---
 
@@ -71,13 +71,29 @@ From within Claude Code:
 **End state:** Same as full workflow, but faster
 **Use for:** Small, obvious tasks where review adds no value
 
-#### Review Mode (`--review`)
+#### Tech Review Mode (`--tech-review`)
 ```
-/tim-loop --review plans/drafts/my-plan.md
+/tim-loop --tech-review plans/drafts/my-plan.md
 ```
-**Phases:** Review only (iterative improvement)
-**End state:** Plan file improved, ready for promotion
-**Use for:** Iterative review of multi-phase plans before promotion
+**Phases:** Technical review by a skeptical senior engineer persona
+**End state:** Plan file improved with technical accuracy, edge cases, testability
+**Use for:** First-pass review focusing on technical soundness before promotion
+
+#### AI-Ready Review Mode (`--ai-ready`)
+```
+/tim-loop --ai-ready plans/active/my-plan.md
+```
+**Phases:** AI-readiness review by a tech lead persona
+**End state:** Plan file with unambiguous instructions ready for AI implementation
+**Use for:** Final review ensuring an AI developer can implement without ambiguity
+
+#### Verify Mode (`--verify`)
+```
+/tim-loop --verify plans/active/my-plan.md
+```
+**Phases:** Four-phase verification audit (intent, implementation, TIM rules, remediation)
+**End state:** Verified implementation or remediation plan created
+**Use for:** Post-implementation verification that plan was fully and correctly implemented
 
 #### Wizard Mode (`--wizard`)
 ```

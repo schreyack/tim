@@ -3,7 +3,7 @@
 # Part of plan-ops.sh modular refactor
 #
 # Dependencies: core.sh, status.sh, approval.sh, security.sh
-# Exports: cmd_review, cmd_ralph, cmd_ai_ready, cmd_execute
+# Exports: cmd_review, cmd_ai_ready, cmd_execute
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -18,7 +18,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 
 # =============================================================================
-# REVIEW COMMAND (formerly RALPH)
+# REVIEW COMMAND
 # =============================================================================
 
 cmd_review() {
@@ -93,7 +93,7 @@ cmd_review() {
             log_info "This is a single-phase plan. Plan Review is OPTIONAL."
             echo ""
             echo "Option 1: Run Plan Review anyway (recommended for complex plans):"
-            show_command "/tim-loop:tim-loop --review ${plan_file} --max-iterations 10 --completion-promise \"DONEDONE\""
+            show_command "/tim-loop:tim-loop --tech-review ${plan_file} --max-iterations 10"
             echo ""
             echo "Then mark complete:"
             echo -e "  ${GREEN}$SCRIPT_PATH review $plan_file --mark-complete${NC}"
@@ -107,16 +107,10 @@ cmd_review() {
         log_info "Multi-phase plan detected. Plan Review is REQUIRED before promotion."
         echo ""
         log_info "STEP 1 of 2: Run /clear first, then paste this command in Claude Code:"
-        show_command "/tim-loop:tim-loop --review ${plan_file} --max-iterations 10 --completion-promise \"DONEDONE\""
+        show_command "/tim-loop:tim-loop --tech-review ${plan_file} --max-iterations 10"
         log_info "STEP 2 of 2: After Plan Review completes, mark it done:"
         echo -e "  ${GREEN}$SCRIPT_PATH review $plan_file --mark-complete${NC}"
     fi
-}
-
-# Backward compatibility alias
-cmd_ralph() {
-    log_warn "DEPRECATED: 'ralph' command will be removed in future versions. Use 'review' instead."
-    cmd_review "$@"
 }
 
 # =============================================================================

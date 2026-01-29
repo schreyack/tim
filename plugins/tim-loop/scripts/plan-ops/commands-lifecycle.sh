@@ -108,7 +108,7 @@ cmd_import() {
         state=$(get_plan_state "$source")
 
         case "$state" in
-            ralph)
+            review)
                 local phase_count
                 phase_count=$(count_phases "$source")
                 log_info "This is a multi-phase plan (${phase_count} phases). Plan Review is required."
@@ -174,7 +174,7 @@ cmd_promote() {
 
     local plan_file="${1:-}"
     local approver=""
-    local skip_ralph=false
+    local skip_review=false
 
     # Parse arguments
     shift || true
@@ -184,8 +184,8 @@ cmd_promote() {
                 approver="$2"
                 shift 2
                 ;;
-            --skip-ralph)
-                skip_ralph=true
+            --skip-review)
+                skip_review=true
                 shift
                 ;;
             *)
@@ -212,15 +212,15 @@ cmd_promote() {
     # Convert to absolute path for output messages
     plan_file=$(to_absolute "$plan_file")
 
-    # Check Ralph Loop requirement for multi-phase plans
-    local needs_ralph
-    needs_ralph=$(requires_ralph "$plan_file")
-    local has_ralph
-    has_ralph=$(has_ralph_completed "$plan_file")
+    # Check Plan Review requirement for multi-phase plans
+    local needs_review
+    needs_review=$(requires_review "$plan_file")
+    local has_review
+    has_review=$(has_review_completed "$plan_file")
     local phase_count
     phase_count=$(count_phases "$plan_file")
 
-    if [[ "$needs_ralph" == "true" && "$has_ralph" != "true" ]]; then
+    if [[ "$needs_review" == "true" && "$has_review" != "true" ]]; then
         log_error "BLOCKED: Multi-phase plan (${phase_count} phases) requires Plan Review."
         log_error "Plan Review has NOT been completed for this plan."
         echo ""
@@ -230,9 +230,9 @@ cmd_promote() {
         exit 1
     fi
 
-    if [[ "$skip_ralph" == "true" && "$needs_ralph" == "true" ]]; then
+    if [[ "$skip_review" == "true" && "$needs_review" == "true" ]]; then
         log_error "BLOCKED: Cannot skip Plan Review for multi-phase plans."
-        log_error "--skip-ralph only works for single-phase plans."
+        log_error "--skip-review only works for single-phase plans."
         exit 1
     fi
 
@@ -264,7 +264,7 @@ cmd_promote() {
     echo ""
     log_info "STEP 1 of 2: Run Tim Loop Review to review plan for AI implementation concerns:"
     echo ""
-    echo -e "${GREEN}/tim-loop:tim-loop --review ${dest} --max-iterations 5 --completion-promise \"AI-READY\"${NC}"
+    echo -e "${GREEN}/tim-loop:tim-loop --ai-ready ${dest} --max-iterations 5${NC}"
     echo ""
     log_info "STEP 2 of 2: After review completes, human confirms and approves:"
     echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $dest --reviewer \"Your Name\"${NC}"

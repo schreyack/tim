@@ -264,7 +264,7 @@ Single-phase plans can be promoted directly without Plan Review.
 │     (Outputs the Tim Loop review command to run)                │
 │           │                                                     │
 │           ▼                                                     │
-│  3. Run /tim-loop --review command in Claude Code               │
+│  3. Run /tim-loop --tech-review command in Claude Code           │
 │     (Iterates until DONEDONE or max iterations)                 │
 │           │                                                     │
 │           ▼                                                     │
@@ -283,7 +283,7 @@ Single-phase plans can be promoted directly without Plan Review.
 ### Tim Loop Review Command Format
 
 ```bash
-/tim-loop:tim-loop --review plans/drafts/[plan-name].md --max-iterations 10 --completion-promise "DONEDONE"
+/tim-loop:tim-loop --tech-review plans/drafts/[plan-name].md --max-iterations 10
 ```
 
 ### What Happens on Promote Attempt
@@ -297,7 +297,6 @@ Single-phase plans can be promoted directly without Plan Review.
 
 If blocked, the error message shows exact commands to run.
 
-Note: The `ralph` command still works for backward compatibility but is deprecated.
 
 ---
 
@@ -440,7 +439,7 @@ A Claude Code hook intercepts Bash commands and blocks approval patterns:
 # ~/.claude/hooks/block-ai-approvals.sh blocks:
 # - plan-ops.sh promote --approver
 # - plan-ops.sh ai-ready --reviewer
-# - plan-ops.sh ralph --mark-complete
+# - plan-ops.sh review --mark-complete
 ```
 
 ### Layer 2: TTY Verification
@@ -564,7 +563,7 @@ plan-ops import ~/.claude/plans/xxx.md --name "project-feature"
 # Start Plan Review (shows command to run)
 plan-ops review plans/drafts/my-plan.md
 
-# Mark Plan Review as complete (after running /tim-loop --review)
+# Mark Plan Review as complete (after running /tim-loop --tech-review)
 plan-ops review plans/drafts/my-plan.md --mark-complete
 
 # Promote draft to active (blocked for multi-phase without review)

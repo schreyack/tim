@@ -145,39 +145,7 @@ run_verification_tim_loop() {
 
     echo ""
     echo "Run /clear first, then paste this command in Claude Code:"
-    local cmd="/tim-loop:tim-loop \"VERIFICATION AUDIT for $plan_file
-
-Your task is to verify that this plan was FULLY implemented with NO shortcuts.
-
-PHASE 1 - INTENT REVIEW:
-1. Read the plan file completely
-2. Extract the ORIGINAL INTENT - what was this plan supposed to accomplish?
-3. List all explicit requirements and deliverables
-
-PHASE 2 - IMPLEMENTATION AUDIT:
-1. For each requirement/deliverable, find the actual implementation
-2. Check: Is the code REAL and FUNCTIONAL, or stubbed/placeholder?
-3. Check: Are there any TODO comments, NotImplementedError, 'pass' statements?
-4. Check: Is anything marked as 'future work' or 'deferred'?
-
-PHASE 3 - TIM RULES VERIFICATION:
-1. Verify type safety (mypy --strict / tsc --strict passes)
-2. Verify test coverage (90% minimum, tests actually test the functionality)
-3. Verify no secrets in code
-4. Verify file size limits (400 lines max)
-5. Verify no bypass flags or shortcuts
-
-PHASE 4 - GAP REMEDIATION:
-If ANY gaps are found:
-1. Create a detailed remediation plan in ${plans_dir}/drafts/ with 'remediation' in filename
-2. The remediation plan MUST include proper Status Header (use plan-ops.sh format)
-3. DO NOT implement the remediation - it requires approval workflow first
-4. Output verification status as FAILED
-
-CRITICAL:
-- If gaps found: Create remediation plan, report FAILED, and EXIT
-- If no gaps: Report PASSED
-- The remediation plan will go through its own approval workflow before implementation\""
+    local cmd="/tim-loop:tim-loop --verify $plan_file --max-iterations 10"
     show_command "$cmd"
     echo -n "Press Enter when verification tim-loop completes..."
     read -r </dev/tty

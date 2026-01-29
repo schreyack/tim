@@ -81,7 +81,6 @@ COMMANDS:
         - Without flags: Shows the Tim Loop review command to run
         - With --mark-complete: Marks review as done (required before promote)
         Multi-phase plans (2+ phases) MUST complete Plan Review before promotion
-        (Alias: 'ralph' still works but is deprecated)
 
     promote <plan-file> --approver <name>
         Move plan from drafts to active (requires human approver)
@@ -139,7 +138,7 @@ PLAN REVIEW WORKFLOW:
     1. $SCRIPT_PATH review plans/drafts/my-plan.md
        (Shows the Tim Loop review command to run)
 
-    2. Run the displayed /tim-loop --review command in Claude Code
+    2. Run the displayed /tim-loop --tech-review command in Claude Code
 
     3. $SCRIPT_PATH review plans/drafts/my-plan.md --mark-complete
        (Marks review as done)
@@ -183,9 +182,9 @@ WIZARD WORKFLOW:
     $SCRIPT_PATH wizard <plan-file>
 
     The wizard will:
-    1. Detect current state (import, ralph, promote, etc.)
+    1. Detect current state (import, review, promote, etc.)
     2. Show the appropriate command or prompt for input
-    3. Wait for external steps (Ralph Loop, approval, Tim Loop)
+    3. Wait for external steps (Plan Review, approval, Tim Loop)
     4. Track file moves automatically
     5. Offer optional verification tim-loop before marking complete
     6. Continue until plan reaches completed state

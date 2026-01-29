@@ -5,7 +5,7 @@
 # Dependencies: core.sh
 # Exports: get_status_field, get_plan_state, show_plan_status, get_state_description,
 #          update_status, ensure_status_header_fields, add_status_header,
-#          count_phases, requires_ralph, has_ralph_completed
+#          count_phases, requires_review, has_review_completed
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -39,24 +39,17 @@ requires_review() {
     fi
 }
 
-# Backward compatibility alias
-requires_ralph() { requires_review "$@"; }
-
 # Check if plan has completed Plan Review
-# Returns: "true" if Plan Review: completed or Ralph Review: completed, "false" otherwise
+# Returns: "true" if Plan Review: completed, "false" otherwise
 has_review_completed() {
     local file="$1"
     # Use regex to handle variable whitespace in markdown tables
-    # Accept BOTH "Ralph Review" AND "Plan Review" field names for backward compatibility
-    if grep -qE "\| (Ralph Review|Plan Review)[[:space:]]*\|[[:space:]]*completed[[:space:]]*\|" "$file" 2>/dev/null; then
+    if grep -qE "\| Plan Review[[:space:]]*\|[[:space:]]*completed[[:space:]]*\|" "$file" 2>/dev/null; then
         echo "true"
     else
         echo "false"
     fi
 }
-
-# Backward compatibility alias
-has_ralph_completed() { has_review_completed "$@"; }
 
 # Extract a field value from Status Header markdown table
 # Usage: get_status_field "$plan_file" "Stage"
@@ -70,7 +63,7 @@ get_status_field() {
 }
 
 # Get current workflow state for a plan
-# Returns: import|ralph|promote|ai-ready|tim-loop|complete|done|abandoned|unknown|not-found
+# Returns: import|review|promote|ai-ready|tim-loop|complete|done|abandoned|unknown|not-found
 get_plan_state() {
     local plan_file="$1"
 
@@ -87,11 +80,9 @@ get_plan_state() {
     fi
 
     # Read status fields from Status Header using helper
-    # Check both Plan Review and Ralph Review for backward compatibility
     local stage plan_review ai_ready impl_verified
     stage=$(get_status_field "$plan_file" "Stage")
     plan_review=$(get_status_field "$plan_file" "Plan Review")
-    [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$plan_file" "Ralph Review")
     ai_ready=$(get_status_field "$plan_file" "AI Developer Ready")
     impl_verified=$(get_status_field "$plan_file" "Implementation Verified")
 
@@ -113,7 +104,7 @@ get_plan_state() {
         draft)
             # Plan Review: required (needs loop) | completed (done) | not-required (skip)
             if [[ "$plan_review" == "required" ]]; then
-                echo "ralph"
+                echo "review"
             elif [[ "$plan_review" == "completed" || "$plan_review" == "not-required" ]]; then
                 echo "promote"
             else
@@ -121,7 +112,7 @@ get_plan_state() {
                 local needs_review
                 needs_review=$(requires_review "$plan_file")
                 if [[ "$needs_review" == "true" ]]; then
-                    echo "ralph"
+                    echo "review"
                 else
                     echo "promote"
                 fi
@@ -155,11 +146,9 @@ show_plan_status() {
     local state="$2"
 
     # Read status fields using the helper
-    # Check both Plan Review and Ralph Review for backward compatibility
     local stage plan_review ai_ready impl_verified
     stage=$(get_status_field "$plan_file" "Stage")
     plan_review=$(get_status_field "$plan_file" "Plan Review")
-    [[ -z "$plan_review" ]] && plan_review=$(get_status_field "$plan_file" "Ralph Review")
     ai_ready=$(get_status_field "$plan_file" "AI Developer Ready")
     impl_verified=$(get_status_field "$plan_file" "Implementation Verified")
 
@@ -184,7 +173,7 @@ show_plan_status() {
 get_state_description() {
     case "$1" in
         import)          echo "Import plan to drafts folder" ;;
-        ralph)           echo "Run Plan Review, then mark complete" ;;
+        review)          echo "Run Plan Review, then mark complete" ;;
         promote)         echo "Promote plan to active" ;;
         ai-ready)        echo "Run AI-ready review, then mark ai-ready" ;;
         tim-loop)        echo "Run Tim Loop implementation" ;;

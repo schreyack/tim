@@ -135,7 +135,7 @@ Plans with 2+ phases **cannot be promoted** until Plan Review is completed:
 # 1. Show Plan Review command
 plan-ops review plans/drafts/my-plan.md
 
-# 2. Run the displayed /tim-loop --review command in Claude Code
+# 2. Run the displayed /tim-loop --tech-review command in Claude Code
 
 # 3. Mark review complete
 plan-ops review plans/drafts/my-plan.md --mark-complete
@@ -146,7 +146,6 @@ plan-ops promote plans/drafts/my-plan.md --approver "Name"
 
 Single-phase plans can skip Plan Review and promote directly.
 
-Note: The `ralph` command still works for backward compatibility but is deprecated.
 
 ### Tim Loop Execution
 

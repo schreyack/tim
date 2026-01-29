@@ -17,17 +17,23 @@ A 6-step workflow for plan execution:
 5. **Validate** - Devil's advocate check
 6. **Execute** - Implement to 100% completion
 
-### Review Mode (`--review`)
-An iterative review methodology for improving plans:
-- Feeds the same prompt to Claude repeatedly while work persists in files
-- Each iteration sees previous work, enabling incremental improvement
-- Continues until completion criteria are met (DONEDONE by default)
+### Review Modes (`--tech-review`, `--ai-ready`)
+Two distinct review modes for improving plans:
+- **Tech Review** (`--tech-review`): Skeptical senior engineer persona evaluating technical accuracy, feasibility, edge cases, and testability
+- **AI-Ready Review** (`--ai-ready`): Tech lead persona ensuring instructions are unambiguous for AI implementation
+- Each feeds the same prompt to Claude repeatedly while work persists in files
+- Continues until completion criteria are met
+
+### Verify Mode (`--verify`)
+Post-implementation verification audit:
+- Four phases: intent review, implementation audit, TIM rules check, gap remediation
+- Creates remediation plans if gaps are found
 
 **Purpose in TIM:** Ensure all active plans are executed with structured methodology, with mandatory review for multi-phase plans and human approval before execution begins.
 
 ---
 
-## Review Mode (`--review`)
+## Review Modes (`--tech-review`, `--ai-ready`)
 
 ### When Review is Required
 
@@ -59,8 +65,8 @@ Plans with 0-1 phases can be promoted directly without Plan Review.
 │     → If multi-phase: Shows Tim Loop review command to run      │
 │           │                                                     │
 │           ▼                                                     │
-│  3. Run /tim-loop --review command in Claude Code               │
-│     (Iterates until DONEDONE promise or max iterations)         │
+│  3. Run /tim-loop --tech-review command in Claude Code           │
+│     (Iterates until TECH-REVIEW-DONE or max iterations)         │
 │           │                                                     │
 │           ▼                                                     │
 │  4. plan-ops.sh review plans/drafts/my-plan.md --mark-complete  │
@@ -83,7 +89,7 @@ plan-ops.sh review plans/drafts/my-plan.md
 
 **Output for multi-phase plans:**
 - Shows phase count
-- Outputs the exact `/tim-loop --review` command to run
+- Outputs the exact `/tim-loop --tech-review` command to run
 - Instructions for marking complete
 
 **Output for single-phase plans:**
@@ -106,16 +112,17 @@ Updates the plan's Status Header:
 The standard command for plan review:
 
 ```bash
-/tim-loop:tim-loop --review plans/drafts/[plan-name].md --max-iterations 10 --completion-promise "DONEDONE"
+/tim-loop:tim-loop --tech-review plans/drafts/[plan-name].md --max-iterations 10
 ```
 
 #### Parameters
 
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
-| `--review FILE` | Plan file path | Directs Tim Loop to review and improve the file |
+| `--tech-review FILE` | Plan file path | Directs Tim Loop to perform technical review of the file |
+| `--ai-ready FILE` | Plan file path | Directs Tim Loop to perform AI-readiness review of the file |
+| `--verify FILE` | Plan file path | Directs Tim Loop to verify implementation of the plan |
 | `--max-iterations` | `10` | Safety limit to prevent infinite loops |
-| `--completion-promise` | `DONEDONE` | Signal phrase when no more improvements possible |
 
 #### What Review Mode Does
 
@@ -187,8 +194,6 @@ When `execute` succeeds, it outputs:
 | Review Date | `-` | Not applicable or not yet completed | - |
 | Review Date | `YYYY-MM-DD` | When review was completed | - |
 
-Note: For backward compatibility, `Ralph Review` and `Ralph Date` field names are also recognized.
-
 ### Execution Fields
 
 | Field | Value |
@@ -210,7 +215,7 @@ Draft → Plan Review → Active → AI Developer Ready → Execute → Tim Loop
 ### Full Lifecycle
 
 1. **Draft** - Plan created in `plans/drafts/`
-2. **Plan Review** - Multi-phase plans reviewed via Tim Loop `--review` mode
+2. **Plan Review** - Multi-phase plans reviewed via Tim Loop `--tech-review` mode
 3. **Promote** - Human approves, plan moves to `plans/active/`
 4. **AI Developer Ready** - Human reviews plan for AI implementation concerns
 5. **Execute** - Outputs the tim-loop command

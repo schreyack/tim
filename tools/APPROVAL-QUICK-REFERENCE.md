@@ -20,7 +20,7 @@ Draft → [Plan Review] → Promote → AI Ready → Execute → Tim Loop
 
 ---
 
-## 1. Ralph Loop Review (Multi-Phase Plans Only)
+## 1. Plan Review (Multi-Phase Plans Only)
 
 Plans with 2+ phases require Plan Review before promotion.
 
@@ -28,7 +28,7 @@ Plans with 2+ phases require Plan Review before promotion.
 # Step 1: See the Tim Loop review command to run
 ./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md
 
-# Step 2: Run the displayed /tim-loop --review command in Claude Code
+# Step 2: Run the displayed /tim-loop --tech-review command in Claude Code
 
 # Step 3: Mark review complete (human only)
 ./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md --mark-complete
@@ -100,7 +100,7 @@ This outputs the `/tim-loop --implement` command to paste into Claude Code.
 
 # 2. For multi-phase plans: Start Plan Review
 ./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/2025-01-16-feature-auth.md
-# (Run the displayed /tim-loop --review command in Claude Code)
+# (Run the displayed /tim-loop --tech-review command in Claude Code)
 ./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/2025-01-16-feature-auth.md --mark-complete
 
 # 3. Promote to active
@@ -124,7 +124,7 @@ This outputs the `/tim-loop --implement` command to paste into Claude Code.
 |-------|-------|----------|
 | "BLOCKED: This command must be run interactively" | Running from script/AI | Open terminal manually |
 | "Cannot approve from within Claude Code session" | Running in Claude terminal | Use separate terminal |
-| "Multi-phase plan requires Ralph Loop review" | Trying to promote without Ralph | Complete Ralph Loop first |
+| "Multi-phase plan requires Plan Review" | Trying to promote without review | Complete Plan Review first |
 | "Plan has not been marked AI Developer Ready" | Missing ai-ready approval | Run ai-ready command |
 
 ---
