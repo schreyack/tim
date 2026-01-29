@@ -1,8 +1,9 @@
 {
   "description": "TIM Standards AI Behavioral Enforcement: code quality validation, excuse detection, and prompt preservation",
   "hooks": {
-    "PreCompact": [
+    "SessionStart": [
       {
+        "matcher": "compact",
         "hooks": [
           {
             "type": "command",

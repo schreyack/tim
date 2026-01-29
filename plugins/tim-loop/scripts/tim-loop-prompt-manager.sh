@@ -163,17 +163,23 @@ cmd_hook() {
     local prompt_len=${#prompt}
     echo "[$timestamp] REINJECT: session=$session_id prompt_length=$prompt_len" >> "$log_file"
 
-    # Output JSON with systemMessage for reinjection
+    # Notify user that reinject occurred
+    echo "[tim-loop] Original task prompt reinjected (${prompt_len} chars, session ${session_id})" >&2
+
+    # Output JSON with additionalContext for SessionStart post-compaction reinjection
     # Using jq for proper JSON escaping
     if command -v jq &>/dev/null; then
         jq -n --arg prompt "$prompt" '{
-            "systemMessage": ("=== ORIGINAL TASK (reinjected after context compaction) ===\n\nThe following is the original task prompt. Context was compacted but this task remains active. Continue working on this task:\n\n" + $prompt + "\n\n=== END ORIGINAL TASK ===")
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": ("=== ORIGINAL TASK (reinjected after context compaction) ===\n\nThe following is the original task prompt. Context was compacted but this task remains active. Continue working on this task:\n\n" + $prompt + "\n\n=== END ORIGINAL TASK ===")
+            }
         }'
     else
         # Fallback without jq - basic escaping
         local escaped_prompt
         escaped_prompt=$(echo "$prompt" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
-        echo "{\"systemMessage\": \"=== ORIGINAL TASK (reinjected after context compaction) ===\\n\\nThe following is the original task prompt. Context was compacted but this task remains active. Continue working on this task:\\n\\n${escaped_prompt}\\n\\n=== END ORIGINAL TASK ===\"}"
+        echo "{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"=== ORIGINAL TASK (reinjected after context compaction) ===\\n\\nThe following is the original task prompt. Context was compacted but this task remains active. Continue working on this task:\\n\\n${escaped_prompt}\\n\\n=== END ORIGINAL TASK ===\"}}"
     fi
 }
 
