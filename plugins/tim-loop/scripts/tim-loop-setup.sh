@@ -530,7 +530,22 @@ SESSION_ID="$TIM_LOOP_SESSION_ID"
 REVIEW_MODE="$REVIEW_MODE"
 MIN_REVIEW_ITERATIONS="$MIN_REVIEW_ITERATIONS"
 EOF
-echo "$FULL_PROMPT" > "$TIM_LOOP_PROMPT_FILE"
+
+# Save prompt using prompt manager with required environment variables
+# This enables security validation on reinjection
+PROMPT_MANAGER="${PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh"
+if [[ -x "$PROMPT_MANAGER" ]]; then
+    TIM_LOOP_SESSION_ID="$TIM_LOOP_SESSION_ID" \
+    PWD="$CONTEXT_PWD" \
+    "$PROMPT_MANAGER" save "$FULL_PROMPT" 2>/dev/null || {
+        # Fallback to direct write if prompt manager fails
+        echo "WARNING: Prompt manager failed, using direct save" >&2
+        echo "$FULL_PROMPT" > "$TIM_LOOP_PROMPT_FILE"
+    }
+else
+    # Direct write if prompt manager not available
+    echo "$FULL_PROMPT" > "$TIM_LOOP_PROMPT_FILE"
+fi
 
 # Register hooks
 python3 << PYTHON_EOF
@@ -549,7 +564,8 @@ except:
 if 'hooks' not in settings:
     settings['hooks'] = {}
 
-for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook), ('PreCompact', prompt_manager_hook)]:
+# SessionStart hook for prompt reinjection after context compaction
+for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook), ('SessionStart', prompt_manager_hook)]:
     if hook_type not in settings['hooks']:
         settings['hooks'][hook_type] = []
     entry = {"command": hook_cmd}
@@ -558,7 +574,7 @@ for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook)
 
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)
-print("Tim Loop hooks registered (stop, PreToolUse, PreCompact)")
+print("Tim Loop hooks registered (stop, PreToolUse, SessionStart)")
 PYTHON_EOF
 
 echo -e "\nTim Loop: Starting iteration 1 of $MAX_ITERATIONS\n"
