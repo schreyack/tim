@@ -1,5 +1,5 @@
 # TIM Shared Python Library
-# Install: pip install -e /path/to/design_standards/libs/python
+# Install: pip install -e /path/to/tim/libs/python
 
 [tool.poetry]
 name = "tim-lib"

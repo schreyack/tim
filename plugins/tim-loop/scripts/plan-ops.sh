@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # plan-ops.sh - Bundled with tim-loop plugin
 # Version: Synced from plugin.json (currently 1.6.0)
-# Source: https://github.com/schreyack/design_standards
+# Source: https://github.com/schreyack/tim
 # Note: This file is auto-copied to projects on first /tim-loop run
 #
 # Modular refactor: This is the main entry point that sources modular components.

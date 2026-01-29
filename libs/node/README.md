@@ -281,7 +281,7 @@ The TIM standards require TypeScript strict mode. Ensure your `tsconfig.json` ha
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 20+
 - TypeScript 5.0+
 - Express 4.18+ (for API module)
 - Prisma 5+ (for database test utilities)

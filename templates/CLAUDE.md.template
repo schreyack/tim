@@ -100,11 +100,11 @@ plans/
 
 ### Adding plan-ops to PATH (Recommended)
 
-Add the design_standards `bin/` directory to your PATH to run `plan-ops` from anywhere:
+Add the tim `bin/` directory to your PATH to run `plan-ops` from anywhere:
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc:
-export PATH="/path/to/design_standards/bin:$PATH"
+export PATH="/path/to/tim/bin:$PATH"
 
 # Reload your shell
 source ~/.bashrc  # or source ~/.zshrc
@@ -430,7 +430,7 @@ This project follows TIM Design Standards. Key requirements:
 | Function size | 50 lines maximum |
 | Complexity | 10 maximum (cyclomatic) |
 
-For complete standards, see: [TIM Design Standards Repository](<!-- link to design_standards -->)
+For complete standards, see: [TIM Design Standards Repository](<!-- link to tim -->)
 
 ---
 

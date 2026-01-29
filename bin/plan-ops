@@ -15,7 +15,7 @@ PLAN_OPS_SCRIPT="${SCRIPT_DIR}/../plugins/tim-loop/scripts/plan-ops.sh"
 
 if [[ ! -f "$PLAN_OPS_SCRIPT" ]]; then
     echo "ERROR: plan-ops.sh not found at: $PLAN_OPS_SCRIPT" >&2
-    echo "Make sure you're using the bin/ directory from design_standards." >&2
+    echo "Make sure you're using the bin/ directory from the tim repository." >&2
     exit 1
 fi
 

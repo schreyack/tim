@@ -6,7 +6,7 @@ Thank you for your interest in contributing to TIM Standards. This project gets 
 
 ### Reporting Issues
 
-- Use [GitHub Issues](https://github.com/schreyack/design_standards/issues) to report bugs or suggest improvements
+- Use [GitHub Issues](https://github.com/schreyack/tim/issues) to report bugs or suggest improvements
 - Search existing issues before creating a new one
 - Include enough detail for others to understand and reproduce the issue
 

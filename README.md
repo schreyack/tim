@@ -49,11 +49,58 @@ A complete enforcement framework:
 
 Adopt the full framework for new projects, or install Tim Loop standalone for immediate benefit.
 
+### Quick Navigation
+
+| I want to... | Go here |
+|--------------|---------|
+| **Install Tim Loop now** | [Just Want Tim Loop?](#just-want-tim-loop) |
+| **Understand when to use what** | [Choosing Your Workflow](#choosing-your-workflow) |
+| **See a complete example** | [Recommended Workflow](#recommended-workflow) |
+| **Set up a full TIM project** | [New Project Setup](#new-project-setup) |
+| **Browse all standards** | [Standards Index](#standards-index) |
+
 ### The Tools
 
 **Tim Loop** is a Claude Code plugin that enforces the TIM standards' most critical requirement: tasks must be 100% complete, not "mostly done." It captures the original task, loops until all objectives are verified complete, preserves context when conversations get too long, enforces code quality limits in real-time, and blocks completion when AI tries to make excuses. The loop continues until verification passes—there is no early exit.
 
 **plan-ops** is a CLI tool (bundled with Tim Loop) that enforces the TIM standards' human oversight requirements. It organizes plans through a lifecycle (draft → active → completed), requires human approval before AI implements anything, and tracks status with structured metadata.
+
+### Choosing Your Workflow
+
+**Simple task?** Run it directly:
+```
+/tim-loop "your task"
+```
+Accept the edits, done. Tim Loop handles plan → implement → verify automatically.
+
+**Complex or multi-phase effort?** Use plan mode first:
+```
+# Step 1: Create and iterate on the plan
+/tim-loop --plan "describe your goals"
+```
+Review the plan it creates. Not quite right? Run it again with refined goals. Iterate until the plan describes exactly what you want.
+
+```
+# Step 2: Execute with full lifecycle management
+plan-ops wizard plans/drafts/your-plan.md
+```
+The wizard walks you through: review → approve → implement → verify → complete.
+
+**That's it.** Two paths: direct execution for simple tasks, plan-first for complex ones.
+
+### What Keeps Claude On Track
+
+Tim Loop uses hooks to prevent the common ways AI goes off the rails:
+
+**Stop hooks** intercept when Claude tries to finish. The loop checks: did Claude actually complete everything? If not, the original task is re-injected and Claude continues. No "good enough" - only 100% verified complete.
+
+**Excuse detection** catches when Claude tries to deflect ("that was already broken", "not my scope"). When detected, completion is blocked until issues are addressed. If you touched a file, you own it.
+
+**Context compaction survival** - When conversations get long, Claude compresses old messages and loses track of the original goal. Tim Loop's PreCompact hook reinjects the *exact* original task prompt during compaction, so Claude never forgets what it's supposed to be doing.
+
+**Code quality gates** enforce file size (400 lines) and function length (50 lines) limits in real-time. Violations block progress until fixed.
+
+The result: Claude stays focused on your goal even through long sessions, can't declare victory early, and can't make excuses.
 
 ### The Development Lifecycle
 
@@ -158,7 +205,36 @@ In Claude Code:
 
 Restart Claude Code. That's it.
 
-### Use
+### Your First Task
+
+Try this now:
+
+```bash
+# In Claude Code
+/clear
+/tim-loop "create a hello world function in a new file called hello.py"
+```
+
+Watch what happens:
+1. Claude creates a plan with goals and completion criteria
+2. Claude reviews the plan for completeness
+3. Claude implements the code
+4. Claude verifies everything works
+5. Done! Check your new `hello.py` file.
+
+That's it. Tim Loop handles the entire workflow automatically.
+
+### Common Patterns
+
+| When you want to... | Run this |
+|---------------------|----------|
+| Complete a task end-to-end | `/tim-loop "your task"` |
+| Skip the review phase (faster) | `/tim-loop --no-review "your task"` |
+| Just create a plan to review yourself | `/tim-loop --plan "your task"` |
+| Implement an already-approved plan | `/tim-loop --implement plans/active/your-plan.md` |
+| Get step-by-step guidance through approvals | `/tim-loop --wizard plans/active/your-plan.md` |
+
+### More Examples
 
 ```bash
 # Run any task with guaranteed completion
@@ -187,6 +263,17 @@ source ~/.zshrc
 ```
 
 Then run `plan-ops help` from anywhere.
+
+### When to Use plan-ops
+
+plan-ops adds human approval gates to the workflow. Use it when:
+
+- **You want to review plans before AI implements** - AI creates plan, you approve, then AI executes
+- **Changes are high-risk** - Production code, security-sensitive, or architectural changes
+- **You need an audit trail** - plan-ops tracks approvals with names and timestamps
+- **Multiple people are involved** - One person reviews, another approves
+
+**You don't need plan-ops** for simple tasks. Just run `/tim-loop "task"` directly.
 
 ### Learn More
 

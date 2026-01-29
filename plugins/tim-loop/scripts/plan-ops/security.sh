@@ -90,7 +90,7 @@ ensure_tim_loop_permissions() {
         echo "  1. Register the tim marketplace"
         echo "  2. Install the tim-loop plugin"
         echo ""
-        echo "Or visit: https://github.com/schreyack/design_standards"
+        echo "Or visit: https://github.com/schreyack/tim"
         echo ""
         return 1
     fi
