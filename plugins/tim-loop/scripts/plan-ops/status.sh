@@ -21,8 +21,8 @@ fi
 count_phases() {
     local file="$1"
     local count
-    # Match: ## Phase, ### Phase, Phase 1:, Phase 2:, ### Step N:, etc.
-    count=$(grep -cE "(^#{1,3}\s*(Phase|Step)\s*[0-9]*:?|^(Phase|Step)\s*[0-9]+:)" "$file" 2>/dev/null) || count=0
+    # Match: ## Phase, ### Phase, ### Task, Phase 1:, Task 2:, ### Step N:, etc.
+    count=$(grep -cE "(^#{1,3}\s*(Phase|Step|Task)\s*[0-9]*:?|^(Phase|Step|Task)\s*[0-9]+:)" "$file" 2>/dev/null) || count=0
     echo "$count"
 }
 
