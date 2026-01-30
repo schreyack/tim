@@ -4,7 +4,8 @@
 #
 # Dependencies: core.sh, status.sh
 # Exports: print_step_header, prompt_for_name, read_from_tty, copy_to_clipboard,
-#          show_command, find_remediation_plan, run_verification_tim_loop
+#          show_command, find_remediation_plan, run_verification_tim_loop,
+#          handle_unexpected_plan_move
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -190,4 +191,94 @@ run_verification_tim_loop() {
 
     log_info "Verification passed!"
     return 0
+}
+
+# =============================================================================
+# UNEXPECTED PLAN MOVE DETECTION
+# =============================================================================
+
+# Handle unexpected plan moves during wizard steps
+# Usage: handle_unexpected_plan_move <expected_folder>
+# Returns: 0 if plan is in expected location (or moved back)
+#          1 if plan was moved and user accepted the new location
+# Updates WIZARD_PLAN_FILE to current location
+handle_unexpected_plan_move() {
+    local expected_folder="$1"  # drafts, active, completed, abandoned
+    local basename plans_dir
+
+    basename=$(basename "$WIZARD_PLAN_FILE")
+    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+
+    # If file exists at expected location, all good
+    if [[ -f "$WIZARD_PLAN_FILE" ]] && [[ "$WIZARD_PLAN_FILE" == *"/plans/${expected_folder}/"* ]]; then
+        return 0
+    fi
+
+    # File doesn't exist or is in wrong folder - search for it
+    local found_in="" found_path=""
+    for folder in drafts active completed abandoned; do
+        local check_path="${plans_dir}/${folder}/${basename}"
+        if [[ -f "$check_path" ]]; then
+            found_in="$folder"
+            found_path="$check_path"
+            break
+        fi
+    done
+
+    # File not found anywhere
+    if [[ -z "$found_in" ]]; then
+        log_error "Plan file not found: $WIZARD_PLAN_FILE"
+        log_error "The file may have been moved or deleted."
+        exit 1
+    fi
+
+    # File is in expected folder (handles case where WIZARD_PLAN_FILE path was wrong)
+    if [[ "$found_in" == "$expected_folder" ]]; then
+        WIZARD_PLAN_FILE="$found_path"
+        return 0
+    fi
+
+    # File was unexpectedly moved to a different folder
+    echo ""
+    log_warn "Plan was unexpectedly moved to ${found_in}/"
+    echo ""
+    echo "This happens when Claude moves the plan without going through the"
+    echo "proper approval workflow. You can undo this to continue normally."
+    echo ""
+    echo -n "Move plan back to ${expected_folder}/ and continue? [Y/n] "
+    read -r undo_response </dev/tty
+
+    if [[ ! "$undo_response" =~ ^[Nn] ]]; then
+        # User wants to undo - move it back
+        local target_path="${plans_dir}/${expected_folder}/${basename}"
+        mkdir -p "${plans_dir}/${expected_folder}"
+        mv "$found_path" "$target_path"
+        WIZARD_PLAN_FILE="$target_path"
+        log_info "Moved plan back to ${expected_folder}/"
+
+        # Update Stage field to match folder
+        local stage_value
+        case "$expected_folder" in
+            drafts) stage_value="draft" ;;
+            active) stage_value="active" ;;
+            completed) stage_value="completed" ;;
+            abandoned) stage_value="abandoned" ;;
+        esac
+        sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | ${stage_value} |/" "$target_path"
+
+        # Reset verification fields if moving back from completed
+        if [[ "$found_in" == "completed" ]]; then
+            sed -i '' "s/| Implementation Verified[[:space:]]*|[^|]*|/| Implementation Verified | no |/" "$target_path"
+            sed -i '' "s/| Implementation Verified By[[:space:]]*|[^|]*|/| Implementation Verified By | - |/" "$target_path"
+            sed -i '' "s/| Implementation Verified Date[[:space:]]*|[^|]*|/| Implementation Verified Date | - |/" "$target_path"
+            log_info "Reset verification fields for re-verification."
+        fi
+
+        return 0
+    else
+        # User accepts the unexpected move
+        WIZARD_PLAN_FILE="$found_path"
+        log_info "Accepted move to ${found_in}/"
+        return 1
+    fi
 }

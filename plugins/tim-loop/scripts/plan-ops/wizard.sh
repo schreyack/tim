@@ -206,6 +206,13 @@ wizard_step_review() {
     echo -n "Press Enter when Plan Review completes..."
     read -r </dev/tty
 
+    # Check for unexpected plan moves during review
+    if ! handle_unexpected_plan_move "drafts"; then
+        # User accepted the unexpected move - state will be refreshed by caller
+        log_info "Continuing with plan in new location."
+        return 0
+    fi
+
     echo ""
     echo "Marking Plan Review complete..."
 
@@ -269,6 +276,13 @@ wizard_step_ai_ready() {
     echo -n "Press Enter when review completes..."
     read -r </dev/tty
 
+    # Check for unexpected plan moves during ai-ready review
+    if ! handle_unexpected_plan_move "active"; then
+        # User accepted the unexpected move - state will be refreshed by caller
+        log_info "Continuing with plan in new location."
+        return 0
+    fi
+
     echo ""
     echo "Marking as AI Developer Ready..."
 
@@ -313,22 +327,11 @@ wizard_step_tim_loop() {
     read -r response </dev/tty
 
     if [[ "$response" =~ ^[Yy] ]]; then
-        # Check if plan file still exists (might have been moved during tim-loop)
-        if [[ ! -f "$WIZARD_PLAN_FILE" ]]; then
-            # Try to find the file if it was moved to completed/
-            local basename plans_dir completed_path
-            basename=$(basename "$WIZARD_PLAN_FILE")
-            plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
-            completed_path="${plans_dir}/completed/${basename}"
-            if [[ -f "$completed_path" ]]; then
-                log_info "Plan was moved to completed/ during tim-loop"
-                WIZARD_PLAN_FILE="$completed_path"
-            else
-                log_error "Plan file not found: $WIZARD_PLAN_FILE"
-                log_error "The file may have been moved or deleted during tim-loop."
-                log_info "If tim-loop completed successfully, you can mark it complete manually."
-                exit 1
-            fi
+        # Check for unexpected plan moves during tim-loop
+        if ! handle_unexpected_plan_move "active"; then
+            # User accepted the unexpected move - state will be refreshed by caller
+            log_info "Continuing with plan in new location."
+            return 0
         fi
 
         # Mark implementation as verified so state transitions to 'complete'
