@@ -71,21 +71,33 @@ From within Claude Code:
 **End state:** Same as full workflow, but faster
 **Use for:** Small, obvious tasks where review adds no value
 
+#### Full Review Mode (`--full-review`) - Recommended
+```
+/tim-loop --full-review plans/drafts/my-plan.md
+```
+**Phases:** Three-phase comprehensive review:
+1. Tech Review - technical accuracy, edge cases, testability
+2. AI-Ready Review - unambiguous instructions, hallucination prevention
+3. Goal Alignment Check - confirms plan still achieves original intent
+
+**End state:** Plan file ready for implementation (technically sound, AI-ready, goal-aligned)
+**Use for:** Complete review in a single session (replaces separate --tech-review and --ai-ready)
+
 #### Tech Review Mode (`--tech-review`)
 ```
 /tim-loop --tech-review plans/drafts/my-plan.md
 ```
 **Phases:** Technical review by a skeptical senior engineer persona
 **End state:** Plan file improved with technical accuracy, edge cases, testability
-**Use for:** First-pass review focusing on technical soundness before promotion
+**Use for:** First-pass review only (use `--full-review` for complete review)
 
 #### AI-Ready Review Mode (`--ai-ready`)
 ```
 /tim-loop --ai-ready plans/active/my-plan.md
 ```
-**Phases:** AI-readiness review by a tech lead persona
+**Phases:** AI-readiness review by a tech lead persona + goal alignment check
 **End state:** Plan file with unambiguous instructions ready for AI implementation
-**Use for:** Final review ensuring an AI developer can implement without ambiguity
+**Use for:** Final review only (use `--full-review` for complete review)
 
 #### Verify Mode (`--verify`)
 ```
@@ -100,7 +112,10 @@ From within Claude Code:
 /tim-loop --wizard plans/active/my-plan.md
 ```
 **Interactive wizard** that guides you through the FULL plan lifecycle:
-Import -> Plan Review -> Promote -> AI-Ready -> Execute -> Tim-Loop -> Complete
+Import -> Full Review (consolidated) -> Tim-Loop -> Complete
+
+The wizard now runs Full Review in a single command (tech review + AI-ready + goal alignment),
+then handles promotion and status updates automatically.
 **Use for:** When you want step-by-step guidance through all approvals and gates
 
 ### Modifier Options

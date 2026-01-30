@@ -189,7 +189,7 @@ wizard_step_import() {
 }
 
 wizard_step_review() {
-    print_step_header "review" "Plan Review (multi-phase plan)"
+    print_step_header "review" "Full Review (Tech Review + AI-Ready + Spirit Check)"
 
     # Ensure all required Status Header fields exist (including Approver)
     ensure_status_header_fields "$WIZARD_PLAN_FILE"
@@ -200,10 +200,15 @@ wizard_step_review() {
     fi
 
     echo ""
+    echo "This runs ALL review phases in a single session:"
+    echo "  • Phase 1: Tech Review (technical accuracy, edge cases, testability)"
+    echo "  • Phase 2: AI-Ready Review (unambiguous instructions, hallucination prevention)"
+    echo "  • Phase 3: Goal Alignment Check (does it still achieve the original intent?)"
+    echo ""
     echo "Run /clear first, then paste this command in Claude Code:"
-    local cmd="/tim-loop:tim-loop --tech-review $WIZARD_PLAN_FILE --max-iterations 10"
+    local cmd="/tim-loop:tim-loop --full-review $WIZARD_PLAN_FILE --max-iterations 15"
     show_command "$cmd"
-    echo -n "Press Enter when Plan Review completes..."
+    echo -n "Press Enter when Full Review completes..."
     read -r </dev/tty
 
     # Check for unexpected plan moves during review
@@ -214,11 +219,40 @@ wizard_step_review() {
     fi
 
     echo ""
-    echo "Marking Plan Review complete..."
+    echo "Full Review complete. Updating plan status..."
 
-    # cmd_review --mark-complete calls verify_interactive_terminal, which will pass
-    # since wizard runs interactively
+    # Step 1: Mark Plan Review complete
     cmd_review "$WIZARD_PLAN_FILE" --mark-complete
+
+    # Step 2: Promote to active
+    echo ""
+    echo "Promoting plan to active..."
+    cmd_promote "$WIZARD_PLAN_FILE" --approver "$WIZARD_USER_NAME"
+
+    # Update path after move (drafts -> active)
+    local basename
+    basename=$(basename "$WIZARD_PLAN_FILE")
+    local plans_dir
+    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+    local new_path="${plans_dir}/active/${basename}"
+    if [[ -f "$new_path" ]]; then
+        WIZARD_PLAN_FILE="$new_path"
+        log_info "Updated path: $WIZARD_PLAN_FILE"
+    fi
+
+    # Step 3: Mark as AI Developer Ready
+    echo ""
+    echo "Marking as AI Developer Ready..."
+    if ! update_ai_ready_status "$WIZARD_PLAN_FILE" "$WIZARD_USER_NAME"; then
+        log_error "Failed to update AI Developer Ready status"
+        return 1
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "active" "AI Developer Ready approved by ${WIZARD_USER_NAME}"; then
+        log_error "Failed to update progress log"
+        return 1
+    fi
+    log_info "AI Developer Ready approval recorded."
+    log_info "Plan is now ready for implementation!"
 }
 
 wizard_step_promote() {
@@ -231,15 +265,17 @@ wizard_step_promote() {
 
     if [[ "$phase_count" -lt 2 ]] && [[ "$plan_review" != "completed" ]]; then
         echo ""
-        echo "This is a single-phase plan. Plan Review is optional."
-        echo -n "Run Plan Review before promoting? [y/N] "
+        echo "This is a single-phase plan. Tech Review is optional."
+        echo -n "Run Full Review (Tech + AI-Ready + Spirit Check)? [y/N] "
         read -r response </dev/tty
         if [[ "$response" =~ ^[Yy] ]]; then
-            # Update status to required and run the review step
+            # Update status to required and run the review step (which handles everything)
             update_review_status "$WIZARD_PLAN_FILE" "required"
             wizard_step_review
             return
         fi
+        # If N, fall through to promote only - AI-ready step will still run separately
+        log_info "Skipping Tech Review. AI-Ready review will still be required."
     fi
 
     echo ""
@@ -258,6 +294,7 @@ wizard_step_promote() {
         WIZARD_PLAN_FILE="$new_path"
         log_info "Updated path: $WIZARD_PLAN_FILE"
     fi
+    # State machine will transition to ai-ready step next
 }
 
 wizard_step_ai_ready() {
