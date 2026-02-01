@@ -81,9 +81,10 @@ suggest_clean_name() {
 }
 
 cmd_package() {
-    local package_name="${1:-}"
+    local first_arg="${1:-}"
     local master_file=""
     local include_pattern=""
+    local package_name=""
 
     # Parse arguments
     shift || true
@@ -95,6 +96,10 @@ cmd_package() {
                 ;;
             --include)
                 include_pattern="$2"
+                shift 2
+                ;;
+            --name)
+                package_name="$2"
                 shift 2
                 ;;
             *)
@@ -112,32 +117,69 @@ cmd_package() {
         exit 1
     fi
 
-    # Interactive mode if no package name specified
-    if [[ -z "$package_name" ]]; then
+    # Interactive mode if no arguments specified
+    if [[ -z "$first_arg" ]]; then
         package_interactive
         return
     fi
 
-    # Non-interactive mode with explicit arguments
+    # Smart mode: if first arg looks like a file, use it as master
     if [[ -z "$master_file" ]]; then
-        log_error "Usage: $SCRIPT_PATH package <name> --master <file> --include <pattern>"
-        exit 1
+        # Check if first_arg is a file (ends with .md or can be resolved)
+        if [[ "$first_arg" == *.md ]] || [[ -f "$first_arg" ]]; then
+            # Resolve the file path
+            if [[ -f "$first_arg" ]]; then
+                master_file="$first_arg"
+            else
+                master_file=$(resolve_plan_path "$first_arg" 2>/dev/null) || {
+                    log_error "Could not find plan file: $first_arg"
+                    exit 1
+                }
+            fi
+            master_file=$(to_absolute "$master_file")
+
+            # Derive package name from filename if not specified
+            if [[ -z "$package_name" ]]; then
+                package_name=$(suggest_clean_name "$(basename "$master_file")")
+            fi
+
+            # Auto-find related files by date prefix
+            local date_prefix
+            date_prefix=$(basename "$master_file" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || echo "")
+            if [[ -n "$date_prefix" && -z "$include_pattern" ]]; then
+                include_pattern="${date_prefix}-*.md"
+            fi
+        else
+            # First arg is a package name, require --master
+            package_name="$first_arg"
+            if [[ -z "$master_file" ]]; then
+                log_error "Usage: $SCRIPT_PATH package <file.md> [--name <name>] [--include <pattern>]"
+                log_error "   or: $SCRIPT_PATH package <name> --master <file> [--include <pattern>]"
+                log_error "   or: $SCRIPT_PATH package  (interactive mode)"
+                exit 1
+            fi
+        fi
+    else
+        # --master was specified, first_arg is the package name
+        package_name="$first_arg"
     fi
 
-    # Resolve master file
+    # Resolve master file if not already done
     if [[ ! -f "$master_file" ]]; then
         master_file=$(resolve_plan_path "$master_file") || exit 1
+        master_file=$(to_absolute "$master_file")
     fi
-    master_file=$(to_absolute "$master_file")
 
     # Find files to include
     local files_to_include=()
     files_to_include+=("$master_file")
 
     if [[ -n "$include_pattern" ]]; then
+        local search_dir
+        search_dir=$(dirname "$master_file")
         while IFS= read -r file; do
             [[ -f "$file" && "$file" != "$master_file" ]] && files_to_include+=("$file")
-        done < <(find "$stage_dir" -maxdepth 1 -name "$include_pattern" -type f 2>/dev/null)
+        done < <(find "$search_dir" -maxdepth 1 -name "$include_pattern" -type f 2>/dev/null)
     fi
 
     create_package "$package_name" "$master_file" "${files_to_include[@]}"
