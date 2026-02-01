@@ -14,48 +14,6 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     exit 1
 fi
 
-# =============================================================================
-# PACKAGE COMMAND
-# =============================================================================
-
-# Extract keywords from a plan filename for grouping
-# Usage: keywords=$(extract_keywords "2026-02-01-feature-auth.md")
-extract_keywords() {
-    local filename="$1"
-    # Remove date prefix and extension, split on dashes
-    echo "$filename" | sed 's/^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}-//; s/\.md$//' | tr '-' '\n' | sort -u
-}
-
-# Find related plans based on date and keywords
-# Usage: related=$(find_related_plans "2026-02-01" "feature auth login")
-find_related_plans() {
-    local date_prefix="$1"
-    local keywords="$2"
-    local stage_dir="${PLANS_DIR}/drafts"
-    local results=()
-
-    [[ ! -d "$stage_dir" ]] && return
-
-    while IFS= read -r -d '' file; do
-        local basename
-        basename=$(basename "$file")
-        # Check date prefix match
-        if [[ "$basename" == "${date_prefix}-"* ]]; then
-            # Check keyword overlap
-            local file_keywords
-            file_keywords=$(extract_keywords "$basename")
-            for kw in $keywords; do
-                if echo "$file_keywords" | grep -qiw "$kw"; then
-                    results+=("$file")
-                    break
-                fi
-            done
-        fi
-    done < <(find "$stage_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
-
-    printf '%s\n' "${results[@]}" | sort -u
-}
-
 # Suggest a clean name for a plan file (strips auto-generated suffixes)
 # Usage: clean_name=$(suggest_clean_name "2026-02-01-review-plansdrafts2026...md")
 suggest_clean_name() {
@@ -185,23 +143,166 @@ cmd_package() {
     create_package "$package_name" "$master_file" "${files_to_include[@]}"
 }
 
+# Check subfolders for potential packages
+# Usage: check_subfolder_packages "/path/to/drafts"
+check_subfolder_packages() {
+    local stage_dir="$1"
+    local found_any=false
+
+    while IFS= read -r -d '' subdir; do
+        local dirname
+        dirname=$(basename "$subdir")
+        [[ "$dirname" == .* ]] && continue
+
+        local md_files=()
+        while IFS= read -r -d '' file; do
+            md_files+=("$file")
+        done < <(find "$subdir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+
+        [[ ${#md_files[@]} -eq 0 ]] && continue
+        [[ -f "${subdir}/MASTER.md" ]] && continue
+
+        found_any=true
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${GREEN}Found plans in subfolder:${NC} ${dirname}/"
+        echo ""
+        show_file_list md_files
+
+        echo ""
+        echo -n "Convert this folder to a package? [y/N] "
+        read -r response </dev/tty
+
+        if [[ "$response" =~ ^[Yy] ]]; then
+            local master_file pkg_name
+            master_file=$(prompt_for_master md_files) || continue
+            echo ""
+            echo -n "Package name [${dirname}]: "
+            read -r pkg_name </dev/tty
+            [[ -z "$pkg_name" ]] && pkg_name="$dirname"
+            create_package_in_place "$pkg_name" "$subdir" "$master_file" "${md_files[@]}"
+            echo ""
+        fi
+    done < <(find "$stage_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+
+    [[ "$found_any" == true ]] && echo ""
+}
+
+# Display numbered list of files with sizes
+show_file_list() {
+    local -n arr=$1
+    local i=1
+    for file in "${arr[@]}"; do
+        local basename size_kb
+        basename=$(basename "$file")
+        size_kb=$(( $(wc -c < "$file") / 1024 ))
+        printf "  [%d] %s (%dKB)\n" "$i" "$basename" "$size_kb"
+        ((i++))
+    done
+}
+
+# Prompt user to select MASTER file, returns path or exits with error
+prompt_for_master() {
+    local -n arr=$1
+    local count=${#arr[@]}
+    echo ""
+    echo -n "Which file is the MASTER (implementation plan)? [1-${count}]: "
+    read -r choice </dev/tty
+    if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt "$count" ]]; then
+        log_warn "Invalid choice, skipping"
+        return 1
+    fi
+    echo "${arr[$((choice-1))]}"
+}
+
+# Create a package in place (for existing subfolders)
+# Usage: create_package_in_place "package-name" "/path/to/folder" "master-file" "file1" "file2" ...
+create_package_in_place() {
+    local pkg_name="$1"
+    local folder_path="$2"
+    local master_file="$3"
+    shift 3
+    local files=("$@")
+
+    local parent_dir
+    parent_dir=$(dirname "$folder_path")
+    local pkg_dir="${parent_dir}/${pkg_name}"
+
+    # If folder name differs from package name, rename the folder
+    if [[ "$folder_path" != "$pkg_dir" ]]; then
+        if [[ -d "$pkg_dir" ]]; then
+            log_error "Package directory already exists: $pkg_dir"
+            return 1
+        fi
+        mv "$folder_path" "$pkg_dir"
+        log_info "Renamed folder: $(basename "$folder_path") → ${pkg_name}"
+        # Update file paths after rename
+        master_file="${pkg_dir}/$(basename "$master_file")"
+        local new_files=()
+        for file in "${files[@]}"; do
+            new_files+=("${pkg_dir}/$(basename "$file")")
+        done
+        files=("${new_files[@]}")
+    fi
+
+    # Use shared helper for file operations
+    finalize_package_files "$pkg_dir" "$master_file" "${files[@]}"
+}
+
+# Shared helper: finalize package files (rename master, clean names)
+finalize_package_files() {
+    local pkg_dir="$1"
+    local master_file="$2"
+    shift 2
+    local files=("$@")
+
+    # Rename master file to MASTER.md
+    if [[ "$(basename "$master_file")" != "MASTER.md" ]]; then
+        mv "$master_file" "${pkg_dir}/MASTER.md"
+        log_info "  MASTER.md ← $(basename "$master_file")"
+    fi
+
+    # Rename other files with cleaner names
+    for file in "${files[@]}"; do
+        [[ "$file" == "$master_file" || ! -f "$file" ]] && continue
+        [[ "$(basename "$file")" == "MASTER.md" ]] && continue
+        local basename new_name
+        basename=$(basename "$file")
+        new_name=$(suggest_clean_name "$basename")
+        [[ "${new_name}.md" == "$basename" ]] && continue
+        local dest="${pkg_dir}/${new_name}.md"
+        local counter=1
+        while [[ -f "$dest" ]]; do
+            dest="${pkg_dir}/${new_name}-${counter}.md"
+            ((counter++))
+        done
+        mv "$file" "$dest"
+        log_info "  $(basename "$dest") ← ${basename}"
+    done
+
+    echo ""
+    log_info "Package created successfully!"
+    log_info "NEXT STEP: Run the wizard on the package:"
+    show_command "$SCRIPT_PATH wizard ${pkg_dir}"
+}
+
 # Interactive package creation
 package_interactive() {
     local stage_dir="${PLANS_DIR}/drafts"
+    check_subfolder_packages "$stage_dir"
 
-    # Find all draft plans
     local all_plans=()
     while IFS= read -r -d '' file; do
         all_plans+=("$file")
     done < <(find "$stage_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null | sort -z)
 
     if [[ ${#all_plans[@]} -eq 0 ]]; then
-        log_info "No plans found in drafts/"
+        log_info "No loose plans found in drafts/"
         return
     fi
 
     echo ""
-    echo "Found ${#all_plans[@]} plans in drafts/. Let's organize them."
+    echo "Found ${#all_plans[@]} loose plans in drafts/. Let's organize them."
     echo ""
 
     # Group plans by date prefix
@@ -213,72 +314,55 @@ package_interactive() {
         date_groups["$date_prefix"]+="$file"$'\n'
     done
 
-    # Find potential packages (groups with 2+ files on same date)
     local found_groups=false
     for date in $(echo "${!date_groups[@]}" | tr ' ' '\n' | sort -r); do
-        local files_in_group
+        local files_in_group options=()
         files_in_group=$(echo -n "${date_groups[$date]}" | grep -c .)
+        [[ "$files_in_group" -lt 2 ]] && continue
 
-        if [[ "$files_in_group" -ge 2 ]]; then
-            found_groups=true
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo -e "${GREEN}Possible package:${NC} ${date} (${files_in_group} files)"
-            echo ""
+        found_groups=true
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${GREEN}Possible package:${NC} ${date} (${files_in_group} files)"
+        echo ""
 
-            local i=1
-            local options=()
-            while IFS= read -r file; do
-                [[ -z "$file" ]] && continue
-                local basename size_kb
-                basename=$(basename "$file")
-                size_kb=$(( $(wc -c < "$file") / 1024 ))
-                local clean_name
-                clean_name=$(suggest_clean_name "$basename")
-                printf "  [%d] %s (%dKB)\n" "$i" "$basename" "$size_kb"
-                if [[ "$clean_name" != "${basename%.md}" ]]; then
-                    echo "      → suggested: ${clean_name}.md"
-                fi
-                options+=("$file")
-                ((i++))
-            done <<< "${date_groups[$date]}"
+        while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            options+=("$file")
+        done <<< "${date_groups[$date]}"
+        show_file_list_with_suggestions options
 
-            echo ""
-            echo -n "Create package from these files? [y/N] "
-            read -r response </dev/tty
+        echo ""
+        echo -n "Create package from these files? [y/N] "
+        read -r response </dev/tty
+        [[ ! "$response" =~ ^[Yy] ]] && continue
 
-            if [[ "$response" =~ ^[Yy] ]]; then
-                # Ask which file is MASTER
-                echo ""
-                echo -n "Which file is the MASTER (implementation plan)? [1-$((i-1))]: "
-                read -r master_choice </dev/tty
-
-                if [[ ! "$master_choice" =~ ^[0-9]+$ ]] || \
-                   [[ "$master_choice" -lt 1 ]] || \
-                   [[ "$master_choice" -gt $((i-1)) ]]; then
-                    log_warn "Invalid choice, skipping this group"
-                    continue
-                fi
-
-                local master_file="${options[$((master_choice-1))]}"
-
-                # Suggest package name
-                local suggested_name
-                suggested_name=$(suggest_clean_name "$(basename "$master_file")")
-                echo ""
-                echo -n "Package name [${suggested_name}]: "
-                read -r pkg_name </dev/tty
-                [[ -z "$pkg_name" ]] && pkg_name="$suggested_name"
-
-                # Create the package
-                create_package "$pkg_name" "$master_file" "${options[@]}"
-                echo ""
-            fi
-        fi
+        local master_file pkg_name suggested_name
+        master_file=$(prompt_for_master options) || continue
+        suggested_name=$(suggest_clean_name "$(basename "$master_file")")
+        echo ""
+        echo -n "Package name [${suggested_name}]: "
+        read -r pkg_name </dev/tty
+        [[ -z "$pkg_name" ]] && pkg_name="$suggested_name"
+        create_package "$pkg_name" "$master_file" "${options[@]}"
+        echo ""
     done
 
-    if [[ "$found_groups" == false ]]; then
-        log_info "No groups of related plans found (need 2+ plans with same date)"
-    fi
+    [[ "$found_groups" == false ]] && log_info "No groups of related plans found (need 2+ plans with same date)"
+}
+
+# Display numbered list of files with sizes and suggested clean names
+show_file_list_with_suggestions() {
+    local -n arr=$1
+    local i=1
+    for file in "${arr[@]}"; do
+        local basename size_kb clean_name
+        basename=$(basename "$file")
+        size_kb=$(( $(wc -c < "$file") / 1024 ))
+        clean_name=$(suggest_clean_name "$basename")
+        printf "  [%d] %s (%dKB)\n" "$i" "$basename" "$size_kb"
+        [[ "$clean_name" != "${basename%.md}" ]] && echo "      → suggested: ${clean_name}.md"
+        ((i++))
+    done
 }
 
 # Create a package folder and move files into it
@@ -293,43 +377,22 @@ create_package() {
     stage_dir=$(dirname "$master_file")
     local pkg_dir="${stage_dir}/${pkg_name}"
 
-    # Check if package already exists
     if [[ -d "$pkg_dir" ]]; then
         log_error "Package already exists: $pkg_dir"
         return 1
     fi
 
-    # Create package directory
     mkdir -p "$pkg_dir"
     log_info "Created package: $pkg_dir"
 
-    # Move master file as MASTER.md
-    mv "$master_file" "${pkg_dir}/MASTER.md"
-    log_info "  MASTER.md ← $(basename "$master_file")"
-
-    # Move other files with suggested clean names
+    # Move files to package directory, then finalize
+    local moved_files=("${pkg_dir}/$(basename "$master_file")")
+    mv "$master_file" "${moved_files[0]}"
     for file in "${files[@]}"; do
-        [[ "$file" == "$master_file" ]] && continue
-        [[ ! -f "$file" ]] && continue
-
-        local basename new_name
-        basename=$(basename "$file")
-        new_name=$(suggest_clean_name "$basename")
-
-        # Avoid naming conflicts
-        local dest="${pkg_dir}/${new_name}.md"
-        local counter=1
-        while [[ -f "$dest" ]]; do
-            dest="${pkg_dir}/${new_name}-${counter}.md"
-            ((counter++))
-        done
-
+        [[ "$file" == "$master_file" || ! -f "$file" ]] && continue
+        local dest="${pkg_dir}/$(basename "$file")"
         mv "$file" "$dest"
-        log_info "  $(basename "$dest") ← ${basename}"
+        moved_files+=("$dest")
     done
-
-    echo ""
-    log_info "Package created successfully!"
-    log_info "NEXT STEP: Run the wizard on the package:"
-    show_command "$SCRIPT_PATH wizard ${pkg_dir}"
+    finalize_package_files "$pkg_dir" "${moved_files[0]}" "${moved_files[@]}"
 }
