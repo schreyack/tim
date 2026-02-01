@@ -203,7 +203,7 @@ show_file_list() {
 prompt_for_master() {
     local -n arr=$1
     local count=${#arr[@]}
-    printf "\nWhich file is the MASTER (implementation plan)? [1-%d]: " "$count"
+    printf "\nWhich file is the MASTER (implementation plan)? [1-%d]: " "$count" >/dev/tty
     read -r choice </dev/tty
     if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt "$count" ]]; then
         log_warn "Invalid choice, skipping"
