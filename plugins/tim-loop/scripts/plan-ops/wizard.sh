@@ -18,6 +18,35 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 
 # =============================================================================
+# WIZARD HELPERS
+# =============================================================================
+
+# Update wizard path variables after a stage move
+# Usage: wizard_update_paths_after_move "active"
+wizard_update_paths_after_move() {
+    local new_stage="$1"
+    local plans_dir
+    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+
+    if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+        local pkg_name="${WIZARD_PACKAGE_DIR##*/}"
+        local new_pkg_dir="${plans_dir}/${new_stage}/${pkg_name}"
+        if [[ -d "$new_pkg_dir" ]]; then
+            WIZARD_PACKAGE_DIR="$new_pkg_dir"
+            WIZARD_PLAN_FILE="${new_pkg_dir}/MASTER.md"
+            log_info "Updated package path: $WIZARD_PACKAGE_DIR"
+        fi
+    else
+        local basename="${WIZARD_PLAN_FILE##*/}"
+        local new_path="${plans_dir}/${new_stage}/${basename}"
+        if [[ -f "$new_path" ]]; then
+            WIZARD_PLAN_FILE="$new_path"
+            log_info "Updated path: $WIZARD_PLAN_FILE"
+        fi
+    fi
+}
+
+# =============================================================================
 # WIZARD COMMAND AND STEP FUNCTIONS
 # =============================================================================
 
@@ -40,11 +69,25 @@ cmd_wizard() {
         log_info "Examples:"
         log_info "  $SCRIPT_PATH wizard new-ui-front-page"
         log_info "  $SCRIPT_PATH wizard ~/.claude/plans/my-plan.md"
+        log_info "  $SCRIPT_PATH wizard plans/drafts/2026-02-01-my-package/  # Package folder"
         exit 1
+    fi
+
+    # Handle package directories - if user passes a folder with MASTER.md, use that
+    if [[ -d "$plan_file" && -f "${plan_file}/MASTER.md" ]]; then
+        plan_file="${plan_file}/MASTER.md"
     fi
 
     # Resolve plan name or path to absolute path
     WIZARD_PLAN_FILE=$(resolve_plan_path "$plan_file") || exit 1
+
+    # Track if we're working with a package
+    WIZARD_IS_PACKAGE=false
+    WIZARD_PACKAGE_DIR=""
+    if is_master_plan "$WIZARD_PLAN_FILE"; then
+        WIZARD_IS_PACKAGE=true
+        WIZARD_PACKAGE_DIR=$(dirname "$WIZARD_PLAN_FILE")
+    fi
 
     # Get current state
     local state
@@ -62,7 +105,15 @@ cmd_wizard() {
     # Header
     echo ""
     echo "=== Plan Wizard ==="
-    echo "Plan: $WIZARD_PLAN_FILE"
+    if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+        local pkg_name file_count
+        pkg_name=$(basename "$WIZARD_PACKAGE_DIR")
+        file_count=$(find "$WIZARD_PACKAGE_DIR" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+        echo -e "Package: ${GREEN}${pkg_name}/${NC} (${file_count} files)"
+        echo "Master:  $WIZARD_PLAN_FILE"
+    else
+        echo "Plan: $WIZARD_PLAN_FILE"
+    fi
 
     # Ask for user name once, reuse across all steps
     WIZARD_USER_NAME=$(prompt_for_name "Enter your name")
@@ -227,19 +278,13 @@ wizard_step_review() {
 
     # Step 2: Promote to active
     echo ""
-    echo "Promoting plan to active..."
-    cmd_promote "$WIZARD_PLAN_FILE" --approver "$WIZARD_USER_NAME"
-
-    # Update path after move (drafts -> active)
-    local basename
-    basename=$(basename "$WIZARD_PLAN_FILE")
-    local plans_dir
-    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
-    local new_path="${plans_dir}/active/${basename}"
-    if [[ -f "$new_path" ]]; then
-        WIZARD_PLAN_FILE="$new_path"
-        log_info "Updated path: $WIZARD_PLAN_FILE"
+    if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+        echo "Promoting package to active..."
+    else
+        echo "Promoting plan to active..."
     fi
+    cmd_promote "$WIZARD_PLAN_FILE" --approver "$WIZARD_USER_NAME"
+    wizard_update_paths_after_move "active"
 
     # Step 3: Mark as AI Developer Ready
     echo ""
@@ -324,21 +369,15 @@ wizard_step_promote() {
     fi
 
     echo ""
-    echo "Promoting plan..."
+    if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+        echo "Promoting package..."
+    else
+        echo "Promoting plan..."
+    fi
 
     # cmd_promote calls verify_interactive_terminal, which will pass since wizard runs interactively
     cmd_promote "$WIZARD_PLAN_FILE" --approver "$WIZARD_USER_NAME"
-
-    # Update path after move (drafts -> active)
-    local basename
-    basename=$(basename "$WIZARD_PLAN_FILE")
-    local plans_dir
-    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
-    local new_path="${plans_dir}/active/${basename}"
-    if [[ -f "$new_path" ]]; then
-        WIZARD_PLAN_FILE="$new_path"
-        log_info "Updated path: $WIZARD_PLAN_FILE"
-    fi
+    wizard_update_paths_after_move "active"
     # State machine will transition to ai-ready step next
 }
 
@@ -437,7 +476,11 @@ wizard_step_tim_loop() {
 }
 
 wizard_step_complete() {
-    print_step_header "complete" "Mark plan complete"
+    if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+        print_step_header "complete" "Mark package complete"
+    else
+        print_step_header "complete" "Mark plan complete"
+    fi
 
     # Optional verification tim-loop step
     if ! run_verification_tim_loop "$WIZARD_PLAN_FILE" "Run verification tim-loop before marking complete? [y/N] "; then
@@ -445,18 +488,13 @@ wizard_step_complete() {
     fi
 
     echo ""
-    echo "Marking plan complete..."
-
-    # cmd_complete moves the file and updates status
-    cmd_complete "$WIZARD_PLAN_FILE"
-
-    # Update path after move (active -> completed)
-    local basename
-    basename=$(basename "$WIZARD_PLAN_FILE")
-    local plans_dir
-    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
-    local new_path="${plans_dir}/completed/${basename}"
-    if [[ -f "$new_path" ]]; then
-        WIZARD_PLAN_FILE="$new_path"
+    if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+        echo "Marking package complete..."
+    else
+        echo "Marking plan complete..."
     fi
+
+    # cmd_complete moves the file/package and updates status
+    cmd_complete "$WIZARD_PLAN_FILE"
+    wizard_update_paths_after_move "completed"
 }

@@ -18,38 +18,81 @@ fi
 # LIST COMMAND
 # =============================================================================
 
+# List plans in a stage directory, showing packages and standalone plans separately
+# Usage: list_stage_contents "drafts"
+list_stage_contents() {
+    local stage="$1"
+    local stage_dir="${PLANS_DIR}/${stage}"
+    local has_packages=false
+    local has_standalone=false
+
+    if [[ ! -d "$stage_dir" ]]; then
+        echo "  (folder not found)"
+        return
+    fi
+
+    # Collect packages (directories with MASTER.md)
+    local packages=()
+    while IFS= read -r -d '' dir; do
+        if [[ -f "${dir}/MASTER.md" ]]; then
+            packages+=("$dir")
+            has_packages=true
+        fi
+    done < <(find "$stage_dir" -maxdepth 1 -type d ! -name "$(basename "$stage_dir")" -print0 2>/dev/null | sort -z)
+
+    # Collect standalone files (not in packages)
+    local standalone=()
+    while IFS= read -r -d '' file; do
+        local dir
+        dir=$(dirname "$file")
+        # Only include if it's directly in stage_dir (not in a subfolder)
+        if [[ "$dir" == "$stage_dir" ]]; then
+            standalone+=("$file")
+            has_standalone=true
+        fi
+    done < <(find "$stage_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null | sort -z)
+
+    # Display packages
+    if [[ "$has_packages" == true ]]; then
+        echo "  PACKAGES:"
+        for pkg in "${packages[@]}"; do
+            local pkg_name file_count
+            pkg_name=$(basename "$pkg")
+            file_count=$(find "$pkg" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+            echo "    [P] ${pkg_name}/ (${file_count} files)"
+        done
+        echo ""
+    fi
+
+    # Display standalone plans
+    if [[ "$has_standalone" == true ]]; then
+        if [[ "$has_packages" == true ]]; then
+            echo "  STANDALONE:"
+        fi
+        for file in "${standalone[@]}"; do
+            echo "    $(basename "$file")"
+        done
+    fi
+
+    # Nothing found
+    if [[ "$has_packages" == false && "$has_standalone" == false ]]; then
+        echo "  (none)"
+    fi
+}
+
 cmd_list() {
     local stage="${1:-all}"
 
     if [[ "$stage" == "all" ]]; then
         for s in drafts active completed abandoned; do
             echo "=== ${s} ==="
-            if [[ -d "${PLANS_DIR}/$s" ]]; then
-                local files
-                files=$(find "${PLANS_DIR}/$s" -name "*.md" -type f 2>/dev/null | sort)
-                if [[ -n "$files" ]]; then
-                    echo "$files" | while read -r f; do
-                        echo "  $(basename "$f")"
-                    done
-                else
-                    echo "  (none)"
-                fi
-            else
-                echo "  (folder not found)"
-            fi
+            list_stage_contents "$s"
             echo ""
         done
     else
         if [[ -d "${PLANS_DIR}/$stage" ]]; then
-            local files
-            files=$(find "${PLANS_DIR}/$stage" -name "*.md" -type f 2>/dev/null | sort)
-            if [[ -n "$files" ]]; then
-                echo "$files" | while read -r f; do
-                    echo "$(basename "$f")"
-                done
-            else
-                echo "(none)"
-            fi
+            echo "=== ${stage} ==="
+            list_stage_contents "$stage"
         else
             log_error "Folder not found: ${PLANS_DIR}/$stage"
             exit 1
@@ -120,6 +163,13 @@ COMMANDS:
 
     list [drafts|active|completed|abandoned|all]
         List plans by stage (default: all)
+        Shows packages marked with [P] and file counts
+
+    package [<name>] [--master <file>] [--include <pattern>]
+        Create a package from related plan files
+        - Interactive mode (no args): guides you through grouping plans by date
+        - Explicit mode: specify package name, master file, and include pattern
+        Use when you have multiple related plans from iterative development
 
     wizard <plan-file> [--status]
         Interactive wizard to guide through plan lifecycle
@@ -218,6 +268,13 @@ EXAMPLES:
     $SCRIPT_PATH list active
     $SCRIPT_PATH wizard ~/.claude/plans/new-plan.md
     $SCRIPT_PATH wizard plans/active/my-plan.md --status
+
+PACKAGE EXAMPLES:
+    $SCRIPT_PATH package                                    # Interactive mode
+    $SCRIPT_PATH package 2026-02-01-feature-auth \\
+        --master plans/drafts/pm-review.md \\
+        --include "plans/drafts/2026-02-01-*auth*"          # Explicit mode
+    $SCRIPT_PATH wizard plans/drafts/2026-02-01-my-package/ # Wizard with package
 
 ENVIRONMENT:
     PLANS_DIR   Override default plans directory (default: plans)

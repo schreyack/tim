@@ -20,13 +20,15 @@ fi
 
 # Find plan files matching a name pattern
 # Searches: current project's plans/ (top-level and subfolders), ~/.claude/plans/
+# Also searches for package folders (directories with MASTER.md)
 # Returns: newline-separated list of matching absolute paths
+#          For packages, returns path to MASTER.md
 find_plans_by_name() {
     local pattern="$1"
     local results=()
 
-    # Add .md extension if not present
-    [[ "$pattern" != *.md ]] && pattern="${pattern}.md"
+    # Remove .md extension if present for broader matching
+    local base_pattern="${pattern%.md}"
 
     # Search in current project's plans directory (top-level and all stages)
     if [[ -d "$PLANS_DIR" ]]; then
@@ -36,14 +38,22 @@ find_plans_by_name() {
         # Search top-level plans/ directory first
         while IFS= read -r -d '' file; do
             results+=("$file")
-        done < <(find "${abs_plans_dir}" -maxdepth 1 -name "*${pattern}" -type f -print0 2>/dev/null)
+        done < <(find "${abs_plans_dir}" -maxdepth 1 -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
 
-        # Search stage subfolders
+        # Search stage subfolders for both files and packages
         for stage in drafts active completed abandoned; do
             if [[ -d "${abs_plans_dir}/${stage}" ]]; then
+                # Search for standalone plan files
                 while IFS= read -r -d '' file; do
                     results+=("$file")
-                done < <(find "${abs_plans_dir}/${stage}" -maxdepth 1 -name "*${pattern}" -type f -print0 2>/dev/null)
+                done < <(find "${abs_plans_dir}/${stage}" -maxdepth 1 -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
+
+                # Search for package folders (directories matching pattern with MASTER.md)
+                while IFS= read -r -d '' dir; do
+                    if [[ -f "${dir}/MASTER.md" ]]; then
+                        results+=("${dir}/MASTER.md")
+                    fi
+                done < <(find "${abs_plans_dir}/${stage}" -maxdepth 1 -name "*${base_pattern}*" -type d -print0 2>/dev/null)
             fi
         done
     fi
@@ -52,14 +62,15 @@ find_plans_by_name() {
     if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
         while IFS= read -r -d '' file; do
             results+=("$file")
-        done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*${pattern}" -type f -print0 2>/dev/null)
+        done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
     fi
 
-    # Output results
-    printf '%s\n' "${results[@]}"
+    # Output results (deduplicate in case of overlapping matches)
+    printf '%s\n' "${results[@]}" | sort -u
 }
 
 # Try to relocate a plan file that might have been moved
+# Supports both standalone plans and packages (folders with MASTER.md)
 # Returns: new path if found, empty string if not found
 # Unlike resolve_plan_path, this doesn't prompt for interactive selection
 try_relocate_plan() {
@@ -71,9 +82,25 @@ try_relocate_plan() {
         return 0
     fi
 
-    # Extract basename and try common locations
-    local basename
+    # If it's a package directory and exists, return MASTER.md
+    if [[ -d "$original_path" && -f "${original_path}/MASTER.md" ]]; then
+        echo "${original_path}/MASTER.md"
+        return 0
+    fi
+
+    # Extract basename - handle both files and package MASTER.md paths
+    local basename item_name
     basename=$(basename "$original_path")
+
+    # Check if this was a MASTER.md inside a package folder
+    local parent_dir
+    parent_dir=$(dirname "$original_path")
+    if [[ "$basename" == "MASTER.md" ]]; then
+        # This was a package - look for the package folder
+        item_name=$(basename "$parent_dir")
+    else
+        item_name="$basename"
+    fi
 
     # Determine plans directory from original path
     local plans_dir=""
@@ -89,9 +116,18 @@ try_relocate_plan() {
 
     # Search order: completed, active, drafts, abandoned (most likely moves)
     for stage in completed active drafts abandoned; do
-        local candidate="${plans_dir}/${stage}/${basename}"
+        # Check for standalone file
+        local candidate="${plans_dir}/${stage}/${item_name}"
         if [[ -f "$candidate" ]]; then
             echo "$candidate"
+            return 0
+        fi
+
+        # Check for package folder (remove .md if present for folder search)
+        local folder_name="${item_name%.md}"
+        local pkg_candidate="${plans_dir}/${stage}/${folder_name}"
+        if [[ -d "$pkg_candidate" && -f "${pkg_candidate}/MASTER.md" ]]; then
+            echo "${pkg_candidate}/MASTER.md"
             return 0
         fi
     done
@@ -104,6 +140,7 @@ try_relocate_plan() {
 # If it's a path and exists, use it directly
 # If it's a path but doesn't exist, extract filename and search
 # If it's just a name, search for it and handle duplicates
+# Supports both standalone plans and packages (directories with MASTER.md)
 resolve_plan_path() {
     local arg="$1"
     local search_name=""
@@ -119,7 +156,13 @@ resolve_plan_path() {
             return 0
         fi
 
-        # File doesn't exist at given path - extract filename and search
+        # If it's a package directory, return MASTER.md
+        if [[ -d "$abs_path" && -f "${abs_path}/MASTER.md" ]]; then
+            echo "${abs_path}/MASTER.md"
+            return 0
+        fi
+
+        # File/folder doesn't exist at given path - extract name and search
         search_name=$(basename "$arg" .md)
         log_warn "File not found at: $arg"
         log_info "Searching for plan by name: $search_name"
@@ -154,6 +197,12 @@ resolve_plan_path() {
     while IFS= read -r match; do
         # Show relative path from home or absolute
         local display_path="${match/#$HOME/~}"
+        # Indicate if this is a package MASTER.md
+        if [[ "$match" == */MASTER.md ]]; then
+            local pkg_dir
+            pkg_dir=$(dirname "$match")
+            display_path="${pkg_dir/#$HOME/~} [PACKAGE]"
+        fi
         echo "  [$i] $display_path"
         options+=("$match")
         ((i++))

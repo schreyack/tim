@@ -84,7 +84,22 @@ See [Plan Review Gate](#plan-review-gate-for-multi-phase-plans) section below.
 
 ---
 
-## Plan File Format
+## Plan Formats
+
+TIM supports two plan formats:
+1. **Standalone plans** - Single `.md` files for simple plans
+2. **Package plans** - Folders containing related plans with a MASTER.md
+
+### When to Use Each Format
+
+| Format | Use When |
+|--------|----------|
+| **Standalone** | Simple plans, single iteration, clear scope |
+| **Package** | Multiple related plans, research iterations, PM reviews |
+
+---
+
+## Standalone Plan Format
 
 ### Naming Convention
 
@@ -95,6 +110,76 @@ Examples:
 - `2025-01-16-standards-plan-lifecycle.md`
 
 The date is when the plan was created. The project prefix helps when viewing plans across multiple repos.
+
+---
+
+## Package Plan Format
+
+Packages group related plans that were created during iterative development. When a plan involves multiple research iterations, PM reviews, or evolved through multiple sessions, package them together.
+
+### Package Structure
+
+```
+plans/drafts/
+├── 2026-02-01-feature-auth/              # Package folder
+│   ├── MASTER.md                          # THE implementation plan
+│   ├── original-plan.md                   # Initial plan (optional)
+│   ├── research-iteration-1.md            # Research findings
+│   ├── research-iteration-2.md            # More research
+│   └── pm-review-notes.md                 # PM review artifacts
+└── 2026-02-01-simple-bugfix.md           # Standalone plan
+```
+
+### Package Rules
+
+1. **MASTER.md** is ALWAYS the implementation plan - this is what wizard/tim-loop uses
+2. **Package folders** move as a unit through lifecycle stages
+3. **Folder name** follows the same convention as standalone: `YYYY-MM-DD-<topic>`
+4. **Supporting files** get descriptive names (not auto-generated Claude plan names)
+
+### Creating Packages
+
+Use `plan-ops package` to organize existing related plans:
+
+```bash
+# Interactive mode - prompts for grouping
+plan-ops package
+
+# Explicit mode - specify what to package
+plan-ops package 2026-02-01-feature-auth \
+    --master plans/drafts/2026-02-01-pm-review-plan.md \
+    --include "plans/drafts/2026-02-01-*auth*"
+```
+
+### Package Lifecycle
+
+Packages move through lifecycle stages exactly like standalone plans:
+
+```
+plans/drafts/2026-02-01-my-feature/      → promote →
+plans/active/2026-02-01-my-feature/      → complete →
+plans/completed/2026-02-01-my-feature/
+```
+
+The entire folder moves, preserving all supporting files.
+
+### Working with Packages
+
+```bash
+# Wizard automatically detects packages
+plan-ops wizard plans/drafts/2026-02-01-my-feature/
+
+# Or specify the MASTER.md directly
+plan-ops wizard plans/drafts/2026-02-01-my-feature/MASTER.md
+
+# List shows packages with [P] marker
+plan-ops list drafts
+# Output:
+#   PACKAGES:
+#     [P] 2026-02-01-my-feature/ (4 files)
+#   STANDALONE:
+#     2026-02-01-simple-fix.md
+```
 
 ### Required Status Header
 

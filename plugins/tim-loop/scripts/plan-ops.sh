@@ -23,6 +23,7 @@ set -euo pipefail
 #   abandon           Move plan to abandoned
 #   cleanup-drafts    Remove stale drafts
 #   list              List plans by stage
+#   package           Create a package from related plan files
 
 # =============================================================================
 # SCRIPT PATH RESOLUTION
@@ -51,6 +52,7 @@ MODULES=(
     commands-lifecycle
     commands-approval
     commands-execution
+    commands-package
     commands-utility
 )
 
@@ -87,6 +89,7 @@ case "${1:-help}" in
     abandon) cmd_abandon "${@:2}" ;;
     cleanup-drafts) cmd_cleanup_drafts "${@:2}" ;;
     list) cmd_list "${@:2}" ;;
+    package) cmd_package "${@:2}" ;;
     wizard) cmd_wizard "${@:2}" ;;
     help|--help|-h) cmd_help ;;
     *)

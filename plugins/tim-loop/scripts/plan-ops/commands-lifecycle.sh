@@ -236,38 +236,34 @@ cmd_promote() {
         exit 1
     fi
 
-    local basename
-    basename=$(basename "$plan_file")
-    local plans_dir
-    plans_dir=$(get_plans_dir_from_path "$plan_file")
-    local dest="${plans_dir}/active/${basename}"
+    # Track if package for logging
+    local is_pkg=false
+    is_master_plan "$plan_file" && is_pkg=true
 
-    # Ensure destination directory exists
-    mkdir -p "${plans_dir}/active"
-
-    # Only move if source and destination are different
-    if [[ "$plan_file" != "$dest" ]]; then
-        mv "$plan_file" "$dest"
-    fi
+    # Move plan/package to active stage
+    plan_file=$(move_plan_to_stage "$plan_file" "active")
 
     # Update status
-    if ! update_status "$dest" "active" "Approved by ${approver}, promoted to active" "$approver"; then
+    if ! update_status "$plan_file" "active" "Approved by ${approver}, promoted to active" "$approver"; then
         log_error "Failed to update status after promotion"
         exit 1
     fi
 
-    # Cleanup claude plans
     cleanup_claude_plans
 
-    log_info "Promoted to active: $dest"
+    if [[ "$is_pkg" == true ]]; then
+        log_info "Promoted package to active: $(dirname "$plan_file")"
+    else
+        log_info "Promoted to active: $plan_file"
+    fi
 
     echo ""
     log_info "STEP 1 of 2: Run Tim Loop Review to review plan for AI implementation concerns:"
     echo ""
-    echo -e "${GREEN}/tim-loop:tim-loop --ai-ready ${dest} --max-iterations 5${NC}"
+    echo -e "${GREEN}/tim-loop:tim-loop --ai-ready ${plan_file} --max-iterations 5${NC}"
     echo ""
     log_info "STEP 2 of 2: After review completes, human confirms and approves:"
-    echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $dest --reviewer \"Your Name\"${NC}"
+    echo -e "  ${GREEN}$SCRIPT_PATH ai-ready $plan_file --reviewer \"Your Name\"${NC}"
 }
 
 cmd_complete() {
@@ -286,31 +282,33 @@ cmd_complete() {
     # Convert to absolute path
     plan_file=$(to_absolute "$plan_file")
 
-    local basename
-    basename=$(basename "$plan_file")
-    local plans_dir
-    plans_dir=$(get_plans_dir_from_path "$plan_file")
-    local dest="${plans_dir}/completed/${basename}"
+    # Track if package for logging
+    local is_pkg=false
+    is_master_plan "$plan_file" && is_pkg=true
 
-    # Ensure destination directory exists and move file
-    mkdir -p "${plans_dir}/completed"
-    mv "$plan_file" "$dest"
+    # Move plan/package to completed stage
+    plan_file=$(move_plan_to_stage "$plan_file" "completed")
 
     # Update status
-    if ! update_status "$dest" "completed" "All phases completed, verification passed"; then
+    if ! update_status "$plan_file" "completed" "All phases completed, verification passed"; then
         log_error "Failed to update status after completion"
         exit 1
     fi
 
     # Clear saved prompt now that plan is complete
-    local project_dir
+    local plans_dir project_dir
+    plans_dir=$(get_plans_dir_from_path "$plan_file")
     project_dir=$(dirname "$plans_dir")
     local prompt_manager="${project_dir}/tools/tim-loop-prompt-manager.sh"
     if [[ -x "$prompt_manager" ]]; then
         "$prompt_manager" clear 2>/dev/null || true
     fi
 
-    log_info "Completed: $dest"
+    if [[ "$is_pkg" == true ]]; then
+        log_info "Completed package: $(dirname "$plan_file")"
+    else
+        log_info "Completed: $plan_file"
+    fi
     log_info "Plan lifecycle complete! To see all completed plans:"
     echo -e "  ${GREEN}$SCRIPT_PATH list completed${NC}"
 }
@@ -346,23 +344,24 @@ cmd_abandon() {
     # Convert to absolute path
     plan_file=$(to_absolute "$plan_file")
 
-    local basename
-    basename=$(basename "$plan_file")
-    local plans_dir
-    plans_dir=$(get_plans_dir_from_path "$plan_file")
-    local dest="${plans_dir}/abandoned/${basename}"
+    # Track if package for logging
+    local is_pkg=false
+    is_master_plan "$plan_file" && is_pkg=true
 
-    # Ensure destination directory exists and move file
-    mkdir -p "${plans_dir}/abandoned"
-    mv "$plan_file" "$dest"
+    # Move plan/package to abandoned stage
+    plan_file=$(move_plan_to_stage "$plan_file" "abandoned")
 
     # Update status
-    if ! update_status "$dest" "abandoned" "Abandoned: ${reason}"; then
+    if ! update_status "$plan_file" "abandoned" "Abandoned: ${reason}"; then
         log_error "Failed to update status after abandonment"
         exit 1
     fi
 
-    log_info "Abandoned: $dest"
+    if [[ "$is_pkg" == true ]]; then
+        log_info "Abandoned package: $(dirname "$plan_file")"
+    else
+        log_info "Abandoned: $plan_file"
+    fi
 
     echo ""
     log_info "Plan abandoned. To see all abandoned plans:"
