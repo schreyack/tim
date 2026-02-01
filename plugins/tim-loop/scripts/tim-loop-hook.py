@@ -17,24 +17,19 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Configuration
-TIM_LOOP_ACTIVE_MARKER = Path.home() / ".claude" / ".tim-loop-active"
-CLEANUP_LOG = Path.home() / ".claude" / ".tim-loop-cleanup.log"
-
-
-def log_message(message: str) -> None:
-    """Log a message to the cleanup log file."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        with open(CLEANUP_LOG, "a") as f:
-            f.write(f"{timestamp} - {message}\n")
-    except Exception:
-        pass
-
-
-def log_stderr(message: str) -> None:
-    """Log a message to stderr (visible in Claude Code logs)."""
-    print(message, file=sys.stderr)
+from tim_loop_responses import (
+    build_continue_response,
+    build_early_completion_challenge,
+    build_short_output_continue_response,
+    build_verification_response,
+)
+from tim_loop_state import (
+    cleanup_tim_loop,
+    load_state,
+    log_message,
+    log_stderr,
+    save_state,
+)
 
 
 def read_transcript(transcript_path: str) -> list[dict]:
@@ -74,161 +69,6 @@ def extract_assistant_text(transcript: list[dict]) -> str:
     return "\n".join(texts)
 
 
-def cleanup_state_files(state_file: str, prompt_file: str) -> None:
-    """Remove tim-loop state files."""
-    files_to_remove = [
-        state_file,
-        prompt_file,
-        str(TIM_LOOP_ACTIVE_MARKER),
-        str(Path.home() / ".claude" / ".tim-loop-iteration-count"),
-        str(Path.home() / ".claude" / ".tim-loop-auto-approve"),
-        str(Path.home() / ".claude" / ".tim-loop-heartbeat"),
-    ]
-    for file_path in files_to_remove:
-        if file_path and os.path.isfile(file_path):
-            try:
-                os.remove(file_path)
-                log_message(f"Removed: {file_path}")
-            except Exception as e:
-                log_message(f"FAILED to remove {file_path}: {e}")
-
-
-def cleanup_hooks_from_settings() -> None:
-    """Remove tim-loop hooks from settings.local.json."""
-    try:
-        settings_file = Path.home() / ".claude" / "settings.local.json"
-        if not settings_file.exists():
-            return
-        with open(settings_file, "r") as f:
-            settings = json.load(f)
-        if "hooks" not in settings:
-            return
-        for hook_type in ["stop", "PreToolUse", "PreCompact"]:
-            if hook_type in settings["hooks"]:
-                settings["hooks"][hook_type] = [
-                    h
-                    for h in settings["hooks"][hook_type]
-                    if "tim-loop" not in h.get("command", "")
-                ]
-                if not settings["hooks"][hook_type]:
-                    del settings["hooks"][hook_type]
-        if not settings["hooks"]:
-            del settings["hooks"]
-        with open(settings_file, "w") as f:
-            json.dump(settings, f, indent=2)
-        log_message("Hooks cleaned from settings.local.json")
-    except Exception as e:
-        log_message(f"Hook cleanup error: {e}")
-
-
-def cleanup_tim_loop(message: str, state_file: str, prompt_file: str) -> None:
-    """Clean up all tim-loop state and hooks."""
-    log_stderr(message)
-    log_message(f"Cleanup started: {message}")
-    cleanup_state_files(state_file, prompt_file)
-    cleanup_hooks_from_settings()
-    log_message("Cleanup completed")
-
-
-def load_state() -> dict | None:
-    """Load tim-loop state from the active marker and state file."""
-    if not TIM_LOOP_ACTIVE_MARKER.exists():
-        return None
-    try:
-        state_file = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
-        if not state_file or not os.path.isfile(state_file):
-            return None
-        state = {"_state_file": state_file}
-        with open(state_file, "r") as f:
-            for line in f:
-                line = line.strip()
-                if "=" in line and not line.startswith("#"):
-                    key, _, value = line.partition("=")
-                    state[key] = value.strip().strip('"').strip("'")
-        return state
-    except Exception:
-        return None
-
-
-def save_state(state: dict) -> None:
-    """Save tim-loop state back to the state file."""
-    state_file = state.get("_state_file")
-    if not state_file:
-        return
-    try:
-        with open(state_file, "w") as f:
-            for key, value in state.items():
-                if not key.startswith("_"):
-                    f.write(f'{key}="{value}"\n')
-    except Exception as e:
-        log_message(f"Failed to save state: {e}")
-
-
-def build_continue_response(
-    prompt: str, iteration: int, max_iter: int, review_mode: str = ""
-) -> dict:
-    """Build a block response that re-injects the prompt."""
-    if review_mode in ("tech-review", "ai-ready"):
-        # For reviews: emphasize fresh pass, finding NEW issues
-        guidance = (
-            f"ITERATION {iteration} OF {max_iter} - TAKE A FRESH PASS\n\n"
-            f"Previous iterations may have improved the plan, but likely missed issues. "
-            f"Do NOT assume prior reviews were thorough.\n\n"
-            f"Your task for this iteration:\n"
-            f"1. Re-read the plan AS IT CURRENTLY EXISTS (it may have changed)\n"
-            f"2. Evaluate with FRESH EYES - pretend you haven't seen it before\n"
-            f"3. Look for issues the previous iteration(s) missed\n"
-            f"4. Make improvements if you find any\n\n"
-            f"Output the completion promise ONLY when you genuinely cannot find "
-            f"any more ways to improve the plan - not because it was already reviewed."
-        )
-    else:
-        # For implementation: continue working
-        guidance = "The task is not yet complete. Continue working on it."
-
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
-            f"{guidance}\n\n"
-            f"---\n\n{prompt}"
-        ),
-    }
-
-
-def build_verification_response(prompt: str, iteration: int, max_iter: int) -> dict:
-    """Build a block response when verification is required."""
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter} (verification required)\n\n"
-            f"You output the completion promise but the plan is not verified.\n"
-            f"Add <!-- VERIFIED: YES --> after verifying all objectives.\n\n"
-            f"---\n\n{prompt}"
-        ),
-    }
-
-
-def build_early_completion_challenge(
-    prompt: str, iteration: int, max_iter: int, min_iter: int
-) -> dict:
-    """Build a response challenging early completion in review mode."""
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
-            f"The human has found that it usually takes ~{min_iter} iterations to discover "
-            f"all the ways to improve a plan. You're only on iteration {iteration}.\n\n"
-            f"Are you sure you can't find anything else to improve? "
-            f"Take another fresh look at the plan - read it from the beginning, "
-            f"check each section with fresh eyes. Previous iterations often miss things.\n\n"
-            f"If you genuinely cannot find any more improvements after a thorough re-read, "
-            f"you may output the completion promise again.\n\n"
-            f"---\n\n{prompt}"
-        ),
-    }
-
-
 def get_plan_file(state: dict, prompt: str) -> str:
     """Get plan file path from state or prompt."""
     plan_file = state.get("PLAN_FILE", "")
@@ -241,8 +81,10 @@ def get_plan_file(state: dict, prompt: str) -> str:
 
 def check_plan_verification(plan_file: str) -> str | None:
     """Check plan verification status. Returns error message or None if verified."""
-    if not plan_file or not os.path.isfile(plan_file):
-        return None  # No plan to check, consider verified
+    if not plan_file:
+        return None  # No plan specified - verification not applicable (e.g., review mode)
+    if not os.path.isfile(plan_file):
+        return "PLAN_FILE_MISSING"  # Plan was specified but doesn't exist - FAILURE
     try:
         with open(plan_file, "r") as f:
             content = f.read()
@@ -253,6 +95,33 @@ def check_plan_verification(plan_file: str) -> str | None:
         return None  # Verified
     except Exception:
         return None
+
+
+def write_verification_failure(plan_file: str, reason: str) -> None:
+    """Write verification failure marker to plan file."""
+    if not plan_file or not os.path.isfile(plan_file):
+        return
+    try:
+        with open(plan_file, "r") as f:
+            content = f.read()
+
+        # Don't double-write failure markers
+        if "<!-- VERIFIED: FAILED -->" in content:
+            return
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        failure_block = (
+            f"\n\n<!-- VERIFIED: FAILED -->\n"
+            f"<!-- FAILURE_REASON: {reason} -->\n"
+            f"<!-- FAILURE_TIME: {timestamp} -->\n"
+        )
+
+        with open(plan_file, "a") as f:
+            f.write(failure_block)
+
+        log_message(f"Wrote verification failure to {plan_file}: {reason}")
+    except Exception as e:
+        log_message(f"Failed to write verification failure: {e}")
 
 
 def handle_completion_promise(state: dict, prompt: str) -> dict | None:
@@ -298,26 +167,121 @@ def handle_completion_promise(state: dict, prompt: str) -> dict | None:
     return {}
 
 
-def handle_continue_loop(state: dict, prompt: str) -> dict:
-    """Handle case when completion promise is NOT found - continue loop."""
+def handle_max_iterations(state: dict, max_iterations: int) -> dict:
+    """Handle max iterations reached - check verification before exiting."""
     state_file = state.get("_state_file", "")
     prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
-    current_iteration = int(state.get("CURRENT_ITERATION", "1")) + 1
-    max_iterations = int(state.get("MAX_ITERATIONS", "30"))
-    review_mode = state.get("REVIEW_MODE", "")
+    plan_file = state.get("PLAN_FILE", "")
+    verification_status = check_plan_verification(plan_file)
 
-    if current_iteration >= max_iterations:
+    if verification_status is None:
+        # Plan is verified - clean exit
         cleanup_tim_loop(
-            f"Tim Loop: Max iterations ({max_iterations}) reached",
+            f"Tim Loop: Completed after {max_iterations} iterations (verified)",
             state_file,
             prompt_file,
         )
         return {}
 
+    # NOT verified - write failure and create remediation notice
+    if verification_status == "PLAN_FILE_MISSING":
+        cleanup_tim_loop(
+            f"Tim Loop: FAILED - Max iterations ({max_iterations}) reached.\n"
+            f"Plan file missing: {plan_file}\n"
+            f"Cannot write failure marker. Recreate the plan or check the path.",
+            state_file,
+            prompt_file,
+        )
+        return {}
+
+    write_verification_failure(
+        plan_file,
+        f"Max iterations ({max_iterations}) reached without verification. "
+        f"Status: {verification_status}",
+    )
+    cleanup_tim_loop(
+        f"Tim Loop: FAILED - Max iterations ({max_iterations}) reached "
+        f"without verification.\n"
+        f"The plan has been marked as FAILED. A remediation pass is required.\n"
+        f"Run: /tim-loop --verify {plan_file}",
+        state_file,
+        prompt_file,
+    )
+    return {}
+
+
+def handle_continue_loop(state: dict, prompt: str) -> dict:
+    """Handle case when completion promise is NOT found - continue loop."""
+    # Reset short output counter since we got a normal response
+    state["SHORT_OUTPUT_COUNT"] = "0"
+    current_iteration = int(state.get("CURRENT_ITERATION", "1")) + 1
+    max_iterations = int(state.get("MAX_ITERATIONS", "30"))
+    review_mode = state.get("REVIEW_MODE", "")
+
+    if current_iteration >= max_iterations:
+        return handle_max_iterations(state, max_iterations)
+
     state["CURRENT_ITERATION"] = str(current_iteration)
     save_state(state)
     log_stderr(f"Tim Loop: Iteration {current_iteration} of {max_iterations}")
     return build_continue_response(prompt, current_iteration, max_iterations, review_mode)
+
+
+def handle_short_output(state: dict, prompt: str, assistant_text: str) -> dict | None:
+    """Handle short or empty output. Returns response dict or None to allow exit."""
+    state_file = state.get("_state_file", "")
+    prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
+    plan_file = state.get("PLAN_FILE", "")
+    verification_status = check_plan_verification(plan_file)
+
+    if verification_status is None:
+        cleanup_tim_loop("Tim Loop: Session ended (plan verified)", state_file, prompt_file)
+        return None
+
+    # Not verified - check if this looks like user interrupt (no output at all)
+    if not assistant_text:
+        cleanup_tim_loop(
+            f"Tim Loop: Session interrupted. Plan not verified ({verification_status}).\n"
+            f"Run: /tim-loop --verify {plan_file}",
+            state_file,
+            prompt_file,
+        )
+        return None
+
+    # Short output but some content - continue loop with counter
+    current_iteration = int(state.get("CURRENT_ITERATION", "1")) + 1
+    max_iterations = int(state.get("MAX_ITERATIONS", "30"))
+    short_output_count = int(state.get("SHORT_OUTPUT_COUNT", "0")) + 1
+
+    if short_output_count >= 3:
+        # Too many short outputs - something is wrong
+        if verification_status != "PLAN_FILE_MISSING":
+            write_verification_failure(
+                plan_file,
+                f"Session stuck (repeated brief responses). Status: {verification_status}",
+            )
+        cleanup_tim_loop(
+            f"Tim Loop: Session appears stuck (repeated brief responses). "
+            f"Plan not verified ({verification_status}).\n"
+            f"Run: /tim-loop --verify {plan_file}",
+            state_file,
+            prompt_file,
+        )
+        return None
+
+    state["CURRENT_ITERATION"] = str(current_iteration)
+    state["SHORT_OUTPUT_COUNT"] = str(short_output_count)
+    save_state(state)
+    return build_short_output_continue_response(prompt, current_iteration, max_iterations)
+
+
+def get_assistant_text_from_input(hook_input: dict) -> str:
+    """Extract assistant text from hook input."""
+    transcript_path = hook_input.get("transcript_path", "")
+    if not transcript_path:
+        return ""
+    transcript = read_transcript(transcript_path)
+    return extract_assistant_text(transcript)
 
 
 def main() -> None:
@@ -327,16 +291,13 @@ def main() -> None:
         print("{}")
         sys.exit(0)
 
-    prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
-    if not prompt_file or not os.path.isfile(prompt_file):
+    prompt_file_path = state.get("TIM_LOOP_PROMPT_FILE", "")
+    if not prompt_file_path or not os.path.isfile(prompt_file_path):
         print("{}")
         sys.exit(0)
 
-    completion_promise = state.get("COMPLETION_PROMISE", "COMPLETE")
-    state_file = state.get("_state_file", "")
-
     try:
-        with open(prompt_file, "r") as f:
+        with open(prompt_file_path, "r") as f:
             prompt = f.read()
     except Exception:
         prompt = ""
@@ -350,18 +311,16 @@ def main() -> None:
         print("{}")
         sys.exit(0)
 
-    transcript_path = hook_input.get("transcript_path", "")
-    assistant_text = ""
-    if transcript_path:
-        transcript = read_transcript(transcript_path)
-        assistant_text = extract_assistant_text(transcript)
+    assistant_text = get_assistant_text_from_input(hook_input)
 
     if not assistant_text or len(assistant_text.strip()) < 20:
-        cleanup_tim_loop("Tim Loop: Session terminated by user", state_file, prompt_file)
-        print("{}")
+        response = handle_short_output(state, prompt, assistant_text)
+        print(json.dumps(response) if response else "{}")
         sys.exit(0)
 
+    completion_promise = state.get("COMPLETION_PROMISE", "COMPLETE")
     promise_tag = f"<promise>{completion_promise}</promise>"
+
     if promise_tag in assistant_text:
         response = handle_completion_promise(state, prompt)
     else:

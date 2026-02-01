@@ -550,7 +550,6 @@ Import → Plan Review → Promote → AI-Ready → Execute → Tim-Loop → Com
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--no-review` | - | Skip review phase (Plan → Implement → Verify) |
-| `--no-verify` | - | Skip verification phase. **WARNING:** Can leave incomplete work. Only use for debugging. |
 | `--auto-approve` | - | Auto-approve all tool permissions. **WARNING:** Use with caution. |
 | `--max-iterations N` | 30 | Safety limit - force exit after N iterations |
 | `--max-verify-cycles N` | 999999 | Max verification attempts (effectively unlimited) |
@@ -590,6 +589,21 @@ The loop looks for these markers in the plan file:
 | `<!-- VERIFIED: NO -->` | Implementation done, needs verification |
 | `<!-- VERIFIED: YES -->` | All objectives verified complete |
 | `<!-- VERIFIED: FAILED -->` | Verification failed, remediation required |
+
+### Verification Failure Recovery
+
+When tim-loop exits without completing verification (max iterations reached, stuck session), it writes a failure marker to the plan file:
+
+```
+<!-- VERIFIED: FAILED -->
+<!-- FAILURE_REASON: Max iterations (30) reached without verification. Status: NOT_VERIFIED -->
+<!-- FAILURE_TIME: 2026-02-01 12:00:00 -->
+```
+
+**To recover:**
+1. Review the plan file to understand what wasn't completed
+2. Run `/tim-loop --verify <plan-file>` to attempt verification again
+3. Or create a remediation plan addressing the gaps
 
 ## Integration with plan-ops.sh
 
@@ -850,12 +864,13 @@ The PreCompact hook should preserve the prompt. Check:
 
 ### Max iterations reached
 
-Increase the limit:
-```bash
-/tim-loop --max-iterations 50 "complex task"
-```
+When max iterations is reached without verification, tim-loop marks the plan as FAILED and exits.
 
-Or investigate why the task isn't completing - the verification check will show what's missing.
+**Recovery steps:**
+1. Check the plan file for `<!-- VERIFIED: FAILED -->` marker
+2. Review what wasn't completed (the failure reason is in the marker)
+3. Run `/tim-loop --verify <plan-file>` to attempt verification again
+4. Or increase the limit: `/tim-loop --max-iterations 50 "complex task"`
 
 ### Code quality validator keeps blocking
 

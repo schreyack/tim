@@ -52,7 +52,6 @@ MODES (mutually exclusive):
 
 MODIFIER OPTIONS:
   --force, -f               Override existing active session detection
-  --no-verify               Skip verification phase (WARNING: incomplete work)
   --auto-approve            Auto-approve all tool permissions
   --max-iterations <n>      Safety limit (default: 30)
   --min-review-iterations <n> Minimum review passes before allowing completion (default: 5)
@@ -81,7 +80,7 @@ HELP_EOF
 # Defaults
 MAX_ITERATIONS=30 COMPLETION_PROMISE="COMPLETE" TASK_PARTS=() DRY_RUN=false
 PLAN_ONLY=false IMPLEMENT_FILE="" REVIEW_FILE="" REVIEW_MODE="" VERIFY_FILE=""
-NO_REVIEW=false NO_VERIFY=false
+NO_REVIEW=false
 MAX_VERIFY_CYCLES=999999 REVIEW_ITERATIONS=10 MIN_REVIEW_ITERATIONS=5 AUTO_APPROVE=false
 FORCE_NEW_SESSION=false
 
@@ -129,7 +128,6 @@ while [[ $# -gt 0 ]]; do
             [[ ! -f "$2" ]] && echo "Error: Plan file not found: $2" >&2 && exit 1
             VERIFY_FILE="$2"; shift 2 ;;
         --no-review) NO_REVIEW=true; shift ;;
-        --no-verify) NO_VERIFY=true; shift ;;
         --auto-approve) AUTO_APPROVE=true; shift ;;
         --force|-f) FORCE_NEW_SESSION=true; shift ;;
         --max-verify-cycles) MAX_VERIFY_CYCLES="$2"; shift 2 ;;
