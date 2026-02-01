@@ -13,7 +13,7 @@ from patterns_shortcut import SHORTCUT_EXCUSE_PATTERNS
 from patterns_failure_dismissal import FAILURE_DISMISSAL_PATTERNS
 from patterns_test_manipulation import TEST_MANIPULATION_PATTERNS
 
-# Combined excuse patterns (all 117 patterns)
+# Combined excuse patterns (all 151 patterns)
 EXCUSE_PATTERNS = (
     CORE_EXCUSE_PATTERNS
     + EXTENDED_EXCUSE_PATTERNS
