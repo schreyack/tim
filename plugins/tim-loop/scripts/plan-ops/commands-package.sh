@@ -169,15 +169,13 @@ check_subfolder_packages() {
         echo ""
         show_file_list md_files
 
-        echo ""
-        echo -n "Convert this folder to a package? [y/N] "
+        printf "\nConvert this folder to a package? [y/N] "
         read -r response </dev/tty
 
         if [[ "$response" =~ ^[Yy] ]]; then
             local master_file pkg_name
             master_file=$(prompt_for_master md_files) || continue
-            echo ""
-            echo -n "Package name [${dirname}]: "
+            printf "\nPackage name [%s]: " "$dirname"
             read -r pkg_name </dev/tty
             [[ -z "$pkg_name" ]] && pkg_name="$dirname"
             create_package_in_place "$pkg_name" "$subdir" "$master_file" "${md_files[@]}"
@@ -205,8 +203,7 @@ show_file_list() {
 prompt_for_master() {
     local -n arr=$1
     local count=${#arr[@]}
-    echo ""
-    echo -n "Which file is the MASTER (implementation plan)? [1-${count}]: "
+    printf "\nWhich file is the MASTER (implementation plan)? [1-%d]: " "$count"
     read -r choice </dev/tty
     if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt "$count" ]]; then
         log_warn "Invalid choice, skipping"
@@ -331,16 +328,14 @@ package_interactive() {
         done <<< "${date_groups[$date]}"
         show_file_list_with_suggestions options
 
-        echo ""
-        echo -n "Create package from these files? [y/N] "
+        printf "\nCreate package from these files? [y/N] "
         read -r response </dev/tty
         [[ ! "$response" =~ ^[Yy] ]] && continue
 
         local master_file pkg_name suggested_name
         master_file=$(prompt_for_master options) || continue
         suggested_name=$(suggest_clean_name "$(basename "$master_file")")
-        echo ""
-        echo -n "Package name [${suggested_name}]: "
+        printf "\nPackage name [%s]: " "$suggested_name"
         read -r pkg_name </dev/tty
         [[ -z "$pkg_name" ]] && pkg_name="$suggested_name"
         create_package "$pkg_name" "$master_file" "${options[@]}"
