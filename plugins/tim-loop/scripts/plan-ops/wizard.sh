@@ -117,6 +117,7 @@ cmd_wizard() {
         case "$state" in
             import)          wizard_step_import ;;
             review)          wizard_step_review ;;
+            pm-review)       wizard_step_pm_review ;;
             promote)         wizard_step_promote ;;
             ai-ready)        wizard_step_ai_ready ;;
             tim-loop)        wizard_step_tim_loop ;;
@@ -253,6 +254,50 @@ wizard_step_review() {
     fi
     log_info "AI Developer Ready approval recorded."
     log_info "Plan is now ready for implementation!"
+}
+
+wizard_step_pm_review() {
+    print_step_header "pm-review" "PM Review (Organize Plan)"
+
+    # Ensure PM Review field exists and is set to "required"
+    if ! grep -qE "\| PM Review[[:space:]]*\|" "$WIZARD_PLAN_FILE"; then
+        update_pm_review_status "$WIZARD_PLAN_FILE" "required"
+    fi
+
+    echo ""
+    echo "The engineering team has completed technical reviews."
+    echo "Now review as a senior project manager to:"
+    echo "  - Organize the plan for logical flow"
+    echo "  - Fix clerical errors"
+    echo "  - Ensure implementation order makes sense"
+    echo ""
+    echo -e "${YELLOW}CRITICAL: Never reduce scope. This is organization, not scope change.${NC}"
+    echo ""
+    echo "Run /clear first, then paste this command in Claude Code:"
+    local cmd="/tim-loop:tim-loop --pm-review $WIZARD_PLAN_FILE --max-iterations 10"
+    show_command "$cmd"
+    echo -n "Press Enter when PM Review completes..."
+    read -r </dev/tty
+
+    # Check for unexpected plan moves during review
+    if ! handle_unexpected_plan_move "drafts"; then
+        log_info "Continuing with plan in new location."
+        return 0
+    fi
+
+    echo ""
+    echo "PM Review complete. Updating plan status..."
+
+    # Mark PM Review complete
+    if ! update_pm_review_status "$WIZARD_PLAN_FILE" "completed"; then
+        log_error "Failed to update PM review status"
+        return 1
+    fi
+    if ! update_status "$WIZARD_PLAN_FILE" "draft" "PM Review completed by ${WIZARD_USER_NAME}"; then
+        log_error "Failed to update progress log"
+        return 1
+    fi
+    log_info "PM Review marked as completed."
 }
 
 wizard_step_promote() {

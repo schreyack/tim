@@ -491,6 +491,39 @@ Every piece of data, configuration, or definition must have exactly one authorit
 
 **No changes are complete without testing.**
 
+### The Purpose of Testing (Critical Mindset)
+
+**Tests are a diagnostic tool, not the goal.**
+
+The objective is NOT "make tests pass". The objective is to use tests as a tool to discover issues and get the application to a functioning, reliable state. Passing tests is a *symptom* of correctness, not *proof* of it.
+
+**What this means in practice:**
+
+| Wrong Mindset | Right Mindset |
+|---------------|---------------|
+| "How do I make this test pass?" | "What is this test telling me about the application?" |
+| "The test is wrong, I'll fix the test" | "The test expected X but got Y - why is the app returning Y?" |
+| "20 tests fail but they're pre-existing" | "20 tests fail - what problems do they reveal?" |
+| "All my new tests pass" | "Do these tests actually verify the app works correctly?" |
+
+**When tests fail:**
+1. **Investigate what the failure reveals** - The test is trying to tell you something
+2. **Understand the root cause** - Don't just make the error go away
+3. **Fix the application** - Tests verify behavior, not the other way around
+4. **Only modify tests when the test itself is wrong** - Not to match broken behavior
+
+**When to modify a test:**
+- The test has a bug (wrong assertion, bad setup, flaky timing)
+- Requirements genuinely changed and old behavior is no longer correct
+- The test is testing implementation details instead of behavior
+
+**When NOT to modify a test:**
+- To make a failing test pass without understanding why it failed
+- Because "the test expectation doesn't match current behavior"
+- To dismiss failures as "pre-existing" or "unrelated"
+
+**Remember**: The human cares that the application works reliably. They don't care that tests pass. Tests are just one tool to verify the application works.
+
 ### Test Naming Convention
 
 Use `test_<what>_<when>_<expected>` format:

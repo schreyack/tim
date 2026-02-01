@@ -1,6 +1,6 @@
 ---
 description: "Goal in, working code out: iterative convergence with verification loop"
-argument-hint: "TASK [--plan] [--implement FILE] [--tech-review FILE] [--ai-ready FILE] [--verify FILE] [--wizard FILE] [--no-review] [--no-verify] [--auto-approve] [--cleanup] [--cleanup-all]"
+argument-hint: "TASK [--plan] [--implement FILE] [--tech-review FILE] [--pm-review FILE] [--ai-ready FILE] [--verify FILE] [--wizard FILE] [--no-review] [--no-verify] [--auto-approve] [--cleanup] [--cleanup-all]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-setup.sh:*)"]
 ---
 
@@ -90,6 +90,20 @@ From within Claude Code:
 **Phases:** Technical review by a skeptical senior engineer persona
 **End state:** Plan file improved with technical accuracy, edge cases, testability
 **Use for:** First-pass review only (use `--full-review` for complete review)
+
+#### PM Review Mode (`--pm-review`)
+```
+/tim-loop --pm-review plans/drafts/my-plan.md
+```
+**Phases:** Project management review to organize the plan after tech reviews
+**Focus:**
+- Organize for logical implementation flow
+- Fix clerical errors
+- Ensure approach makes sense
+- NEVER reduce scope
+
+**End state:** Plan file organized and ready for promotion
+**Use for:** After tech review completes, before promoting to active
 
 #### AI-Ready Review Mode (`--ai-ready`)
 ```

@@ -304,13 +304,13 @@ class TestRealWorldIncident:
 
 
 class TestUpdatedPatternCounts:
-    """Verify updated pattern counts after adding Categories O and P."""
+    """Verify updated pattern counts after adding Categories O, P, Q, R, S."""
 
-    def test_excuse_patterns_count_equals_93(self) -> None:
-        assert len(EXCUSE_PATTERNS) == 93
+    def test_excuse_patterns_count_equals_117(self) -> None:
+        assert len(EXCUSE_PATTERNS) == 117
 
-    def test_mitigation_patterns_count_equals_15(self) -> None:
-        assert len(MITIGATION_PATTERNS) == 15
+    def test_mitigation_patterns_count_equals_20(self) -> None:
+        assert len(MITIGATION_PATTERNS) == 20
 
 
 if __name__ == "__main__":

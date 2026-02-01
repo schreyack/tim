@@ -133,6 +133,22 @@ def has_shortcut_patterns(excuses_found: list[tuple[ExcusePattern, str]]) -> boo
     )
 
 
+def has_failure_dismissal_patterns(excuses_found: list[tuple[ExcusePattern, str]]) -> bool:
+    """Check if any matched patterns are failure_dismissal category."""
+    return any(
+        excuse.category == "failure_dismissal"
+        for excuse, _ in excuses_found
+    )
+
+
+def has_test_manipulation_patterns(excuses_found: list[tuple[ExcusePattern, str]]) -> bool:
+    """Check if any matched patterns are test_manipulation category."""
+    return any(
+        excuse.category == "test_manipulation"
+        for excuse, _ in excuses_found
+    )
+
+
 def build_general_block_response(
     excuses_found: list[tuple[ExcusePattern, str]],
 ) -> dict:
@@ -237,10 +253,91 @@ def build_shortcut_block_response(
     }
 
 
+def build_failure_dismissal_block_response(
+    excuses_found: list[tuple[ExcusePattern, str]],
+) -> dict:
+    """Build block response for failure dismissal patterns (Category R).
+
+    This response guides Claude to ASK the user how to proceed with failures
+    rather than unilaterally deciding they don't matter.
+    """
+    excuse_details = [
+        f"  - Pattern: {excuse.description}\n    Context: \"{context}\""
+        for excuse, context in excuses_found
+    ]
+    excuse_text = "\n".join(excuse_details)
+
+    return {
+        "decision": "block",
+        "reason": (
+            f"I noticed you encountered failures and decided on your own that they\n"
+            f"don't matter. That's not your call to make.\n\n"
+            f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
+            f"Even when failures appear to be pre-existing or unrelated, the human\n"
+            f"should decide how to handle them — not you. They may:\n"
+            f"- Want you to investigate and fix them anyway\n"
+            f"- Want to know if your changes could have contributed\n"
+            f"- Have context about why those failures matter\n"
+            f"- Prefer to proceed knowing the failures exist\n\n"
+            f"HERE'S WHAT TO DO:\n"
+            f"1. Report the failures clearly (count, which tests, what errors)\n"
+            f"2. Do NOT claim they are pre-existing or unrelated\n"
+            f"3. ASK the human how they want to proceed:\n"
+            f"   \"I found X test failures. How would you like me to handle these?\"\n"
+            f"4. Wait for their guidance before continuing\n\n"
+            f"The human trusts you to report problems, not to decide which problems\n"
+            f"matter. Let them make that call."
+        )
+    }
+
+
+def build_test_manipulation_block_response(
+    excuses_found: list[tuple[ExcusePattern, str]],
+) -> dict:
+    """Build block response for test manipulation patterns (Category S).
+
+    This response reminds Claude that tests are diagnostic tools, not goals.
+    The objective is a working application, not passing tests.
+    """
+    excuse_details = [
+        f"  - Pattern: {excuse.description}\n    Context: \"{context}\""
+        for excuse, context in excuses_found
+    ]
+    excuse_text = "\n".join(excuse_details)
+
+    return {
+        "decision": "block",
+        "reason": (
+            f"Tests are a diagnostic tool, not the goal.\n\n"
+            f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
+            f"The objective is NOT 'make tests pass'. The objective is to use tests\n"
+            f"to discover issues and get the application to a functioning, reliable state.\n\n"
+            f"When a test fails, it's telling you something about the application:\n"
+            f"- What behavior did the test expect?\n"
+            f"- What behavior did the application produce?\n"
+            f"- WHY is the application producing that behavior?\n"
+            f"- Is that behavior correct or incorrect?\n\n"
+            f"HERE'S WHAT TO DO:\n"
+            f"1. STOP trying to make the test pass\n"
+            f"2. Understand what the test is checking and why\n"
+            f"3. Investigate why the application behaves differently than expected\n"
+            f"4. Fix the APPLICATION if it's wrong, not the test\n"
+            f"5. Only modify the test if the TEST is genuinely incorrect\n\n"
+            f"The human cares that the application works reliably.\n"
+            f"They don't care that tests pass - tests are just one tool to verify\n"
+            f"the application works."
+        )
+    }
+
+
 def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict:
     """Route to appropriate block response based on matched pattern categories."""
     if has_posthook_or_redefine(excuses_found):
         return build_posthook_block_response(excuses_found)
+    if has_test_manipulation_patterns(excuses_found):
+        return build_test_manipulation_block_response(excuses_found)
+    if has_failure_dismissal_patterns(excuses_found):
+        return build_failure_dismissal_block_response(excuses_found)
     if has_shortcut_patterns(excuses_found):
         return build_shortcut_block_response(excuses_found)
     return build_general_block_response(excuses_found)

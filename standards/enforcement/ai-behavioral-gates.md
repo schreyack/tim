@@ -55,7 +55,7 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 **What**: Scans transcript for deflection patterns
 **Action**: Blocks completion if excuses detected
 
-**Detected Patterns (93 patterns across 17 categories)**:
+**Detected Patterns (117 patterns across 20 categories)**:
 
 | Category | Pattern Type | Example | Why Blocked |
 |----------|--------------|---------|-------------|
@@ -75,8 +75,11 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 | N | Alternative deflection | "Instead of fixing, we should..." | Fix the actual issue |
 | O | Post-hook defiance | "edits applied despite the hook" | Hooks are not suggestions |
 | P | Rule redefining | "the limit doesn't apply here" | Rules apply to all code you touch |
+| Q | Shortcut reasoning | "The simplest fix is to..." | Consider best, not just easiest |
+| R | Failure dismissal | "exit code 1 is expected" | Don't decide failures don't matter |
+| S | Test manipulation | "I'll update the test to match" | Tests diagnose issues, not hide them |
 
-**Mitigation Detection (15 patterns)**:
+**Mitigation Detection (20 patterns)**:
 
 The detector also recognizes when concerns are followed by action, preventing false positives:
 
@@ -89,16 +92,25 @@ The detector also recognizes when concerns are followed by action, preventing fa
 
 **Key insight**: Stating a concern isn't the problem - stating a concern and STOPPING is.
 
-**Dual-Response System**:
+**Multi-Response System**:
 
-The excuse detector uses two different response messages based on which pattern categories are matched:
+The excuse detector uses different response messages based on which pattern categories are matched:
 
 | Response | When | Tone | Goal |
 |----------|------|------|------|
 | **Response A (General)** | Only Categories A-N matched | Empathetic but firm | Guide AI to complete the work |
 | **Response B (Post-Hook)** | Any Category O or P matched | Assumes confusion, routes to human | De-escalate and get human help |
+| **Response Q (Shortcut)** | Any Category Q matched | Encouraging, asks for alternatives | Ensure best solution, not just easiest |
+| **Response R (Failure)** | Any Category R matched | Direct, requires asking user | AI must ask how to handle failures |
+| **Response S (Test)** | Any Category S matched | Educational, refocuses on app | Tests diagnose, don't hide issues |
 
 Response B is designed for situations where the AI is confused about what hooks do (e.g., thinking "block" means "edit rejected" when the edit was actually saved). It redirects the AI to ask the human for help rather than arguing with the gate.
+
+Response Q encourages the AI to consider alternatives before choosing the "simplest" or "easiest" fix, without being accusatory.
+
+Response R addresses situations where the AI encounters failures (test failures, errors, etc.) and dismisses them as "pre-existing" or "unrelated" rather than asking the user how to proceed. The AI must report failures and ask for guidance, not unilaterally decide they don't matter.
+
+Response S addresses "test-as-goal" thinking where the AI treats passing tests as the objective rather than using tests as diagnostic tools. Tests reveal information about application behavior - the goal is a working application, not green checkmarks.
 
 **Enforcement Mechanism**:
 
@@ -190,6 +202,9 @@ Patterns are organized into modules for maintainability:
 - `patterns_core.py` - Core patterns (1-38), mitigation patterns, and `ExcusePattern` definition
 - `patterns_extended.py` - Extended patterns (39-76)
 - `patterns_posthook.py` - Post-hook defiance (77-88) and rule redefining (89-92) patterns
+- `patterns_shortcut.py` - Shortcut reasoning patterns (93-100)
+- `patterns_failure_dismissal.py` - Failure dismissal patterns (101-108)
+- `patterns_test_manipulation.py` - Test manipulation patterns (109-116)
 - `excuse_patterns.py` - Aggregates all patterns
 
 To add a new pattern, edit the appropriate module:

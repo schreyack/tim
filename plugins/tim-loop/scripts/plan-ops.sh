@@ -14,7 +14,8 @@ set -euo pipefail
 # Commands:
 #   init              Initialize plan folder structure
 #   import            Import plan from ~/.claude/plans to drafts
-#   review            Start Plan Review for a draft plan
+#   review            Start Plan Review (tech review) for a draft plan
+#   pm-review         Start PM Review to organize plan after tech review
 #   promote           Move plan from drafts to active
 #   execute           Output tim-loop command for active plan
 #   fast-track        Skip workflow and go directly to implementation
@@ -77,6 +78,7 @@ case "${1:-help}" in
     init) cmd_init ;;
     import) cmd_import "${@:2}" ;;
     review) cmd_review "${@:2}" ;;
+    pm-review) cmd_pm_review "${@:2}" ;;
     promote) cmd_promote "${@:2}" ;;
     ai-ready) cmd_ai_ready "${@:2}" ;;
     execute) cmd_execute "${@:2}" ;;

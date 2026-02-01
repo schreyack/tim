@@ -240,6 +240,49 @@ update_review_status() {
 }
 
 # =============================================================================
+# PM REVIEW STATUS
+# =============================================================================
+
+# Update PM Review fields in Status Header
+# If fields don't exist, adds them after Review Date row
+update_pm_review_status() {
+    local file="$1"
+    local status="$2"  # required / completed / not-required
+    local ts
+    ts=$(timestamp)
+    local date_val="-"
+    if [[ "$status" == "completed" ]]; then
+        date_val=$(datestamp)
+    fi
+
+    # Update or add PM Review field
+    if grep -qE "\| PM Review[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| PM Review[[:space:]]*|[^|]*|/| PM Review | ${status} |/" "$file"
+    else
+        if grep -qE "\| Review Date[[:space:]]*\|" "$file"; then
+            insert_line_after "| Review Date |" "| PM Review | ${status} |" "$file"
+            log_warn "Added missing PM Review field to Status Header"
+        else
+            log_error "Cannot find Review Date row to insert PM Review field"
+            return 1
+        fi
+    fi
+
+    # Update or add PM Review Date field
+    if grep -qE "\| PM Review Date[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| PM Review Date[[:space:]]*|[^|]*|/| PM Review Date | ${date_val} |/" "$file"
+    else
+        if grep -qE "\| PM Review[[:space:]]*\|" "$file"; then
+            insert_line_after "| PM Review |" "| PM Review Date | ${date_val} |" "$file"
+            log_warn "Added missing PM Review Date field to Status Header"
+        fi
+    fi
+
+    # Update Last Updated
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
+}
+
+# =============================================================================
 # EXECUTION STATUS UPDATES
 # =============================================================================
 

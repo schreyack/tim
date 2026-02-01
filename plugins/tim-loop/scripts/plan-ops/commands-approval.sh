@@ -81,8 +81,16 @@ cmd_review() {
         fi
         log_info "Marked Plan Review as completed for: $plan_file"
 
-        log_info "NEXT STEP: Promote the plan to active:"
-        show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
+        # Set PM Review to required for multi-phase plans
+        if [[ "$phase_count" -ge 2 ]]; then
+            update_pm_review_status "$plan_file" "required"
+            log_info "PM Review is recommended for multi-phase plans."
+            log_info "NEXT STEP: Run PM Review to organize the plan:"
+            show_command "$SCRIPT_PATH pm-review $plan_file"
+        else
+            log_info "NEXT STEP: Promote the plan to active:"
+            show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
+        fi
     else
         # Show Plan Review command to run
         echo ""
@@ -110,6 +118,95 @@ cmd_review() {
         show_command "/tim-loop:tim-loop --tech-review ${plan_file} --max-iterations 10"
         log_info "STEP 2 of 2: After Plan Review completes, mark it done:"
         echo -e "  ${GREEN}$SCRIPT_PATH review $plan_file --mark-complete${NC}"
+    fi
+}
+
+# =============================================================================
+# PM-REVIEW COMMAND
+# =============================================================================
+
+cmd_pm_review() {
+    local plan_file="${1:-}"
+    local mark_complete=false
+
+    # Parse arguments
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --mark-complete)
+                mark_complete=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$plan_file" ]]; then
+        log_error "Usage: $SCRIPT_PATH pm-review <plan-file> [--mark-complete]"
+        exit 1
+    fi
+
+    if [[ ! -f "$plan_file" ]]; then
+        log_error "Plan file not found: $plan_file"
+        exit 1
+    fi
+
+    # Convert to absolute path for output messages
+    plan_file=$(to_absolute "$plan_file")
+
+    # Verify plan is in drafts
+    if [[ "$plan_file" != *"/drafts/"* ]]; then
+        log_error "PM Review only applies to plans in drafts/"
+        exit 1
+    fi
+
+    local plan_basename
+    plan_basename=$(basename "$plan_file")
+
+    if [[ "$mark_complete" == "true" ]]; then
+        # Block AI from marking review as complete
+        verify_interactive_terminal
+
+        # Ensure PM Review field exists
+        if ! grep -qE "\| PM Review[[:space:]]*\|" "$plan_file"; then
+            update_pm_review_status "$plan_file" "completed"
+        else
+            # Mark PM Review as completed
+            if ! update_pm_review_status "$plan_file" "completed"; then
+                log_error "Failed to update PM review status"
+                exit 1
+            fi
+        fi
+        if ! update_status "$plan_file" "draft" "PM Review completed"; then
+            log_error "Failed to update progress log"
+            exit 1
+        fi
+        log_info "Marked PM Review as completed for: $plan_file"
+
+        log_info "NEXT STEP: Promote the plan to active:"
+        show_command "$SCRIPT_PATH promote $plan_file --approver \"Your Name\""
+    else
+        # Show PM Review command to run
+        echo ""
+        log_info "Plan: $plan_basename"
+        echo ""
+        log_info "PM Review organizes the plan after technical reviews are complete."
+        echo ""
+        echo "The engineering team has done the technical work. Now review as a senior"
+        echo "project manager to ensure the plan:"
+        echo "  - Flows logically and makes sense"
+        echo "  - Has a sensible implementation order"
+        echo "  - Is free of clerical errors"
+        echo "  - Has clear, actionable steps"
+        echo ""
+        echo -e "${YELLOW}CRITICAL: Never reduce scope. This is organization, not scope change.${NC}"
+        echo ""
+        log_info "STEP 1 of 2: Run /clear first, then paste this command in Claude Code:"
+        show_command "/tim-loop:tim-loop --pm-review ${plan_file} --max-iterations 10"
+        log_info "STEP 2 of 2: After PM Review completes, mark it done:"
+        echo -e "  ${GREEN}$SCRIPT_PATH pm-review $plan_file --mark-complete${NC}"
     fi
 }
 

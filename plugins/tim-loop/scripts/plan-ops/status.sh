@@ -51,6 +51,32 @@ has_review_completed() {
     fi
 }
 
+# Check if plan has completed PM Review
+# Returns: "true" if PM Review: completed, "false" otherwise
+has_pm_review_completed() {
+    local file="$1"
+    # Use regex to handle variable whitespace in markdown tables
+    if grep -qE "\| PM Review[[:space:]]*\|[[:space:]]*completed[[:space:]]*\|" "$file" 2>/dev/null; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
+# Check if plan requires PM Review (always required for multi-phase plans after tech review)
+# Returns: "true" if required, "false" otherwise
+requires_pm_review() {
+    local file="$1"
+    local phase_count
+    phase_count=$(count_phases "$file")
+    # PM review is recommended for multi-phase plans
+    if [[ "$phase_count" -ge 2 ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
 # Extract a field value from Status Header markdown table
 # Usage: get_status_field "$plan_file" "Stage"
 # Returns: field value (e.g., "draft", "active") or empty if not found
@@ -101,13 +127,23 @@ get_plan_state() {
     fi
 
     # State machine
+    local pm_review
+    pm_review=$(get_status_field "$plan_file" "PM Review")
+
     case "$stage" in
         draft)
             # Plan Review: required (needs loop) | completed (done) | not-required (skip)
             if [[ "$plan_review" == "required" ]]; then
                 echo "review"
             elif [[ "$plan_review" == "completed" || "$plan_review" == "not-required" ]]; then
-                echo "promote"
+                # Check if PM Review is needed (after tech review, before promote)
+                if [[ "$pm_review" == "required" ]]; then
+                    echo "pm-review"
+                elif [[ "$pm_review" == "completed" || "$pm_review" == "not-required" || -z "$pm_review" ]]; then
+                    echo "promote"
+                else
+                    echo "promote"
+                fi
             else
                 # Plan Review field missing or empty - check if multi-phase
                 local needs_review
@@ -175,6 +211,7 @@ get_state_description() {
     case "$1" in
         import)          echo "Import plan to drafts folder" ;;
         review)          echo "Run Plan Review, then mark complete" ;;
+        pm-review)       echo "Run PM Review to organize plan, then mark complete" ;;
         promote)         echo "Promote plan to active" ;;
         ai-ready)        echo "Run AI-ready review, then mark ai-ready" ;;
         tim-loop)        echo "Run Tim Loop implementation" ;;
@@ -257,6 +294,12 @@ ensure_status_header_fields() {
         review_status="required"
     fi
 
+    # Determine PM Review status
+    local pm_review_status="not-required"
+    if [[ "$(requires_pm_review "$file")" == "true" ]]; then
+        pm_review_status="not-required"  # Will be set to required after tech review
+    fi
+
     local required_fields=(
         "Stage|draft|Field"
         "Created|${ts}|Stage"
@@ -265,7 +308,9 @@ ensure_status_header_fields() {
         "Approver|-|Author"
         "Plan Review|${review_status}|Approver"
         "Review Date|-|Plan Review"
-        "Execution Approved|no|Review Date"
+        "PM Review|${pm_review_status}|Review Date"
+        "PM Review Date|-|PM Review"
+        "Execution Approved|no|PM Review Date"
         "Execution Approved By|-|Execution Approved"
         "Execution Started|-|Execution Approved By"
         "AI Developer Ready|no|Execution Started"
@@ -355,6 +400,8 @@ add_status_header() {
 | Approver | - |
 | Plan Review | ${review_status} |
 | Review Date | - |
+| PM Review | not-required |
+| PM Review Date | - |
 | Execution Approved | no |
 | Execution Approved By | - |
 | Execution Started | - |

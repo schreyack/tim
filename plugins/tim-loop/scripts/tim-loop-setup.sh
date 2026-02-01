@@ -44,6 +44,7 @@ MODES (mutually exclusive):
   Implement Existing:       /tim-loop --implement plans/active/my-plan.md
   Full Review:              /tim-loop --full-review plans/drafts/my-plan.md
   Tech Review:              /tim-loop --tech-review plans/drafts/my-plan.md
+  PM Review:                /tim-loop --pm-review plans/drafts/my-plan.md
   AI-Ready Review:          /tim-loop --ai-ready plans/active/my-plan.md
   Verify Implementation:    /tim-loop --verify plans/active/my-plan.md
   Quick Mode:               /tim-loop --no-review "fix typo"
@@ -118,6 +119,11 @@ while [[ $# -gt 0 ]]; do
             [[ ! -f "$2" ]] && echo "Error: Review file not found: $2" >&2 && exit 1
             [[ -n "$REVIEW_MODE" ]] && echo "Error: Cannot combine review modes" >&2 && exit 1
             REVIEW_FILE="$2"; REVIEW_MODE="full-review"; shift 2 ;;
+        --pm-review)
+            [[ -z "${2:-}" ]] && echo "Error: --pm-review requires a file path" >&2 && exit 1
+            [[ ! -f "$2" ]] && echo "Error: Review file not found: $2" >&2 && exit 1
+            [[ -n "$REVIEW_MODE" ]] && echo "Error: Cannot combine review modes" >&2 && exit 1
+            REVIEW_FILE="$2"; REVIEW_MODE="pm-review"; shift 2 ;;
         --verify)
             [[ -z "${2:-}" ]] && echo "Error: --verify requires a file path" >&2 && exit 1
             [[ ! -f "$2" ]] && echo "Error: Plan file not found: $2" >&2 && exit 1
@@ -183,6 +189,8 @@ if [[ -n "$REVIEW_FILE" && "$COMPLETION_PROMISE" == "COMPLETE" ]]; then
         COMPLETION_PROMISE="AI-READY-DONE"
     elif [[ "$REVIEW_MODE" == "full-review" ]]; then
         COMPLETION_PROMISE="FULL-REVIEW-DONE"
+    elif [[ "$REVIEW_MODE" == "pm-review" ]]; then
+        COMPLETION_PROMISE="PM-REVIEW-DONE"
     fi
 fi
 if [[ -n "$VERIFY_FILE" && "$COMPLETION_PROMISE" == "COMPLETE" ]]; then
@@ -426,6 +434,55 @@ build_prompt() {
         prompt+="3. Phase 3 complete: Plan still achieves the original intent (the spirit test passes)\n"
         prompt+="4. You have no outstanding concerns\n\n"
         prompt+="If the plan has drifted from the original goal, do NOT output the completion promise. Document the drift instead.\n"
+    elif [[ -n "$REVIEW_FILE" && "$REVIEW_MODE" == "pm-review" ]]; then
+        prompt+="## Mode: PM Review (Project Management Organization)\n\n"
+        prompt+="The engineering team has completed technical reviews of $REVIEW_FILE. Now you will review as a senior project manager to organize and polish the plan.\n\n"
+        prompt+="### Your Persona\n"
+        prompt+="Think like a senior project manager who has delivered dozens of successful projects. You understand what the technical team has built, and now your job is to organize it for smooth implementation. You're not changing WHAT we're building - you're organizing HOW we present it.\n\n"
+        prompt+="### Your Focus Areas\n\n"
+        prompt+="**Logical Flow & Organization**\n"
+        prompt+="- Does the plan flow logically from one section to the next?\n"
+        prompt+="- Are implementation steps ordered in a sensible sequence?\n"
+        prompt+="- Would a developer reading this know where to start and how to proceed?\n"
+        prompt+="- Are related items grouped together?\n\n"
+        prompt+="**Clerical Quality**\n"
+        prompt+="- Fix typos, grammar, and formatting inconsistencies\n"
+        prompt+="- Ensure consistent naming (if something is called 'widget' in one place, it shouldn't be 'component' in another)\n"
+        prompt+="- Verify numbering and bullet points are correct\n"
+        prompt+="- Ensure code blocks are properly formatted\n\n"
+        prompt+="**Implementation Practicality**\n"
+        prompt+="- Is there a clear starting point?\n"
+        prompt+="- Are dependencies between steps clear?\n"
+        prompt+="- Would an implementer get stuck or confused anywhere?\n"
+        prompt+="- Are there any missing transitions between sections?\n\n"
+        prompt+="**Clarity Without Technical Change**\n"
+        prompt+="- Make instructions clearer through better wording\n"
+        prompt+="- Improve section headers to be more descriptive\n"
+        prompt+="- Add transitional sentences where flow is unclear\n"
+        prompt+="- Reorganize content for better readability\n\n"
+        prompt+="### CRITICAL: Never Reduce Scope\n\n"
+        prompt+="**This is an organization pass, NOT a scope change.**\n\n"
+        prompt+="You MUST NOT:\n"
+        prompt+="- Remove any requirements, tasks, or deliverables\n"
+        prompt+="- Simplify technical specifications\n"
+        prompt+="- Delete edge cases or error handling\n"
+        prompt+="- Combine items in ways that lose detail\n"
+        prompt+="- Mark anything as \"out of scope\" or \"future work\"\n\n"
+        prompt+="You CAN:\n"
+        prompt+="- Reorder items for better flow\n"
+        prompt+="- Fix typos and formatting\n"
+        prompt+="- Improve wording for clarity\n"
+        prompt+="- Add section headers or transitions\n"
+        prompt+="- Group related items together\n\n"
+        prompt+="If something seems wrong or unclear, improve its presentation - don't remove it. If you believe something should be changed substantively, add a NOTE for the human to review.\n\n"
+        prompt+="### What Excellent PM Review Looks Like\n"
+        prompt+="- The plan reads smoothly from start to finish\n"
+        prompt+="- An implementer could follow it without getting confused\n"
+        prompt+="- Typos and formatting issues are fixed\n"
+        prompt+="- Related items are grouped logically\n"
+        prompt+="- Transitions between sections are clear\n"
+        prompt+="- ALL original content is preserved (just better organized)\n\n"
+        prompt+="Output <promise>$COMPLETION_PROMISE</promise> when the plan is well-organized, polished, and flows logically - with NO scope reduction.\n"
     elif [[ -n "$VERIFY_FILE" ]]; then
         prompt+="## Mode: Verification Audit\n\n"
         prompt+="You are auditing whether $VERIFY_FILE was fully and correctly implemented.\n\n"
