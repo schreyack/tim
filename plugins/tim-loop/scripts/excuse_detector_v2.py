@@ -2,9 +2,10 @@
 """
 TIM Excuse Pattern Detector v2 - YAML + Guardrails
 
-Two-pass detection:
-1. Fast local regex from YAML patterns (free, catches most cases)
-2. LLM-as-judge via Guardrails (catches semantic evasion)
+Three-pass detection:
+1. Mode violation check (catches wrong task for current mode)
+2. Fast local regex from YAML patterns (free, catches most cases)
+3. LLM-as-judge via Guardrails (catches semantic evasion)
 
 When Guardrails catches something, log it so we can add a pattern to YAML.
 Over time, local regex catches more, reducing LLM API calls.
@@ -25,6 +26,11 @@ from excuse_responses import (
     build_unilateral_decision_block_response,
 )
 from guardrails_judge import check_with_guardrails
+from patterns_mode_violation import (
+    build_mode_violation_response,
+    find_mode_violations,
+)
+from tim_loop_state import load_state
 
 
 def read_transcript(transcript_path: str) -> list[dict]:
@@ -47,8 +53,28 @@ def read_transcript(transcript_path: str) -> list[dict]:
     return entries
 
 
-def extract_text_from_tool_input(tool_input: dict) -> list[str]:
-    """Extract string values from tool input dict."""
+def is_detector_test_file(file_path: str) -> bool:
+    """Check if file path is a test file in the detector scripts directory."""
+    if not file_path:
+        return False
+    # Normalize path
+    path = file_path.replace("\\", "/")
+    # Only skip actual test files (test_*.py) in tim-loop scripts
+    return "tim-loop/scripts/test_" in path and path.endswith(".py")
+
+
+def extract_text_from_tool_input(tool_input: dict, skip_detector_tests: bool = True) -> list[str]:
+    """Extract string values from tool input dict.
+
+    Args:
+        tool_input: The tool input dictionary
+        skip_detector_tests: If True, skip content from detector test files
+    """
+    if skip_detector_tests:
+        # Check if this is a Write/Edit to a detector test file
+        file_path = tool_input.get("file_path", "")
+        if is_detector_test_file(file_path):
+            return []  # Skip this content - it's intentional test fixtures
     return [v for v in tool_input.values() if isinstance(v, str)]
 
 
@@ -155,6 +181,66 @@ def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict
     return build_general_block_response(converted)
 
 
+def get_review_mode() -> str:
+    """Get the current review mode from tim-loop state."""
+    state = load_state()
+    if state:
+        return state.get("REVIEW_MODE", "")
+    return ""
+
+
+def check_mode_violations(assistant_text: str) -> dict | None:
+    """Check for mode violations (doing wrong task for current mode)."""
+    review_mode = get_review_mode()
+    if not review_mode:
+        return None
+    mode_violations = find_mode_violations(assistant_text, review_mode)
+    if mode_violations:
+        return build_mode_violation_response(mode_violations)
+    return None
+
+
+def check_excuse_patterns(latest_text: str) -> dict | None:
+    """Check for excuse patterns using YAML-defined patterns.
+
+    Only checks the latest assistant message to avoid false positives
+    from historical context (e.g., when discussing test fixtures earlier
+    in the conversation).
+    """
+    excuses_found = find_excuses(latest_text)
+    if excuses_found:
+        return build_block_response(excuses_found)
+    return None
+
+
+def check_guardrails(transcript: list[dict]) -> dict | None:
+    """Check with LLM-as-judge for semantic evasion."""
+    latest_text = extract_latest_assistant_text(transcript)
+    if latest_text:
+        return check_with_guardrails(latest_text)
+    return None
+
+
+def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | None:
+    """Run all detection passes in order. Returns first blocking response or None.
+
+    Uses latest_text (most recent message) for pattern detection to avoid
+    false positives from historical context in the conversation.
+    """
+    # Pass 0: Mode violation check (catches completely wrong task)
+    result = check_mode_violations(latest_text)
+    if result:
+        return result
+
+    # Pass 1: Local regex from YAML (fast, free)
+    result = check_excuse_patterns(latest_text)
+    if result:
+        return result
+
+    # Pass 2: LLM-as-judge via Guardrails (catches semantic evasion)
+    return check_guardrails(transcript)
+
+
 def main():
     """Main hook entry point."""
     try:
@@ -171,29 +257,14 @@ def main():
         sys.exit(0)
 
     transcript = read_transcript(transcript_path)
-    if not transcript:
-        sys.exit(0)
-
-    assistant_text = extract_assistant_text(transcript)
-    if not assistant_text:
-        sys.exit(0)
-
-    # Pass 1: Local regex from YAML (fast, free) - check full transcript
-    excuses_found = find_excuses(assistant_text)
-    if excuses_found:
-        print(json.dumps(build_block_response(excuses_found)))
-        sys.exit(0)
-
-    # Pass 2: LLM-as-judge via Guardrails (catches semantic evasion)
-    # Only evaluate the latest response to avoid confusion from old context
     latest_text = extract_latest_assistant_text(transcript)
-    if latest_text:
-        guardrails_result = check_with_guardrails(latest_text)
-        if guardrails_result:
-            print(json.dumps(guardrails_result))
-            sys.exit(0)
+    if not transcript or not latest_text:
+        sys.exit(0)
 
-    # Clean - no issues detected
+    result = run_detection_passes(latest_text, transcript)
+    if result:
+        print(json.dumps(result))
+
     sys.exit(0)
 
 
