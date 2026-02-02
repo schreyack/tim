@@ -60,7 +60,7 @@ CORE_EXCUSE_PATTERNS = [
         example="Refactoring is beyond the scope of this task"
     ),
     ExcusePattern(
-        pattern=r"(?:existing|inherited|legacy)\s+(?:issue|problem|code|violation)",
+        pattern=r"(?:this\s+is|that's|it's|there's)\s+(?:an?\s+)?(?:existing|inherited|legacy)\s+(?:issue|problem|violation)",
         description="Blaming inherited code",
         example="This is an existing issue from legacy code"
     ),

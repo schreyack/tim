@@ -110,9 +110,9 @@ REDEFINE_EXCUSE_PATTERNS = [
         category="redefine",
     ),
     ExcusePattern(
-        pattern=r"(?:override|overridden|supersede[ds]?)\s+(?:by|because|since)",
-        description="Claiming override authority",
-        example="overridden by the plan requirements",
+        pattern=r"(?:the\s+)?(?:rule|limit|check|hook|requirement)s?\s+(?:is|are|should\s+be)\s+(?:overridden|superseded)\s+(?:by|because|since)",
+        description="Claiming override authority over rules",
+        example="the rule should be overridden by the plan requirements",
         category="redefine",
     ),
 ]
