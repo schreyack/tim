@@ -20,6 +20,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from tim_loop_state import is_tim_loop_active
+
 # Config file locations (in precedence order after env vars)
 USER_CONFIG_PATH = Path.home() / ".claude" / "tim-loop-config.yaml"
 PLUGIN_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
@@ -92,11 +94,6 @@ def _get_config() -> dict:
 
     _config_cache = config
     return config
-
-
-def is_tim_loop_active() -> bool:
-    """Check if we're inside an active tim-loop session."""
-    return Path.home().joinpath(".claude", ".tim-loop-active").exists()
 
 
 def is_llm_judge_enabled() -> bool:
@@ -230,6 +227,11 @@ def check_with_guardrails(transcript_text: str) -> dict | None:
 
     # Check if feature is enabled
     if not is_llm_judge_enabled():
+        return None
+
+    # Skip if transcript is empty or too short to evaluate meaningfully
+    transcript_text = transcript_text.strip()
+    if len(transcript_text) < 50:
         return None
 
     config = get_llm_config()

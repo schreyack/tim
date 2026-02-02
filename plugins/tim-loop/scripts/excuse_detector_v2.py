@@ -80,9 +80,16 @@ def extract_assistant_text(transcript: list[dict]) -> str:
     """Extract all assistant (Claude) text from transcript."""
     texts = []
     for entry in transcript:
-        role = entry.get("role") or entry.get("type")
+        # Handle both flat format (role at top) and nested format (role in message)
+        message = entry.get("message", {})
+        if isinstance(message, dict):
+            role = message.get("role")
+            content = message.get("content", "")
+        else:
+            role = entry.get("role") or entry.get("type")
+            content = entry.get("content", "")
         if role == "assistant":
-            texts.extend(extract_text_from_content(entry.get("content", "")))
+            texts.extend(extract_text_from_content(content))
     return "\n".join(texts)
 
 

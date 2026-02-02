@@ -51,25 +51,29 @@ def cleanup_state_files(state_file: str, prompt_file: str) -> None:
                 log_message(f"FAILED to remove {file_path}: {e}")
 
 
+def _filter_tim_loop_hooks(hooks: dict, hook_type: str) -> None:
+    """Remove tim-loop hooks from a specific hook type, deleting key if empty."""
+    if hook_type not in hooks:
+        return
+    hooks[hook_type] = [
+        h for h in hooks[hook_type] if "tim-loop" not in h.get("command", "")
+    ]
+    if not hooks[hook_type]:
+        del hooks[hook_type]
+
+
 def cleanup_hooks_from_settings() -> None:
     """Remove tim-loop hooks from settings.local.json."""
+    settings_file = Path.home() / ".claude" / "settings.local.json"
+    if not settings_file.exists():
+        return
     try:
-        settings_file = Path.home() / ".claude" / "settings.local.json"
-        if not settings_file.exists():
-            return
         with open(settings_file, "r") as f:
             settings = json.load(f)
         if "hooks" not in settings:
             return
         for hook_type in ["stop", "PreToolUse", "SessionStart"]:
-            if hook_type in settings["hooks"]:
-                settings["hooks"][hook_type] = [
-                    h
-                    for h in settings["hooks"][hook_type]
-                    if "tim-loop" not in h.get("command", "")
-                ]
-                if not settings["hooks"][hook_type]:
-                    del settings["hooks"][hook_type]
+            _filter_tim_loop_hooks(settings["hooks"], hook_type)
         if not settings["hooks"]:
             del settings["hooks"]
         with open(settings_file, "w") as f:
@@ -120,3 +124,74 @@ def save_state(state: dict) -> None:
                     f.write(f'{key}="{value}"\n')
     except Exception as e:
         log_message(f"Failed to save state: {e}")
+
+
+# Staleness detection thresholds
+HEARTBEAT_THRESHOLD_SECONDS = 300  # 5 minutes
+STATE_FILE_THRESHOLD_SECONDS = 30  # 30 seconds if no heartbeat
+
+
+def _cleanup_stale_session() -> None:
+    """Clean up orphaned tim-loop session files."""
+    heartbeat_path = Path.home() / ".claude" / ".tim-loop-heartbeat"
+    try:
+        state_file_path = (
+            TIM_LOOP_ACTIVE_MARKER.read_text().strip()
+            if TIM_LOOP_ACTIVE_MARKER.exists()
+            else None
+        )
+        TIM_LOOP_ACTIVE_MARKER.unlink(missing_ok=True)
+        heartbeat_path.unlink(missing_ok=True)
+        if state_file_path:
+            Path(state_file_path).unlink(missing_ok=True)
+        # Also clean up related files
+        for pattern in [".tim-loop-iteration-count", ".tim-loop-auto-approve"]:
+            (Path.home() / ".claude" / pattern).unlink(missing_ok=True)
+        log_message("Cleaned up stale session files")
+    except Exception as e:
+        log_message(f"Stale session cleanup error: {e}")
+
+
+def is_tim_loop_active() -> bool:
+    """Check if we're inside an active tim-loop session.
+
+    Includes staleness detection to avoid false positives from orphaned
+    marker files (e.g., after /clear, crash, or terminal close).
+    """
+    heartbeat_path = Path.home() / ".claude" / ".tim-loop-heartbeat"
+
+    if not TIM_LOOP_ACTIVE_MARKER.exists():
+        return False
+
+    # Marker exists - check for staleness
+    try:
+        # Check heartbeat if it exists
+        if heartbeat_path.exists():
+            heartbeat_epoch = int(heartbeat_path.read_text().strip())
+            now_epoch = int(datetime.now().timestamp())
+            age_seconds = now_epoch - heartbeat_epoch
+            if age_seconds > HEARTBEAT_THRESHOLD_SECONDS:
+                # Stale heartbeat - session is dead
+                _cleanup_stale_session()
+                return False
+            return True  # Fresh heartbeat - session is active
+
+        # No heartbeat - check state file age
+        state_file_path = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
+        if state_file_path and Path(state_file_path).exists():
+            state_mtime = Path(state_file_path).stat().st_mtime
+            now_epoch = datetime.now().timestamp()
+            age_seconds = now_epoch - state_mtime
+            if age_seconds > STATE_FILE_THRESHOLD_SECONDS:
+                # No heartbeat + old state file = stale session
+                _cleanup_stale_session()
+                return False
+        else:
+            # State file doesn't exist - definitely stale
+            _cleanup_stale_session()
+            return False
+
+        return True  # State file is fresh enough
+    except Exception:
+        # On any error, assume active to avoid accidentally cleaning up live session
+        return True
