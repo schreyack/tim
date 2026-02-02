@@ -1,7 +1,7 @@
 {
   "name": "tim-loop",
-  "version": "2.28.0",
-  "description": "Goal in, working code out: iterative convergence with verification loop. Includes plan-ops.sh and pyplan-ops (Python) for plan lifecycle management. Four-phase workflow with AI behavioral enforcement.",
+  "version": "2.29.0",
+  "description": "Goal in, working code out: iterative convergence with verification loop. Includes plan-ops.sh for plan lifecycle management. Four-phase workflow with AI behavioral enforcement.",
   "author": {
     "name": "Tim Schreyack",
     "email": "schreyack@users.noreply.github.com"
