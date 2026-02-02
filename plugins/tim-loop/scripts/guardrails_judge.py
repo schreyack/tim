@@ -117,7 +117,10 @@ def _call_ollama_direct(text: str, config: dict) -> dict | None:
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             content = result["choices"][0]["message"]["content"]
-            return {"passed": "PASS" in content.upper() and "FAIL" not in content.upper(), "reason": content}
+            # Check first line for verdict, stripping markdown formatting
+            first_line = content.strip().split('\n')[0].upper().replace('*', '').replace('_', '')
+            passed = "PASS" in first_line and "FAIL" not in first_line
+            return {"passed": passed, "reason": content}
     except urllib.error.URLError as e:
         print(f"Warning: Could not reach LLM server: {e}", file=sys.stderr)
         return None
