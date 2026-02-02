@@ -134,6 +134,54 @@ def check_js_ts_functions(file_path: Path) -> list[Violation]:
     return violations
 
 
+def calculate_cyclomatic_complexity(node: ast.AST) -> int:
+    """Calculate cyclomatic complexity for a function node.
+
+    Complexity starts at 1 (for entry) and increases for each decision point.
+    """
+    complexity = 1
+    for child in ast.walk(node):
+        # Decision points that add to complexity
+        if isinstance(child, (ast.If, ast.While, ast.For,
+                              ast.ExceptHandler, ast.With, ast.Assert)):
+            complexity += 1
+        # Comprehension if clauses
+        elif isinstance(child, ast.comprehension):
+            complexity += len(child.ifs)
+        # Boolean operators (and/or)
+        elif isinstance(child, ast.BoolOp):
+            complexity += len(child.values) - 1
+        # Ternary expressions
+        elif isinstance(child, ast.IfExp):
+            complexity += 1
+    return complexity
+
+
+def check_python_complexity(file_path: Path) -> list[Violation]:
+    """Check Python function cyclomatic complexity."""
+    violations = []
+    try:
+        content = file_path.read_text(encoding="utf-8", errors="replace")
+        tree = ast.parse(content, filename=str(file_path))
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                complexity = calculate_cyclomatic_complexity(node)
+                if complexity > LIMITS.max_complexity:
+                    violations.append(Violation(
+                        rule="complexity",
+                        message=f"Function '{node.name}' at line {node.lineno} has "
+                               f"cyclomatic complexity {complexity} (max: {LIMITS.max_complexity})",
+                        severity="error"
+                    ))
+    except SyntaxError:
+        pass  # Can't parse, skip complexity checks
+    except Exception:
+        pass
+
+    return violations
+
+
 def validate_file(file_path: Path) -> list[Violation]:
     """Run all validations on a file."""
     violations = []
@@ -155,38 +203,48 @@ def validate_file(file_path: Path) -> list[Violation]:
     # Check function lengths based on file type
     if file_path.suffix == ".py":
         violations.extend(check_python_functions(file_path))
+        violations.extend(check_python_complexity(file_path))
     elif file_path.suffix in {".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"}:
         violations.extend(check_js_ts_functions(file_path))
 
     return violations
 
 
+GUIDANCE_TEMPLATES = {
+    "file-size": (
+        "WHAT TO DO FOR FILE SIZE:\n"
+        "1. Identify groups of related functions that form a logical unit\n"
+        "2. Extract each group into its own module with a clear name\n"
+        "3. Update imports in the original file\n"
+        "4. Verify nothing breaks"
+    ),
+    "function-length": (
+        "WHAT TO DO FOR LONG FUNCTIONS:\n"
+        "1. Identify distinct steps or responsibilities within the function\n"
+        "2. Extract each into a well-named helper function\n"
+        "3. Keep the original function as a coordinator that calls the helpers"
+    ),
+    "complexity": (
+        "WHAT TO DO FOR HIGH COMPLEXITY:\n"
+        "1. Identify conditional branches that can be extracted to helper functions\n"
+        "2. Replace nested if/else with early returns or guard clauses\n"
+        "3. Consider using polymorphism or strategy pattern for complex branching\n"
+        "4. Break down complex boolean expressions into named variables"
+    ),
+}
+
+
+def build_guidance_text(violations: list[Violation]) -> str:
+    """Build guidance text based on violation types."""
+    rules_present = {v.rule for v in violations}
+    sections = [GUIDANCE_TEMPLATES[rule] for rule in rules_present if rule in GUIDANCE_TEMPLATES]
+    return "\n\n".join(sections)
+
+
 def build_block_response(file_name: str, violations: list[Violation]) -> dict:
     """Build a blocking response for violations with carrot-first messaging."""
-    messages = [f"- {v.message}" for v in violations]
-    violation_text = "\n".join(messages)
-
-    has_file_size = any(v.rule == "file-size" for v in violations)
-    has_function_length = any(v.rule == "function-length" for v in violations)
-
-    guidance_sections = []
-    if has_file_size:
-        guidance_sections.append(
-            "WHAT TO DO FOR FILE SIZE:\n"
-            "1. Identify groups of related functions that form a logical unit\n"
-            "2. Extract each group into its own module with a clear name\n"
-            "3. Update imports in the original file\n"
-            "4. Verify nothing breaks"
-        )
-    if has_function_length:
-        guidance_sections.append(
-            "WHAT TO DO FOR LONG FUNCTIONS:\n"
-            "1. Identify distinct steps or responsibilities within the function\n"
-            "2. Extract each into a well-named helper function\n"
-            "3. Keep the original function as a coordinator that calls the helpers"
-        )
-
-    guidance = "\n\n".join(guidance_sections)
+    violation_text = "\n".join(f"- {v.message}" for v in violations)
+    guidance = build_guidance_text(violations)
 
     return {
         "decision": "block",

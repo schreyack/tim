@@ -22,7 +22,7 @@ rm -f ~/.claude/.tim-loop-state-* ~/.claude/.tim-loop-prompt-* ~/.claude/.tim-lo
 
 2. If the file exists and contains tim-loop hooks, use the Write tool to write a new version with the tim-loop hooks removed:
    - Remove any hook objects where `command` contains "tim-loop"
-   - Remove the `stop`, `PreToolUse`, or `PreCompact` arrays if they become empty
+   - Remove the `stop`, `PreToolUse`, or `SessionStart` arrays if they become empty
    - Remove the `hooks` object entirely if it becomes empty
    - Preserve all other settings
 

@@ -18,7 +18,7 @@ Tim Loop is a Claude Code plugin that implements a four-phase workflow for AI-dr
 - [Options Reference](#options-reference)
 - [Completion Rules](#completion-rules)
 - [Integration with plan-ops.sh](#integration-with-plan-opssh)
-- [PreCompact Hook (Prompt Preservation)](#precompact-hook-prompt-preservation)
+- [SessionStart Hook (Prompt Preservation)](#sessionstart-hook-prompt-preservation)
 - [Cleanup](#cleanup)
 - [File Structure](#file-structure)
 - [Troubleshooting](#troubleshooting)
@@ -52,13 +52,13 @@ Most solutions to AI context loss focus on **retrieval** - archiving context and
 | **Archive + Search** (e.g., c0ntextKeeper) | Saves context to database, AI queries via MCP tools | AI must know to search; can miss critical context |
 | **Periodic Refresh** (e.g., UserPromptSubmit hooks) | Reinjects context every N prompts | Doesn't target compaction; wastes tokens on every prompt |
 | **Rolling Summaries** (e.g., Factory.ai) | Maintains compressed summaries of conversation | Summaries lose precision; "behavioral drift" |
-| **Tim Loop's PreCompact** | Reinjects **exact original task prompt** during compaction | Full fidelity preserved |
+| **Tim Loop's SessionStart** | Reinjects **exact original task prompt** during compaction | Full fidelity preserved |
 
 ### Key Innovations
 
 **1. Exact Prompt Preservation**
 
-When context compaction occurs, Tim Loop's PreCompact hook reinjects the *exact* original task prompt - not a summary, not a retrieval query, but the precise instructions. The AI continues with full fidelity to the original goal.
+When context compaction occurs, Tim Loop's SessionStart hook reinjects the *exact* original task prompt - not a summary, not a retrieval query, but the precise instructions. The AI continues with full fidelity to the original goal.
 
 ```
 === ORIGINAL TASK (reinjected after context compaction) ===
@@ -91,7 +91,7 @@ Through integration with plan-ops.sh, Tim Loop enforces:
 
 **5. Session-Isolated State**
 
-Each Tim Loop session has isolated state files. Multiple concurrent sessions in different projects don't interfere. The PreCompact hook uses session IDs to reinject the correct prompt to the correct session.
+Each Tim Loop session has isolated state files. Multiple concurrent sessions in different projects don't interfere. The SessionStart hook uses session IDs to reinject the correct prompt to the correct session.
 
 ### Why This Matters
 
@@ -411,7 +411,7 @@ Then paste your tim-loop command:
 | `Stop` | Excuse pattern detector - catches deflection and blocks completion |
 | `PreToolUse` | Auto-approves tools when `--auto-approve` is active |
 | `PostToolUse` | Code quality validator - enforces file/function size limits |
-| `PreCompact` | Preserves original prompt across context compaction |
+| `SessionStart` | Preserves original prompt across context compaction |
 
 ## AI Behavioral Gates
 
@@ -425,6 +425,7 @@ Runs after every `Edit` or `Write` operation:
 |-------|-------|--------|
 | File size | 400 lines max | Blocks until refactored |
 | Function length | 50 lines max | Blocks until split |
+| Cyclomatic complexity | 10 max | Blocks until simplified |
 
 When a violation is detected, Claude receives a blocking response:
 
@@ -534,6 +535,56 @@ Import → Plan Review → Promote → AI-Ready → Execute → Tim-Loop → Com
 
 **Use for:** When you want step-by-step guidance through all approvals and gates
 
+### Full Review Mode (`--full-review`)
+
+```bash
+/tim-loop --full-review plans/drafts/my-plan.md
+```
+
+**Phases:** Six comprehensive review phases
+**End state:** Plan file ready for implementation (technically sound, AI-ready, goal-aligned)
+**Use for:** Complete review in a single session
+
+#### Full Review Details (6 Phases)
+
+Full review mode performs a comprehensive 6-phase review:
+
+| Phase | Focus | Min Iterations |
+|-------|-------|----------------|
+| 1. Tech Review | Technical accuracy, edge cases, evidence log | 5 |
+| 2. Devil's Advocate | Assumptions, failure modes, worst cases | 2 |
+| 3. Security Review | Auth, validation, OWASP considerations | 2 |
+| 4. AI-Ready | Unambiguous instructions, hallucination prevention | 2 |
+| 5. Goal Alignment | Does plan still match original intent? | 1 |
+| 6. PM Review | Organization, flow, clerical (no scope reduction) | 1 |
+
+**Total minimum iterations:** 13
+**Typical actual iterations:** 15-25
+
+Each phase must output its completion signal before advancing.
+
+### Phase 1: Evidence Requirement
+
+Tech Review requires an Evidence Log before completion:
+
+```
+**REVIEW EVIDENCE LOG**
+
+Files verified:
+- [specific file:line numbers checked]
+
+Edge cases added:
+- [before/after for improvements]
+
+Criteria tightened:
+- [before/after for specificity improvements]
+
+Questions raised:
+- [list or "None"]
+```
+
+Empty or vague logs (e.g., "verified all files") are not accepted.
+
 ## Options Reference
 
 ### Mode Options (Mutually Exclusive)
@@ -556,6 +607,7 @@ Import → Plan Review → Promote → AI-Ready → Execute → Tim-Loop → Com
 | `--review-iterations N` | 10 | Max iterations for review phase |
 | `--completion-promise STR` | "COMPLETE" | Phrase that signals completion. Change if "COMPLETE" appears in your task. |
 | `--dry-run` | - | Preview generated prompt without executing |
+| `--health` | - | Run hook health check to verify tim-loop hooks are configured |
 | `--help` | - | Show detailed help text |
 
 ### Cleanup Options
@@ -638,9 +690,9 @@ Plans must meet these criteria before `--implement` will work:
 1. Located in `plans/active/` (not drafts or completed)
 2. Have `| AI Developer Ready | yes |` in status table
 
-## PreCompact Hook (Prompt Preservation)
+## SessionStart Hook (Prompt Preservation)
 
-Tim Loop includes a PreCompact hook that preserves the original task prompt when Claude Code compacts context (removes older messages to stay within token limits).
+Tim Loop includes a SessionStart hook that preserves the original task prompt when Claude Code compacts context (removes older messages to stay within token limits).
 
 ### The Problem It Solves
 
@@ -654,7 +706,7 @@ Most solutions (archive + search, rolling summaries) lose fidelity. Tim Loop's a
 ### How It Works
 
 1. At tim-loop start, the original prompt is saved to a session-specific file (`~/.claude/.tim-loop-prompt-{session_id}`)
-2. When context compaction occurs, the PreCompact hook fires
+2. When context compaction occurs, the SessionStart hook fires
 3. The hook returns JSON with `systemMessage` containing the original prompt
 4. Claude receives the exact prompt and continues with full awareness of the original task
 
@@ -694,12 +746,12 @@ You'll see entries like:
 
 ### Configuration
 
-The PreCompact hook is defined in `hooks/hooks.json` and registered automatically when the plugin is installed:
+The SessionStart hook is defined in `hooks/hooks.json` and registered automatically when the plugin is installed:
 
 ```json
 {
   "hooks": {
-    "PreCompact": [
+    "SessionStart": [
       {
         "matcher": "",
         "hooks": [
@@ -720,7 +772,7 @@ Each tim-loop session has its own prompt file:
 - Session 31790 → `~/.claude/.tim-loop-prompt-31790`
 - Session 45123 → `~/.claude/.tim-loop-prompt-45123`
 
-This means multiple concurrent tim-loops in different projects don't interfere with each other. The PreCompact hook uses the session ID to reinject the correct prompt.
+This means multiple concurrent tim-loops in different projects don't interfere with each other. The SessionStart hook uses the session ID to reinject the correct prompt.
 
 ### Prompt Manager Tool
 
@@ -745,7 +797,7 @@ The `scripts/tim-loop-prompt-manager.sh` script (bundled with the plugin) manage
 # Clean up stale prompts (>24h)
 ./scripts/tim-loop-prompt-manager.sh cleanup
 
-# Run as PreCompact hook (outputs JSON)
+# Run as SessionStart hook (outputs JSON)
 ./scripts/tim-loop-prompt-manager.sh hook
 ```
 
@@ -789,11 +841,11 @@ plugins/tim-loop/
 │   ├── tim-loop-setup.sh     # Main setup script (parses args, creates state, registers hooks)
 │   ├── tim-loop-hook.py      # Stop hook (checks completion, re-injects prompt)
 │   ├── tim-loop-permission-hook.sh  # PreToolUse hook (auto-approve when enabled)
-│   ├── tim-loop-prompt-manager.sh   # PreCompact hook (preserves prompt across compaction)
+│   ├── tim-loop-prompt-manager.sh   # SessionStart hook (preserves prompt across compaction)
 │   ├── code-quality-validator.py    # PostToolUse hook (file/function size limits)
 │   └── excuse-detector.py    # Stop hook (catches deflection patterns)
 ├── hooks/
-│   └── hooks.json            # Hook configuration (PreCompact, PostToolUse, Stop)
+│   └── hooks.json            # Hook configuration (SessionStart, PostToolUse, Stop)
 └── README.md                 # This file
 ```
 
@@ -856,11 +908,23 @@ The verification logic checks for `<!-- VERIFIED: YES -->` in the plan file. Ens
 
 ### Context compaction loses track of task
 
-The PreCompact hook should preserve the prompt. Check:
+The SessionStart hook should preserve the prompt. Check:
 
 1. Plugin hooks.json is properly installed
 2. `scripts/tim-loop-prompt-manager.sh` exists in the plugin folder and is executable
 3. Session ID is being passed correctly
+
+### Review stuck in early phase
+
+If full-review keeps looping in Phase 1:
+1. Check if Evidence Log is being output
+2. Verify the log contains specific file:line references
+3. Ensure at least 5 iterations have occurred
+
+Each phase has minimum iteration requirements:
+- Phase 1: 5 iterations minimum
+- Phases 2-4: 2 iterations minimum
+- Phases 5-6: 1 iteration minimum
 
 ### Max iterations reached
 
@@ -874,11 +938,12 @@ When max iterations is reached without verification, tim-loop marks the plan as 
 
 ### Code quality validator keeps blocking
 
-The validator enforces TIM standards (400-line files, 50-line functions). If you're blocked:
+The validator enforces TIM standards (400-line files, 50-line functions, complexity 10). If you're blocked:
 
 1. Refactor the file into smaller modules
 2. Extract large functions into smaller units
-3. Each module should have a single responsibility
+3. Reduce cyclomatic complexity by extracting conditionals to helper functions
+4. Each module should have a single responsibility
 
 **There is no bypass** - this is intentional. Fix the code.
 

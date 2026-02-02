@@ -93,6 +93,7 @@ while [[ $# -gt 0 ]]; do
             exec "$PLAN_OPS_SCRIPT" wizard "$2"
             ;;
         -h|--help) show_help; exit 0 ;;
+        --health) exec "${SCRIPT_DIR}/hook-health-check.sh" ;;
         --cleanup) cleanup_all; exit 0 ;;
         --cleanup-all) echo "WARNING: Removing ALL tim-loop state files." >&2; cleanup_all --force; exit 0 ;;
         --dry-run) DRY_RUN=true; shift ;;
@@ -265,42 +266,27 @@ build_prompt() {
         prompt+="- Tightening vague criteria into concrete, testable statements\n"
         prompt+="- Raising genuine concerns as questions for the author\n"
         prompt+="- Making the plan MORE specific and MORE robust, not less\n\n"
-        prompt+="---\n\n"
-        prompt+="## Two-Phase Review Process (REQUIRED)\n\n"
-        prompt+="Tech review uses TWO PERSONAS to ensure thoroughness. You cannot skip Phase 2.\n\n"
-        prompt+="### Phase 1: Senior Engineer Review\n\n"
-        prompt+="As the Senior Engineer, do a thorough technical review:\n"
-        prompt+="1. Read the ENTIRE plan from start to finish\n"
-        prompt+="2. Verify referenced files, APIs, and patterns exist in the codebase\n"
-        prompt+="3. Identify issues (technical gaps, missing edge cases, vague criteria)\n"
-        prompt+="4. Fix all issues you found\n"
-        prompt+="5. Re-read and verify your fixes are correct\n"
-        prompt+="6. Continue until you believe the review is complete\n\n"
-        prompt+="When you believe Phase 1 is done, output: \`[PHASE 1 COMPLETE - SWITCHING TO LEAD DEVELOPER]\`\n\n"
-        prompt+="---\n\n"
-        prompt+="### Phase 2: Lead Developer Meta-Review\n\n"
-        prompt+="**CLEAR YOUR MIND. You are now a different person.**\n\n"
-        prompt+="You are the Lead Developer responsible for code quality on the team. A Senior Engineer just completed a tech review of this plan. Your job is to evaluate WHETHER THAT REVIEW WAS THOROUGH.\n\n"
-        prompt+="You've seen reviewers who:\n"
-        prompt+="- Skim instead of read carefully\n"
-        prompt+="- Check some references but not all\n"
-        prompt+="- Miss edge cases because they assumed the author handled them\n"
-        prompt+="- Feel confident after one pass when they should have done two\n"
-        prompt+="- Fix surface issues but miss deeper structural problems\n\n"
-        prompt+="**Your Review of the Review:**\n"
-        prompt+="1. Did the Senior Engineer actually verify file/API references, or just assume they're correct?\n"
-        prompt+="2. Are there sections of the plan that look untouched - suggesting they weren't scrutinized?\n"
-        prompt+="3. Are the edge cases comprehensive, or are obvious failure modes missing?\n"
-        prompt+="4. Do the fixes introduced create any new inconsistencies?\n"
-        prompt+="5. Would YOU feel confident handing this plan to an AI developer right now?\n\n"
-        prompt+="**Your Verdict:**\n"
-        prompt+="- If the review was NOT thorough: Output \`[REVIEW INSUFFICIENT - RETURNING TO PHASE 1]\` and explain what was missed. Then redo Phase 1 with fresh eyes, focusing on the gaps.\n"
-        prompt+="- If the review WAS thorough: Output \`[REVIEW APPROVED BY LEAD DEVELOPER]\` and proceed to completion.\n\n"
-        prompt+="**The Confidence Trap**\n"
-        prompt+="The Senior Engineer will always feel confident. That's not evidence of thoroughness. Look for PROOF of thoroughness: specific files checked, specific edge cases added, specific vague criteria tightened. If you can't see the evidence, the work wasn't done.\n\n"
-        prompt+="---\n\n"
+        prompt+="### Evidence Requirement (MANDATORY)\n\n"
+        prompt+="Before signaling completion, you MUST output a Review Evidence Log.\n\n"
+        prompt+="\`\`\`\n"
+        prompt+="**REVIEW EVIDENCE LOG**\n\n"
+        prompt+="Files verified:\n"
+        prompt+="- [file_path:line_number] - [what was checked, what was found]\n"
+        prompt+="- (list all files referenced in the plan that you actually opened and read)\n\n"
+        prompt+="Edge cases added:\n"
+        prompt+="- [section] Before: [original text] → After: [improved text]\n"
+        prompt+="- (list each edge case you added with before/after)\n\n"
+        prompt+="Criteria tightened:\n"
+        prompt+="- [criterion] Before: [vague] → After: [specific, testable]\n"
+        prompt+="- (list each criterion you made more specific)\n\n"
+        prompt+="Questions raised:\n"
+        prompt+="- [list any questions for the human, or 'None']\n"
+        prompt+="\`\`\`\n\n"
+        prompt+="**Validation rules:**\n"
+        prompt+="- 'Files verified' MUST list specific file:line numbers, not 'verified all files'\n"
+        prompt+="- At least one edge case or criterion improvement is expected (plans are rarely perfect)\n"
+        prompt+="- Empty or vague evidence logs will be rejected by the stop hook\n\n"
         prompt+="**To signal completion:** Output exactly \`<promise>$COMPLETION_PROMISE</promise>\` (the tag is \`promise\`, NOT \`prompt\`).\n"
-        prompt+="You may ONLY output this AFTER the Lead Developer has approved the review with \`[REVIEW APPROVED BY LEAD DEVELOPER]\`.\n"
     elif [[ -n "$REVIEW_FILE" && "$REVIEW_MODE" == "ai-ready" ]]; then
         prompt+="## Mode: AI-Ready Review\n\n"
         prompt+="You are a tech lead who manages AI developers, reviewing $REVIEW_FILE to ensure it's ready for AI implementation.\n\n"
@@ -741,7 +727,7 @@ try:
     with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
         settings = json.load(f)
     if 'hooks' in settings:
-        for ht in ['stop', 'PreToolUse', 'PreCompact']:
+        for ht in ['stop', 'PreToolUse', 'SessionStart']:
             if ht in settings['hooks']:
                 settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
                 if not settings['hooks'][ht]: del settings['hooks'][ht]
@@ -788,12 +774,21 @@ CURRENT_PHASE="1"
 PHASE_1_ITERATIONS="0"
 PHASE_2_ITERATIONS="0"
 PHASE_3_ITERATIONS="0"
-MIN_PHASE_1_ITERATIONS="3"
+PHASE_4_ITERATIONS="0"
+PHASE_5_ITERATIONS="0"
+PHASE_6_ITERATIONS="0"
+MIN_PHASE_1_ITERATIONS="5"
 MIN_PHASE_2_ITERATIONS="2"
-MIN_PHASE_3_ITERATIONS="1"
+MIN_PHASE_3_ITERATIONS="2"
+MIN_PHASE_4_ITERATIONS="2"
+MIN_PHASE_5_ITERATIONS="1"
+MIN_PHASE_6_ITERATIONS="1"
 PHASE_1_COMPLETE="false"
 PHASE_2_COMPLETE="false"
 PHASE_3_COMPLETE="false"
+PHASE_4_COMPLETE="false"
+PHASE_5_COMPLETE="false"
+PHASE_6_COMPLETE="false"
 EOF
 fi
 

@@ -61,7 +61,7 @@ def cleanup_hooks_from_settings() -> None:
             settings = json.load(f)
         if "hooks" not in settings:
             return
-        for hook_type in ["stop", "PreToolUse", "PreCompact"]:
+        for hook_type in ["stop", "PreToolUse", "SessionStart"]:
             if hook_type in settings["hooks"]:
                 settings["hooks"][hook_type] = [
                     h
