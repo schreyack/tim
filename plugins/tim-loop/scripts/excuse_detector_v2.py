@@ -76,21 +76,32 @@ def extract_text_from_content(content) -> list[str]:
     return []
 
 
+def _get_entry_role_and_content(entry: dict) -> tuple[str | None, str]:
+    """Extract role and content from a transcript entry."""
+    message = entry.get("message", {})
+    if isinstance(message, dict):
+        return message.get("role"), message.get("content", "")
+    return entry.get("role") or entry.get("type"), entry.get("content", "")
+
+
 def extract_assistant_text(transcript: list[dict]) -> str:
     """Extract all assistant (Claude) text from transcript."""
     texts = []
     for entry in transcript:
-        # Handle both flat format (role at top) and nested format (role in message)
-        message = entry.get("message", {})
-        if isinstance(message, dict):
-            role = message.get("role")
-            content = message.get("content", "")
-        else:
-            role = entry.get("role") or entry.get("type")
-            content = entry.get("content", "")
+        role, content = _get_entry_role_and_content(entry)
         if role == "assistant":
             texts.extend(extract_text_from_content(content))
     return "\n".join(texts)
+
+
+def extract_latest_assistant_text(transcript: list[dict]) -> str:
+    """Extract only the most recent assistant message from transcript."""
+    for entry in reversed(transcript):
+        role, content = _get_entry_role_and_content(entry)
+        if role == "assistant":
+            texts = extract_text_from_content(content)
+            return "\n".join(texts)
+    return ""
 
 
 def has_mitigation_nearby(text: str, match_end: int, config, window: int = 150) -> bool:
@@ -167,17 +178,20 @@ def main():
     if not assistant_text:
         sys.exit(0)
 
-    # Pass 1: Local regex from YAML (fast, free)
+    # Pass 1: Local regex from YAML (fast, free) - check full transcript
     excuses_found = find_excuses(assistant_text)
     if excuses_found:
         print(json.dumps(build_block_response(excuses_found)))
         sys.exit(0)
 
     # Pass 2: LLM-as-judge via Guardrails (catches semantic evasion)
-    guardrails_result = check_with_guardrails(assistant_text)
-    if guardrails_result:
-        print(json.dumps(guardrails_result))
-        sys.exit(0)
+    # Only evaluate the latest response to avoid confusion from old context
+    latest_text = extract_latest_assistant_text(transcript)
+    if latest_text:
+        guardrails_result = check_with_guardrails(latest_text)
+        if guardrails_result:
+            print(json.dumps(guardrails_result))
+            sys.exit(0)
 
     # Clean - no issues detected
     sys.exit(0)

@@ -156,6 +156,15 @@ cmd_wizard() {
         echo ""
         log_info "This plan is already marked as completed."
         run_verification_tim_loop "$WIZARD_PLAN_FILE" "Run verification tim-loop on completed plan? [y/N] "
+
+        # Move plan to completed/ folder if not already there
+        if [[ "$WIZARD_PLAN_FILE" != *"/plans/completed/"* ]]; then
+            echo ""
+            log_info "Moving plan to completed/ folder..."
+            cmd_complete "$WIZARD_PLAN_FILE"
+            wizard_update_paths_after_move "completed"
+        fi
+
         echo ""
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo -e "${GREEN}✓ Plan lifecycle complete!${NC}"

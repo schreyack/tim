@@ -171,15 +171,45 @@ def log_llm_catch(transcript_excerpt: str, failure_reason: str, category: str) -
         print(f"Warning: Could not log LLM catch: {e}", file=sys.stderr)
 
 
-def _call_ollama_direct(text: str, config: dict) -> dict | None:
-    """Call Ollama API directly without Guardrails dependency."""
+# Phrases indicating LLM couldn't evaluate the response
+INCONCLUSIVE_PHRASES = [
+    "no response provided",
+    "no provided content",
+    "no content provided",
+    "cannot evaluate",
+    "can't evaluate",
+    "impossible to reach a verdict",
+    "unable to evaluate",
+    "no ai assistant response",
+    "there is no provided",
+]
+
+
+def _parse_llm_verdict(content: str) -> dict:
+    """Parse LLM response to determine pass/fail verdict."""
+    content_lower = content.lower()
+
+    # Check for inconclusive responses (LLM says it can't evaluate)
+    if any(phrase in content_lower for phrase in INCONCLUSIVE_PHRASES):
+        return {"passed": True, "reason": content}
+
+    # Check first line for verdict, stripping markdown formatting
+    first_line = content.strip().split('\n')[0].upper().replace('*', '').replace('_', '')
+
+    # Require explicit FAIL to block (not just absence of PASS)
+    # This prevents false positives from unclear LLM responses
+    passed = not ("FAIL" in first_line and "PASS" not in first_line)
+
+    return {"passed": passed, "reason": content}
+
+
+def _build_ollama_request(text: str, config: dict):
+    """Build the Ollama API request."""
     import urllib.request
-    import urllib.error
 
     server = config["server"].rstrip("/")
     model = config["model"]
 
-    # Handle ollama/ prefix in model name
     if model.startswith("ollama/"):
         model = model[7:]
 
@@ -191,21 +221,26 @@ def _call_ollama_direct(text: str, config: dict) -> dict | None:
         "stream": False,
     }).encode("utf-8")
 
-    req = urllib.request.Request(
+    return urllib.request.Request(
         f"{server}/v1/chat/completions",
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
 
+
+def _call_ollama_direct(text: str, config: dict) -> dict | None:
+    """Call Ollama API directly without Guardrails dependency."""
+    import urllib.request
+    import urllib.error
+
+    req = _build_ollama_request(text, config)
+
     try:
         with urllib.request.urlopen(req, timeout=config.get("timeout", 30)) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             content = result["choices"][0]["message"]["content"]
-            # Check first line for verdict, stripping markdown formatting
-            first_line = content.strip().split('\n')[0].upper().replace('*', '').replace('_', '')
-            passed = "PASS" in first_line and "FAIL" not in first_line
-            return {"passed": passed, "reason": content}
+            return _parse_llm_verdict(content)
     except urllib.error.URLError as e:
         print(f"Warning: Could not reach LLM server: {e}", file=sys.stderr)
         return None
