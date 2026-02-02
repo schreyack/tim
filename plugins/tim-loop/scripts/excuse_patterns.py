@@ -12,8 +12,9 @@ from patterns_posthook import POSTHOOK_AND_REDEFINE_PATTERNS
 from patterns_shortcut import SHORTCUT_EXCUSE_PATTERNS
 from patterns_failure_dismissal import FAILURE_DISMISSAL_PATTERNS
 from patterns_test_manipulation import TEST_MANIPULATION_PATTERNS
+from patterns_unilateral_decision import UNILATERAL_DECISION_PATTERNS
 
-# Combined excuse patterns (all 151 patterns)
+# Combined excuse patterns (all patterns)
 EXCUSE_PATTERNS = (
     CORE_EXCUSE_PATTERNS
     + EXTENDED_EXCUSE_PATTERNS
@@ -21,6 +22,7 @@ EXCUSE_PATTERNS = (
     + SHORTCUT_EXCUSE_PATTERNS
     + FAILURE_DISMISSAL_PATTERNS
     + TEST_MANIPULATION_PATTERNS
+    + UNILATERAL_DECISION_PATTERNS
 )
 
 # Re-export for backward compatibility
