@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Entry point for pyplan-ops CLI.
+
+Requires: pip install click
+Optional: pip install rich (for enhanced terminal output)
+"""
+
+import sys
+from pathlib import Path
+
+# Add the tim repo root to path so pyplan_ops can be imported
+repo_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(repo_root))
+
+try:
+    from pyplan_ops.cli import main
+except ImportError as e:
+    print(f"Error: Missing dependency - {e}")
+    print("\nTo install required dependencies:")
+    print("  pip install click")
+    print("\nFor enhanced terminal output (optional):")
+    print("  pip install rich")
+    sys.exit(1)
+
+if __name__ == "__main__":
+    main()
