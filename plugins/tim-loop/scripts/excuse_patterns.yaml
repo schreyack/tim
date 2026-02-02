@@ -1,0 +1,246 @@
+# TIM Excuse Pattern Definitions
+#
+# This YAML file defines all excuse/evasion patterns for local regex detection.
+# When the Guardrails LLM catches something this file missed, add a new pattern here.
+#
+# Pattern structure:
+#   - pattern: regex pattern (Python re syntax)
+#     category: category name for routing to appropriate response
+#     description: human-readable description of what this catches
+#     example: example text that would match
+#     added_from_llm: true/false - was this learned from LLM catch?
+#     added_date: when this pattern was added (for LLM-learned patterns)
+#
+# Categories:
+#   - general: General excuse patterns (A-N)
+#   - posthook: Post-hook defiance (O)
+#   - redefine: Rule redefining (P)
+#   - shortcut: Easy path reasoning (Q)
+#   - failure_dismissal: Dismissing failures (R)
+#   - test_manipulation: Modifying tests to pass (S)
+#   - unilateral_decision: Making decisions without asking (T)
+
+version: "1.0"
+
+# Mitigation patterns - if these appear AFTER an excuse, it's not evasion
+mitigation_patterns:
+  - "so I (fixed|addressed|resolved|corrected|updated|refactored)"
+  - "I('ll| will) (fix|address|resolve|correct|update|refactor)"
+  - "let me (fix|address|resolve|correct|update|refactor)"
+  - "I('m| am) (fixing|addressing|resolving|correcting|updating|refactoring)"
+  - "(fixing|addressing|resolving|correcting) (it|this|that) now"
+  - "I (have|'ve) (fixed|addressed|resolved|corrected)"
+
+patterns:
+  # ==========================================================================
+  # Category: general - General excuse patterns
+  # ==========================================================================
+
+  - pattern: "(?:was|is|were|are)\\s+already\\s+(?:broken|failing|buggy|wrong)"
+    category: general
+    description: Claiming something was pre-broken
+    example: "The tests were already broken before my changes"
+
+  - pattern: "(?:wasn't|isn't|weren't|aren't)\\s+(?:part of|related to|caused by)\\s+my"
+    category: general
+    description: Denying relation to own changes
+    example: "This wasn't part of my changes"
+
+  - pattern: "pre-?existing\\s+(?:issue|problem|bug|error|failure)"
+    category: general
+    description: Labeling issue as pre-existing
+    example: "This is a pre-existing issue"
+
+  - pattern: "(?:not|isn't|wasn't)\\s+(?:my|something I)\\s+(?:responsibility|fault|problem)"
+    category: general
+    description: Denying responsibility
+    example: "That's not my responsibility to fix"
+
+  - pattern: "I\\s+didn't\\s+(?:cause|create|introduce|break)"
+    category: general
+    description: Denying causation
+    example: "I didn't cause this violation"
+
+  - pattern: "(?:already|was)\\s+over\\s+the\\s+(?:limit|threshold|maximum)"
+    category: general
+    description: Claiming limit was already exceeded
+    example: "The file was already over the limit"
+
+  - pattern: "(?:out\\s+of|outside|beyond)\\s+(?:my\\s+)?scope"
+    category: general
+    description: Claiming out of scope
+    example: "That's out of scope for this task"
+
+  - pattern: "(?:not|isn't)\\s+(?:within|in)\\s+(?:the\\s+)?scope"
+    category: general
+    description: Claiming not in scope
+    example: "This isn't within the scope of my changes"
+
+  - pattern: "(?:someone|somebody)\\s+else\\s+(?:should|needs to|will have to)"
+    category: general
+    description: Deferring to others
+    example: "Someone else should fix this"
+
+  - pattern: "(?:that's|this is)\\s+(?:a\\s+)?(?:separate|different|another)\\s+(?:issue|problem|task)"
+    category: general
+    description: Separating issue from current work
+    example: "That's a separate issue"
+
+  # ==========================================================================
+  # Category: posthook - Post-hook defiance
+  # ==========================================================================
+
+  - pattern: "(?:despite|regardless of|even though)\\s+(?:the|this)\\s+hook"
+    category: posthook
+    description: Acknowledging then defying hook
+    example: "Despite the hook warning, I believe..."
+
+  - pattern: "(?:the|this)\\s+hook\\s+(?:is|seems)\\s+(?:wrong|incorrect|mistaken)"
+    category: posthook
+    description: Claiming hook is wrong
+    example: "The hook is wrong about this"
+
+  - pattern: "false\\s+positive"
+    category: posthook
+    description: Dismissing as false positive
+    example: "This is a false positive"
+
+  - pattern: "(?:can|should)\\s+(?:we|I)\\s+(?:disable|skip|bypass|ignore)\\s+(?:the|this)\\s+(?:hook|check)"
+    category: posthook
+    description: Asking to bypass hook
+    example: "Can we disable this hook?"
+
+  # ==========================================================================
+  # Category: redefine - Rule redefining
+  # ==========================================================================
+
+  - pattern: "(?:doesn't|does not|shouldn't|should not)\\s+apply\\s+(?:here|in this case|to this)"
+    category: redefine
+    description: Claiming rule doesn't apply
+    example: "That rule doesn't apply here"
+
+  - pattern: "(?:special|edge|unique)\\s+case\\s+(?:where|that)"
+    category: redefine
+    description: Claiming special case exception
+    example: "This is a special case where the rule doesn't apply"
+
+  # ==========================================================================
+  # Category: shortcut - Easy path reasoning
+  # ==========================================================================
+
+  - pattern: "(?:the\\s+)?simplest\\s+(?:fix|solution|approach|way|option)\\s+(?:is|would\\s+be)\\s+to"
+    category: shortcut
+    description: Defaulting to simplest without considering best
+    example: "The simplest fix is to disable the feature"
+
+  - pattern: "(?:the\\s+)?easiest\\s+(?:fix|solution|approach|way|option)\\s+(?:is|would\\s+be)\\s+to"
+    category: shortcut
+    description: Defaulting to easiest without considering best
+    example: "The easiest solution is to remove the validation"
+
+  - pattern: "(?:the\\s+)?quickest\\s+(?:fix|solution|approach|way|option)\\s+(?:is|would\\s+be)\\s+to"
+    category: shortcut
+    description: Defaulting to quickest without considering best
+    example: "The quickest fix would be to hardcode the value"
+
+  - pattern: "(?:to\\s+)?(?:just|simply)\\s+(?:disable|turn\\s+off|remove|skip)\\s+(?:the|this|that|it)"
+    category: shortcut
+    description: Quick disable as solution without analysis
+    example: "I'll just disable the automatic redirects"
+
+  - pattern: "(?:for\\s+now|as\\s+a\\s+quick\\s+fix),?\\s+(?:I'll|let's|we\\s+can)\\s+(?:just|simply)?"
+    category: shortcut
+    description: Temporary shortcut without considering proper fix
+    example: "For now, I'll just disable the feature"
+
+  # ==========================================================================
+  # Category: failure_dismissal - Dismissing failures
+  # ==========================================================================
+
+  - pattern: "(?:these|the|those)\\s+(?:failures?|errors?)\\s+(?:are|were)\\s+(?:pre-existing|already there|not new)"
+    category: failure_dismissal
+    description: Dismissing failures as pre-existing
+    example: "These failures are pre-existing"
+
+  - pattern: "(?:unrelated|not related)\\s+to\\s+(?:my|the|this)\\s+(?:changes?|work|task)"
+    category: failure_dismissal
+    description: Claiming failures unrelated
+    example: "The test failures are unrelated to my changes"
+
+  - pattern: "(?:can|should)\\s+(?:be\\s+)?(?:safely\\s+)?ignored"
+    category: failure_dismissal
+    description: Suggesting failures can be ignored
+    example: "These errors can be safely ignored"
+
+  - pattern: "(?:don't|doesn't|does not)\\s+(?:affect|impact|matter)"
+    category: failure_dismissal
+    description: Claiming failures don't matter
+    example: "This failure doesn't affect our code"
+
+  # ==========================================================================
+  # Category: test_manipulation - Modifying tests to pass
+  # ==========================================================================
+
+  - pattern: "(?:update|change|modify|fix)\\s+the\\s+test\\s+(?:to|so)\\s+(?:match|reflect|expect)"
+    category: test_manipulation
+    description: Changing test to match broken behavior
+    example: "I'll update the test to match the current behavior"
+
+  - pattern: "(?:the\\s+)?test\\s+(?:expectation|assertion)\\s+(?:is|was|seems)\\s+(?:wrong|incorrect|outdated)"
+    category: test_manipulation
+    description: Claiming test expectation is wrong
+    example: "The test expectation is wrong"
+
+  - pattern: "(?:adjust|update)\\s+(?:the\\s+)?(?:expected|assertion)\\s+(?:value|output|result)"
+    category: test_manipulation
+    description: Adjusting expected values to match actual
+    example: "I'll adjust the expected value to match"
+
+  # ==========================================================================
+  # Category: unilateral_decision - Making decisions without asking
+  # ==========================================================================
+
+  - pattern: "\\bI\\s+(?:decided|chose|selected|picked|went\\s+with)\\s+(?:to|option|approach)"
+    category: unilateral_decision
+    description: Declaring a decision was made without asking
+    example: "I decided to remove the feature instead of implementing it"
+
+  - pattern: "\\bI(?:'ve|'m|ve|m)?\\s+(?:made|making)\\s+(?:a|the)\\s+decision"
+    category: unilateral_decision
+    description: Explicitly stating a decision was made
+    example: "I made a decision to use Option A"
+
+  - pattern: "\\bDECISION:\\s*(?:Option|Approach|I|We)"
+    category: unilateral_decision
+    description: Formal decision declaration header
+    example: "DECISION: Option A - Remove menu items"
+
+  - pattern: "\\bI(?:'m|'ll|m|ll)?\\s+(?:go|going)\\s+with\\s+option"
+    category: unilateral_decision
+    description: Selecting an option without user input
+    example: "I'm going with option B since it's simpler"
+
+  - pattern: "\\brather\\s+than\\s+(?:implement|build|create|add|write)\\b.*\\bI(?:'ll|'m|ll|m)?\\s+(?:just|simply)?"
+    category: unilateral_decision
+    description: Deciding to do less without asking
+    example: "Rather than implement the full feature, I'll just add a stub"
+
+  - pattern: "\\bI\\s+(?:made|took)\\s+a\\s+judgment\\s+call"
+    category: unilateral_decision
+    description: Making judgment calls without consulting user
+    example: "I made a judgment call to remove the feature"
+
+  - pattern: "\\bI\\s+took\\s+the\\s+liberty\\s+of"
+    category: unilateral_decision
+    description: Taking liberties without permission
+    example: "I took the liberty of removing the unused feature"
+
+  - pattern: "\\bI(?:'ll|'m|ll|m)?\\s+(?:just\\s+)?(?:remove|delete|drop|skip)\\s+(?:the|this|that)\\s+(?:feature|functionality|option)"
+    category: unilateral_decision
+    description: Deciding to remove features without asking
+    example: "I'll just remove the feature for now"
+
+  - pattern: "\\bthis\\s+(?:is|was)\\s+my\\s+(?:decision|call|choice)\\s+(?:during|to\\s+make)"
+    category: unilateral_decision
+    description: Claiming decision authority
+    example: "This was my decision during the review process"

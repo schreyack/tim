@@ -1,0 +1,19 @@
+# Tim Loop Plugin Dependencies
+#
+# MOST USERS DON'T NEED THESE - tim-loop works out of the box.
+#
+# These are only needed for optional YAML pattern editing:
+#   python3 -m venv .venv
+#   source .venv/bin/activate
+#   pip install -r requirements.txt
+
+# For YAML pattern editing (optional - Python patterns work without this)
+pyyaml>=6.0
+
+# Note: The LLM-as-judge feature uses direct HTTP calls to Ollama,
+# so no additional Python dependencies are required for that.
+# Just set these environment variables:
+#
+#   export TIM_LLM_JUDGE_ENABLED=true
+#   export TIM_LLM_SERVER=http://your-ollama-server:11434
+#   export TIM_LLM_MODEL=llama3.1:8b
