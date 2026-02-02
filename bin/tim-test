@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# tim-test - Wrapper script for tim-test.sh
+# Add this directory to your PATH to run tim-test from anywhere.
+#
+# Usage: tim-test <command> [args]
+# Example: tim-test info
+#          tim-test unit
+#          tim-test e2e
+
+set -euo pipefail
+
+# Resolve the actual script location (works even through symlinks)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TIM_TEST_SCRIPT="${SCRIPT_DIR}/../tools/tim-test/tim-test.sh"
+
+if [[ ! -f "$TIM_TEST_SCRIPT" ]]; then
+    echo "ERROR: tim-test.sh not found at: $TIM_TEST_SCRIPT" >&2
+    echo "Make sure you're using the bin/ directory from the tim repository." >&2
+    exit 1
+fi
+
+exec "$TIM_TEST_SCRIPT" "$@"

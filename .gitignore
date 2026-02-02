@@ -13,6 +13,9 @@ plans/
 **/.tim-execution-requests/*
 !**/.tim-execution-requests/.gitkeep
 
+# LLM catch logs (contain transcript excerpts)
+**/llm_catches.jsonl
+
 # Python
 __pycache__/
 *.pyc

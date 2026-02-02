@@ -1,0 +1,24 @@
+# TIM Loop Plugin Configuration
+#
+# This file contains default settings for the tim-loop plugin.
+# To override these settings, copy this file to ~/.claude/tim-loop-config.yaml
+# and modify as needed. Environment variables take highest precedence.
+#
+# Precedence (highest to lowest):
+#   1. Environment variables (TIM_LLM_JUDGE_ENABLED, TIM_LLM_SERVER, TIM_LLM_MODEL)
+#   2. User config (~/.claude/tim-loop-config.yaml)
+#   3. Plugin default (this file)
+
+llm_judge:
+  # Enable LLM-as-judge for semantic evasion detection
+  # Only runs during active tim-loop sessions
+  enabled: false
+
+  # Ollama server URL
+  server: http://localhost:11434
+
+  # Model to use for evaluation
+  model: llama3.1:8b
+
+  # Timeout in seconds for LLM calls
+  timeout: 30

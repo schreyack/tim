@@ -30,8 +30,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/excuse-detector.py",
-            "timeout": 10
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/excuse_detector_v2.py",
+            "timeout": 60
           }
         ]
       }

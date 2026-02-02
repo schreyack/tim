@@ -20,17 +20,105 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Config file locations (in precedence order after env vars)
+USER_CONFIG_PATH = Path.home() / ".claude" / "tim-loop-config.yaml"
+PLUGIN_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
+
+# Cached config to avoid repeated file reads
+_config_cache: dict | None = None
+
+
+def _parse_yaml_value(value: str) -> str | bool | int:
+    """Parse a YAML value string into appropriate Python type."""
+    value_lower = value.lower()
+    if value_lower == "true":
+        return True
+    if value_lower == "false":
+        return False
+    if value.isdigit():
+        return int(value)
+    return value
+
+
+def _parse_yaml_line(line: str, current_section: str | None, result: dict) -> str | None:
+    """Parse a single YAML line, returning the current section name."""
+    line = line.rstrip()
+    if not line or line.startswith("#"):
+        return current_section
+
+    # Section header (no leading space, ends with colon)
+    if not line.startswith(" ") and line.endswith(":"):
+        section = line[:-1].strip()
+        result[section] = {}
+        return section
+
+    # Key-value pair (has leading space)
+    if ":" in line and current_section:
+        key, value = line.split(":", 1)
+        result[current_section][key.strip()] = _parse_yaml_value(value.strip())
+
+    return current_section
+
+
+def _load_yaml_simple(path: Path) -> dict:
+    """Load YAML file without external dependencies."""
+    if not path.exists():
+        return {}
+    try:
+        content = path.read_text(encoding="utf-8")
+        result: dict = {}
+        current_section: str | None = None
+        for line in content.split("\n"):
+            current_section = _parse_yaml_line(line, current_section, result)
+        return result
+    except Exception:
+        return {}
+
+
+def _get_config() -> dict:
+    """Load config with precedence: env vars > user config > plugin default."""
+    global _config_cache
+    if _config_cache is not None:
+        return _config_cache
+
+    # Start with plugin defaults
+    config = _load_yaml_simple(PLUGIN_CONFIG_PATH)
+
+    # Override with user config
+    user_config = _load_yaml_simple(USER_CONFIG_PATH)
+    if "llm_judge" in user_config:
+        config.setdefault("llm_judge", {})
+        config["llm_judge"].update(user_config["llm_judge"])
+
+    _config_cache = config
+    return config
+
+
+def is_tim_loop_active() -> bool:
+    """Check if we're inside an active tim-loop session."""
+    return Path.home().joinpath(".claude", ".tim-loop-active").exists()
+
 
 def is_llm_judge_enabled() -> bool:
     """Check if LLM judge feature is enabled."""
-    return os.environ.get("TIM_LLM_JUDGE_ENABLED", "").lower() in ("true", "1", "yes")
+    # Env var takes precedence
+    env_val = os.environ.get("TIM_LLM_JUDGE_ENABLED", "").lower()
+    if env_val:
+        return env_val in ("true", "1", "yes")
+    # Fall back to config file
+    config = _get_config()
+    return config.get("llm_judge", {}).get("enabled", False)
 
 
 def get_llm_config() -> dict:
-    """Get LLM configuration from environment."""
+    """Get LLM configuration from env vars or config file."""
+    config = _get_config()
+    llm_config = config.get("llm_judge", {})
+
     return {
-        "server": os.environ.get("TIM_LLM_SERVER", "http://localhost:11434"),
-        "model": os.environ.get("TIM_LLM_MODEL", "llama3.1:8b"),
+        "server": os.environ.get("TIM_LLM_SERVER") or llm_config.get("server", "http://localhost:11434"),
+        "model": os.environ.get("TIM_LLM_MODEL") or llm_config.get("model", "llama3.1:8b"),
+        "timeout": int(os.environ.get("TIM_LLM_TIMEOUT") or llm_config.get("timeout", 30)),
     }
 
 
@@ -114,7 +202,7 @@ def _call_ollama_direct(text: str, config: dict) -> dict | None:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=config.get("timeout", 30)) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             content = result["choices"][0]["message"]["content"]
             # Check first line for verdict, stripping markdown formatting
@@ -134,7 +222,12 @@ def check_with_guardrails(transcript_text: str) -> dict | None:
     Run LLM-as-judge on transcript text.
 
     Returns block response dict if issues found, None if clean or disabled.
+    Only runs during active tim-loop sessions (avoids delays in normal usage).
     """
+    # Only run during tim-loop sessions
+    if not is_tim_loop_active():
+        return None
+
     # Check if feature is enabled
     if not is_llm_judge_enabled():
         return None
@@ -162,11 +255,17 @@ def check_with_guardrails(transcript_text: str) -> dict | None:
     # Log for pattern learning
     log_llm_catch(transcript_text, failure_reason, category)
 
-    return build_guardrails_block_response(failure_reason, category)
+    # Extract a short excerpt for the pattern example
+    excerpt = transcript_text[-200:].replace("\n", " ").strip()
+
+    return build_guardrails_block_response(failure_reason, category, excerpt)
 
 
-def build_guardrails_block_response(failure_reason: str, category: str) -> dict:
+def build_guardrails_block_response(failure_reason: str, category: str, transcript_excerpt: str) -> dict:
     """Build block response when LLM-as-judge catches an issue."""
+    # Get the path to the YAML file for the instruction
+    yaml_path = Path(__file__).parent / "excuse_patterns.yaml"
+
     return {
         "decision": "block",
         "reason": (
@@ -175,8 +274,21 @@ def build_guardrails_block_response(failure_reason: str, category: str) -> dict:
             f"Category: {category}\n\n"
             f"This was caught by semantic analysis (local regex missed it).\n"
             f"Please address this concern before completing the task.\n\n"
-            f"If this is a false positive, explain why the detected behavior\n"
-            f"is actually appropriate in this context."
+            f"---\n\n"
+            f"**REQUIRED ACTION**: Add a regex pattern to catch this in the future.\n\n"
+            f"1. Open: {yaml_path}\n"
+            f"2. Add a pattern under the '{category}' category section:\n\n"
+            f"```yaml\n"
+            f"  - pattern: \"<regex that matches the problematic phrase>\"\n"
+            f"    category: {category}\n"
+            f"    description: \"<what this pattern catches>\"\n"
+            f"    example: \"{transcript_excerpt[:60]}...\"\n"
+            f"    added_from_llm: true\n"
+            f"    added_date: \"{datetime.now().strftime('%Y-%m-%d')}\"\n"
+            f"```\n\n"
+            f"3. The pattern should be specific enough to catch similar evasions\n"
+            f"   but not so broad that it creates false positives.\n\n"
+            f"After adding the pattern, continue addressing the original issue."
         )
     }
 
@@ -205,24 +317,37 @@ if __name__ == "__main__":
     # Quick test / status check
     print("LLM Judge Configuration")
     print("=" * 40)
-    print(f"Enabled: {is_llm_judge_enabled()}")
+
+    # Show config sources
+    print("\nConfig files:")
+    print(f"  Plugin default: {PLUGIN_CONFIG_PATH}")
+    print(f"    exists: {PLUGIN_CONFIG_PATH.exists()}")
+    print(f"  User override:  {USER_CONFIG_PATH}")
+    print(f"    exists: {USER_CONFIG_PATH.exists()}")
+
+    print(f"\nEnabled: {is_llm_judge_enabled()}")
     if is_llm_judge_enabled():
         config = get_llm_config()
         print(f"Server: {config['server']}")
         print(f"Model: {config['model']}")
+        print(f"Timeout: {config['timeout']}s")
 
         # Test connection
         print("\nTesting connection...")
         result = _call_ollama_direct("This is a test.", config)
         if result:
-            print("✓ LLM server is reachable")
+            print("LLM server is reachable")
         else:
-            print("✗ Could not reach LLM server")
+            print("Could not reach LLM server")
     else:
-        print("\nTo enable, set environment variables:")
-        print("  export TIM_LLM_JUDGE_ENABLED=true")
-        print("  export TIM_LLM_SERVER=http://localhost:11434")
-        print("  export TIM_LLM_MODEL=llama3.1:8b")
+        print("\nTo enable, either:")
+        print(f"  1. Create {USER_CONFIG_PATH} with:")
+        print("     llm_judge:")
+        print("       enabled: true")
+        print("       server: http://your-server:11434")
+        print("       model: llama3.1:8b")
+        print("\n  2. Or set environment variables:")
+        print("     export TIM_LLM_JUDGE_ENABLED=true")
 
     # Show pending catches
     pending = get_pending_catches()
