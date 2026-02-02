@@ -17,6 +17,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from tim_loop_full_review import handle_full_review_phase
 from tim_loop_responses import (
     build_continue_response,
     build_early_completion_challenge,
@@ -284,6 +285,44 @@ def get_assistant_text_from_input(hook_input: dict) -> str:
     return extract_assistant_text(transcript)
 
 
+def load_prompt_from_state(state: dict) -> str | None:
+    """Load prompt file content. Returns None if unavailable."""
+    prompt_file_path = state.get("TIM_LOOP_PROMPT_FILE", "")
+    if not prompt_file_path or not os.path.isfile(prompt_file_path):
+        return None
+    try:
+        with open(prompt_file_path, "r") as f:
+            return f.read()
+    except Exception:
+        return ""
+
+
+def read_hook_input() -> dict:
+    """Read and parse hook input from stdin."""
+    try:
+        return json.load(sys.stdin)
+    except json.JSONDecodeError:
+        return {}
+
+
+def process_assistant_output(state: dict, prompt: str, assistant_text: str) -> dict:
+    """Process assistant output and determine response."""
+    # Full-review mode has its own phase-based handling
+    review_mode = state.get("REVIEW_MODE", "")
+    if review_mode == "full-review":
+        response = handle_full_review_phase(state, prompt, assistant_text)
+        if response is not None:
+            return response
+        # response is None means all phases complete, fall through to normal completion
+
+    completion_promise = state.get("COMPLETION_PROMISE", "COMPLETE")
+    promise_tag = f"<promise>{completion_promise}</promise>"
+
+    if promise_tag in assistant_text:
+        return handle_completion_promise(state, prompt) or {}
+    return handle_continue_loop(state, prompt)
+
+
 def main() -> None:
     """Main hook entry point."""
     state = load_state()
@@ -291,22 +330,12 @@ def main() -> None:
         print("{}")
         sys.exit(0)
 
-    prompt_file_path = state.get("TIM_LOOP_PROMPT_FILE", "")
-    if not prompt_file_path or not os.path.isfile(prompt_file_path):
+    prompt = load_prompt_from_state(state)
+    if prompt is None:
         print("{}")
         sys.exit(0)
 
-    try:
-        with open(prompt_file_path, "r") as f:
-            prompt = f.read()
-    except Exception:
-        prompt = ""
-
-    try:
-        hook_input = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        hook_input = {}
-
+    hook_input = read_hook_input()
     if hook_input.get("stop_hook_active"):
         print("{}")
         sys.exit(0)
@@ -318,14 +347,7 @@ def main() -> None:
         print(json.dumps(response) if response else "{}")
         sys.exit(0)
 
-    completion_promise = state.get("COMPLETION_PROMISE", "COMPLETE")
-    promise_tag = f"<promise>{completion_promise}</promise>"
-
-    if promise_tag in assistant_text:
-        response = handle_completion_promise(state, prompt)
-    else:
-        response = handle_continue_loop(state, prompt)
-
+    response = process_assistant_output(state, prompt, assistant_text)
     print(json.dumps(response))
     sys.exit(0)
 

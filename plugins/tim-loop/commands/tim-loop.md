@@ -75,10 +75,21 @@ From within Claude Code:
 ```
 /tim-loop --full-review plans/drafts/my-plan.md
 ```
-**Phases:** Three-phase comprehensive review:
-1. Tech Review - technical accuracy, edge cases, testability
-2. AI-Ready Review - unambiguous instructions, hallucination prevention
-3. Goal Alignment Check - confirms plan still achieves original intent
+**Phases:** Three-phase comprehensive review with per-phase iteration tracking:
+
+| Phase | Focus | Min Iterations | Completion Signal |
+|-------|-------|----------------|-------------------|
+| 1. Tech Review | Technical accuracy, edge cases | 3 | `<promise>PHASE-1-TECH-DONE</promise>` |
+| 2. AI-Ready Review | Unambiguous instructions | 2 | `<promise>PHASE-2-AI-READY-DONE</promise>` |
+| 3. Goal Alignment | Original intent preserved | 1 | `<promise>PHASE-3-GOAL-ALIGN-DONE</promise>` |
+
+**After all 3 phases:** Output `<promise>FULL-REVIEW-DONE</promise>` to complete.
+
+**Key features:**
+- Each phase has its own iteration counter and minimum requirements
+- Early phase completion attempts are challenged until minimums are met
+- Phase transitions inject the next phase's prompt automatically
+- Cannot skip to final completion without completing all phases
 
 **End state:** Plan file ready for implementation (technically sound, AI-ready, goal-aligned)
 **Use for:** Complete review in a single session (replaces separate --tech-review and --ai-ready)
