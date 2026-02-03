@@ -1,0 +1,225 @@
+#!/bin/bash
+#
+# sync-claude-md - Sync TIM standards to project CLAUDE.md files
+#
+# This script assembles CLAUDE.md for each registered TIM project by combining:
+#   1. TIM standards (from tim/CLAUDE.md)
+#   2. Project-specific content (from project/CLAUDE-PROJECT.md)
+#
+# Usage:
+#   sync-claude-md              # Sync all registered projects
+#   sync-claude-md --list       # List registered projects
+#   sync-claude-md --check      # Check which projects need updates
+#   sync-claude-md <project>    # Sync specific project only
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TIM_ROOT="$(dirname "$SCRIPT_DIR")"
+TIM_CLAUDE_MD="$TIM_ROOT/CLAUDE.md"
+
+# Registered TIM projects (path to project root)
+PROJECTS=(
+    "/Volumes/External/Git/jamphoria"
+    "/Volumes/External/Git/micasa_services"
+)
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+print_header() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  $1${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+list_projects() {
+    print_header "Registered TIM Projects"
+    for proj in "${PROJECTS[@]}"; do
+        name=$(basename "$proj")
+        if [ -d "$proj" ]; then
+            if [ -f "$proj/CLAUDE-PROJECT.md" ]; then
+                echo -e "  ${GREEN}✓${NC} $name ($proj)"
+            else
+                echo -e "  ${YELLOW}!${NC} $name - missing CLAUDE-PROJECT.md"
+            fi
+        else
+            echo -e "  ${RED}✗${NC} $name - directory not found"
+        fi
+    done
+}
+
+check_projects() {
+    print_header "Checking Project Status"
+    local needs_update=0
+
+    for proj in "${PROJECTS[@]}"; do
+        name=$(basename "$proj")
+
+        if [ ! -d "$proj" ]; then
+            echo -e "  ${RED}✗${NC} $name - directory not found"
+            continue
+        fi
+
+        if [ ! -f "$proj/CLAUDE-PROJECT.md" ]; then
+            echo -e "  ${YELLOW}!${NC} $name - needs CLAUDE-PROJECT.md created"
+            needs_update=1
+            continue
+        fi
+
+        # Check if CLAUDE.md needs regeneration
+        if [ ! -f "$proj/CLAUDE.md" ]; then
+            echo -e "  ${YELLOW}↻${NC} $name - CLAUDE.md missing, needs sync"
+            needs_update=1
+            continue
+        fi
+
+        # Check timestamps
+        tim_mtime=$(stat -f %m "$TIM_CLAUDE_MD" 2>/dev/null || stat -c %Y "$TIM_CLAUDE_MD")
+        proj_mtime=$(stat -f %m "$proj/CLAUDE-PROJECT.md" 2>/dev/null || stat -c %Y "$proj/CLAUDE-PROJECT.md")
+        claude_mtime=$(stat -f %m "$proj/CLAUDE.md" 2>/dev/null || stat -c %Y "$proj/CLAUDE.md")
+
+        if [ "$tim_mtime" -gt "$claude_mtime" ] || [ "$proj_mtime" -gt "$claude_mtime" ]; then
+            echo -e "  ${YELLOW}↻${NC} $name - needs sync (source files newer)"
+            needs_update=1
+        else
+            echo -e "  ${GREEN}✓${NC} $name - up to date"
+        fi
+    done
+
+    return $needs_update
+}
+
+sync_project() {
+    local proj="$1"
+    local name=$(basename "$proj")
+
+    if [ ! -d "$proj" ]; then
+        echo -e "  ${RED}✗${NC} $name - directory not found: $proj"
+        return 1
+    fi
+
+    if [ ! -f "$proj/CLAUDE-PROJECT.md" ]; then
+        echo -e "  ${RED}✗${NC} $name - missing CLAUDE-PROJECT.md"
+        echo "      Create this file with project-specific content first."
+        return 1
+    fi
+
+    # Assemble CLAUDE.md
+    local output="$proj/CLAUDE.md"
+    local temp_file=$(mktemp)
+
+    # Add auto-generated header
+    cat > "$temp_file" << 'HEADER'
+<!--
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY                     │
+  │                                                                 │
+  │  This file is assembled from:                                   │
+  │    1. TIM standards (tim/CLAUDE.md)                             │
+  │    2. Project-specific content (CLAUDE-PROJECT.md)              │
+  │                                                                 │
+  │  To update:                                                     │
+  │    - TIM standards: edit tim/CLAUDE.md, then run sync           │
+  │    - Project content: edit CLAUDE-PROJECT.md, then run sync     │
+  │                                                                 │
+  │  Sync command: tim/bin/sync-claude-md                           │
+  └─────────────────────────────────────────────────────────────────┘
+-->
+
+HEADER
+
+    # Add TIM standards
+    cat "$TIM_CLAUDE_MD" >> "$temp_file"
+
+    # Add separator
+    cat >> "$temp_file" << 'SEPARATOR'
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PROJECT-SPECIFIC CONTENT BELOW
+     Edit CLAUDE-PROJECT.md to modify this section
+     ═══════════════════════════════════════════════════════════════════ -->
+
+SEPARATOR
+
+    # Add project-specific content
+    cat "$proj/CLAUDE-PROJECT.md" >> "$temp_file"
+
+    # Move to final location
+    mv "$temp_file" "$output"
+
+    echo -e "  ${GREEN}✓${NC} $name - synced successfully"
+}
+
+sync_all() {
+    print_header "Syncing TIM Standards to Projects"
+
+    if [ ! -f "$TIM_CLAUDE_MD" ]; then
+        echo -e "${RED}Error: TIM CLAUDE.md not found at $TIM_CLAUDE_MD${NC}"
+        exit 1
+    fi
+
+    local failed=0
+    for proj in "${PROJECTS[@]}"; do
+        sync_project "$proj" || failed=1
+    done
+
+    echo ""
+    if [ $failed -eq 0 ]; then
+        echo -e "${GREEN}All projects synced successfully.${NC}"
+    else
+        echo -e "${YELLOW}Some projects failed to sync. See errors above.${NC}"
+    fi
+}
+
+sync_one() {
+    local target="$1"
+
+    # Find matching project
+    for proj in "${PROJECTS[@]}"; do
+        name=$(basename "$proj")
+        if [ "$name" = "$target" ] || [ "$proj" = "$target" ]; then
+            print_header "Syncing $name"
+            sync_project "$proj"
+            return $?
+        fi
+    done
+
+    echo -e "${RED}Error: Project '$target' not found in registered projects.${NC}"
+    echo "Run 'sync-claude-md --list' to see registered projects."
+    return 1
+}
+
+# Main
+case "${1:-}" in
+    --list|-l)
+        list_projects
+        ;;
+    --check|-c)
+        check_projects
+        ;;
+    --help|-h)
+        echo "Usage: sync-claude-md [OPTIONS] [PROJECT]"
+        echo ""
+        echo "Options:"
+        echo "  --list, -l     List registered projects"
+        echo "  --check, -c    Check which projects need updates"
+        echo "  --help, -h     Show this help"
+        echo ""
+        echo "If PROJECT is specified, only that project is synced."
+        echo "If no arguments, all projects are synced."
+        ;;
+    "")
+        sync_all
+        ;;
+    *)
+        sync_one "$1"
+        ;;
+esac
