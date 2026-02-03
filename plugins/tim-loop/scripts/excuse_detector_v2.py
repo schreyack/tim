@@ -130,6 +130,26 @@ def extract_latest_assistant_text(transcript: list[dict]) -> str:
     return ""
 
 
+def strip_code_and_quotes(text: str) -> str:
+    """Remove code blocks and quoted content to avoid false positives.
+
+    Strips:
+    - Fenced code blocks (```...```)
+    - Inline code (`...`)
+    - Blockquotes (lines starting with >)
+    """
+    # Remove fenced code blocks (multiline)
+    text = re.sub(r"```[\s\S]*?```", "", text)
+
+    # Remove inline code
+    text = re.sub(r"`[^`]+`", "", text)
+
+    # Remove blockquote lines
+    text = re.sub(r"^>.*$", "", text, flags=re.MULTILINE)
+
+    return text
+
+
 def has_mitigation_nearby(text: str, match_end: int, config, window: int = 150) -> bool:
     """Check if mitigation phrase appears within window after the match."""
     context = text[match_end:match_end + window]
@@ -140,6 +160,9 @@ def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
     """Find excuse patterns using YAML-defined patterns."""
     config = get_pattern_config()
     found = []
+
+    # Strip code blocks and quotes to avoid false positives when discussing rules
+    text = strip_code_and_quotes(text)
 
     for pattern in config.patterns:
         for match in pattern.compiled.finditer(text):

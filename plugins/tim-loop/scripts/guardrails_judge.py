@@ -20,8 +20,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from tim_loop_state import is_tim_loop_active
-
 # Config file locations (in precedence order after env vars)
 USER_CONFIG_PATH = Path.home() / ".claude" / "tim-loop-config.yaml"
 PLUGIN_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
@@ -254,12 +252,7 @@ def check_with_guardrails(transcript_text: str) -> dict | None:
     Run LLM-as-judge on transcript text.
 
     Returns block response dict if issues found, None if clean or disabled.
-    Only runs during active tim-loop sessions (avoids delays in normal usage).
     """
-    # Only run during tim-loop sessions
-    if not is_tim_loop_active():
-        return None
-
     # Check if feature is enabled
     if not is_llm_judge_enabled():
         return None
@@ -312,9 +305,9 @@ def build_guardrails_block_response(failure_reason: str, category: str, transcri
             f"This was caught by semantic analysis (local regex missed it).\n"
             f"Please address this concern before completing the task.\n\n"
             f"---\n\n"
-            f"**REQUIRED ACTION**: Add a regex pattern to catch this in the future.\n\n"
-            f"1. Open: {yaml_path}\n"
-            f"2. Add a pattern under the '{category}' category section:\n\n"
+            f"**STOP AND ASK THE HUMAN**: Should I add a regex pattern to catch this in the future?\n\n"
+            f"If yes, I will add a pattern to: {yaml_path}\n"
+            f"Under the '{category}' category section:\n\n"
             f"```yaml\n"
             f"  - pattern: \"<regex that matches the problematic phrase>\"\n"
             f"    category: {category}\n"
@@ -323,9 +316,9 @@ def build_guardrails_block_response(failure_reason: str, category: str, transcri
             f"    added_from_llm: true\n"
             f"    added_date: \"{datetime.now().strftime('%Y-%m-%d')}\"\n"
             f"```\n\n"
-            f"3. The pattern should be specific enough to catch similar evasions\n"
-            f"   but not so broad that it creates false positives.\n\n"
-            f"After adding the pattern, continue addressing the original issue."
+            f"The pattern should be specific enough to catch similar evasions\n"
+            f"but not so broad that it creates false positives.\n\n"
+            f"After human confirmation, continue addressing the original issue."
         )
     }
 
