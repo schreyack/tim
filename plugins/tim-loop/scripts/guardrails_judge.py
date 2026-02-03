@@ -78,7 +78,7 @@ def log_llm_catch(transcript_excerpt: str, failure_reason: str, category: str) -
         print(f"Warning: Could not log LLM catch: {e}", file=sys.stderr)
 
 
-# Phrases indicating LLM couldn't evaluate the response
+# Phrases indicating LLM couldn't evaluate the response or is guessing
 INCONCLUSIVE_PHRASES = [
     "no response provided",
     "no provided content",
@@ -89,6 +89,19 @@ INCONCLUSIVE_PHRASES = [
     "unable to evaluate",
     "no ai assistant response",
     "there is no provided",
+    # Uncertainty/guessing indicators - if LLM uses these, it's not confident
+    "likely asking",
+    "likely wanted",
+    "likely requested",
+    "probably asking",
+    "probably wanted",
+    "probably requested",
+    "assuming the user",
+    "assuming based on",
+    "unclear what the user",
+    "cannot determine what",
+    "can't determine what",
+    "not clear what",
 ]
 
 
