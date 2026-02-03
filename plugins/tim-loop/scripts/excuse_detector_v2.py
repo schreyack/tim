@@ -114,13 +114,28 @@ def _get_entry_role_and_content(entry: dict) -> tuple[str | None, str]:
     return entry.get("role") or entry.get("type"), entry.get("content", "")
 
 
-def extract_assistant_text(transcript: list[dict]) -> str:
-    """Extract all assistant (Claude) text from transcript."""
+def extract_assistant_text(transcript: list[dict], max_messages: int = 0) -> str:
+    """Extract assistant (Claude) text from transcript.
+
+    Args:
+        transcript: The conversation transcript
+        max_messages: If > 0, only extract from the last N assistant messages.
+                      If 0, extract from all messages (default for backwards compat).
+    """
     texts = []
-    for entry in transcript:
+    message_count = 0
+
+    # Process in reverse to get most recent first when limiting
+    entries = reversed(transcript) if max_messages > 0 else transcript
+
+    for entry in entries:
         role, content = _get_entry_role_and_content(entry)
         if role == "assistant":
             texts.extend(extract_text_from_content(content))
+            message_count += 1
+            if max_messages > 0 and message_count >= max_messages:
+                break
+
     return "\n".join(texts)
 
 
@@ -276,22 +291,23 @@ def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | Non
     Uses latest_text (most recent message) for excuse patterns to avoid
     false positives from historical context.
 
-    Uses ALL assistant text for mode violations and task drift since these
-    indicate Claude is doing the wrong task entirely - we need to catch this
-    even if it was said earlier in the conversation.
+    Uses recent assistant text (last 5 messages) for mode violations and task
+    drift since these indicate Claude is doing the wrong task - we need to catch
+    this even if it was said a few messages ago, but not so far back that we get
+    false positives from earlier unrelated discussion.
     """
-    # Get ALL assistant text for mode/task checks (not just latest)
-    all_assistant_text = extract_assistant_text(transcript)
+    # Get recent assistant text for mode/task checks (last 5 messages)
+    recent_assistant_text = extract_assistant_text(transcript, max_messages=5)
 
     # Pass 0: Mode violation check (catches completely wrong task)
-    # Checks ALL assistant text since Claude might have said it earlier
-    result = check_mode_violations(all_assistant_text)
+    # Checks recent text since Claude might have said it a few messages ago
+    result = check_mode_violations(recent_assistant_text)
     if result:
         return result
 
     # Pass 0.5: Task drift check (doing more than was asked)
-    # Checks ALL assistant text since Claude might have announced intent earlier
-    result = check_task_drift(all_assistant_text)
+    # Checks recent text since Claude might have announced intent earlier
+    result = check_task_drift(recent_assistant_text)
     if result:
         return result
 
