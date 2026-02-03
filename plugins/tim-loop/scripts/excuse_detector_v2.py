@@ -17,6 +17,35 @@ import sys
 from pathlib import Path
 
 from excuse_pattern_loader import ExcusePattern, get_pattern_config
+
+# State file to track last fired position (prevents re-firing on same content)
+LAST_FIRED_FILE = Path.home() / ".claude" / ".tim-loop-last-fired"
+
+
+def get_last_fired_index() -> int:
+    """Get the transcript index where we last fired (0 if never)."""
+    try:
+        if LAST_FIRED_FILE.exists():
+            return int(LAST_FIRED_FILE.read_text().strip())
+    except Exception:
+        pass
+    return 0
+
+
+def set_last_fired_index(index: int) -> None:
+    """Record the transcript index where we fired."""
+    try:
+        LAST_FIRED_FILE.write_text(str(index))
+    except Exception:
+        pass
+
+
+def clear_last_fired() -> None:
+    """Clear the last fired state (called on tim-loop cleanup)."""
+    try:
+        LAST_FIRED_FILE.unlink(missing_ok=True)
+    except Exception:
+        pass
 from excuse_responses import (
     build_failure_dismissal_block_response,
     build_general_block_response,
@@ -339,12 +368,24 @@ def main():
         sys.exit(0)
 
     transcript = read_transcript(transcript_path)
+    if not transcript:
+        sys.exit(0)
+
+    # Skip entries we've already fired on (prevents re-firing on same content)
+    last_fired = get_last_fired_index()
+    if last_fired > 0 and last_fired < len(transcript):
+        # Only check entries after where we last fired
+        transcript = transcript[last_fired:]
+
     latest_text = extract_latest_assistant_text(transcript)
-    if not transcript or not latest_text:
+    if not latest_text:
         sys.exit(0)
 
     result = run_detection_passes(latest_text, transcript)
     if result:
+        # Record where we fired so we don't re-fire on this content
+        full_transcript = read_transcript(transcript_path)
+        set_last_fired_index(len(full_transcript))
         print(json.dumps(result))
 
     sys.exit(0)
