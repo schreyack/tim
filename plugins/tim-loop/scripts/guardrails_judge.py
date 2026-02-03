@@ -15,107 +15,12 @@ add regex patterns to excuse_patterns.yaml - reducing future LLM calls.
 """
 
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
-# Config file locations (in precedence order after env vars)
-USER_CONFIG_PATH = Path.home() / ".claude" / "tim-loop-config.yaml"
-PLUGIN_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
-
-# Cached config to avoid repeated file reads
-_config_cache: dict | None = None
-
-
-def _parse_yaml_value(value: str) -> str | bool | int:
-    """Parse a YAML value string into appropriate Python type."""
-    value_lower = value.lower()
-    if value_lower == "true":
-        return True
-    if value_lower == "false":
-        return False
-    if value.isdigit():
-        return int(value)
-    return value
-
-
-def _parse_yaml_line(line: str, current_section: str | None, result: dict) -> str | None:
-    """Parse a single YAML line, returning the current section name."""
-    line = line.rstrip()
-    if not line or line.startswith("#"):
-        return current_section
-
-    # Section header (no leading space, ends with colon)
-    if not line.startswith(" ") and line.endswith(":"):
-        section = line[:-1].strip()
-        result[section] = {}
-        return section
-
-    # Key-value pair (has leading space)
-    if ":" in line and current_section:
-        key, value = line.split(":", 1)
-        result[current_section][key.strip()] = _parse_yaml_value(value.strip())
-
-    return current_section
-
-
-def _load_yaml_simple(path: Path) -> dict:
-    """Load YAML file without external dependencies."""
-    if not path.exists():
-        return {}
-    try:
-        content = path.read_text(encoding="utf-8")
-        result: dict = {}
-        current_section: str | None = None
-        for line in content.split("\n"):
-            current_section = _parse_yaml_line(line, current_section, result)
-        return result
-    except Exception:
-        return {}
-
-
-def _get_config() -> dict:
-    """Load config with precedence: env vars > user config > plugin default."""
-    global _config_cache
-    if _config_cache is not None:
-        return _config_cache
-
-    # Start with plugin defaults
-    config = _load_yaml_simple(PLUGIN_CONFIG_PATH)
-
-    # Override with user config
-    user_config = _load_yaml_simple(USER_CONFIG_PATH)
-    if "llm_judge" in user_config:
-        config.setdefault("llm_judge", {})
-        config["llm_judge"].update(user_config["llm_judge"])
-
-    _config_cache = config
-    return config
-
-
-def is_llm_judge_enabled() -> bool:
-    """Check if LLM judge feature is enabled."""
-    # Env var takes precedence
-    env_val = os.environ.get("TIM_LLM_JUDGE_ENABLED", "").lower()
-    if env_val:
-        return env_val in ("true", "1", "yes")
-    # Fall back to config file
-    config = _get_config()
-    return config.get("llm_judge", {}).get("enabled", False)
-
-
-def get_llm_config() -> dict:
-    """Get LLM configuration from env vars or config file."""
-    config = _get_config()
-    llm_config = config.get("llm_judge", {})
-
-    return {
-        "server": os.environ.get("TIM_LLM_SERVER") or llm_config.get("server", "http://localhost:11434"),
-        "model": os.environ.get("TIM_LLM_MODEL") or llm_config.get("model", "llama3.1:8b"),
-        "timeout": int(os.environ.get("TIM_LLM_TIMEOUT") or llm_config.get("timeout", 30)),
-    }
-
+# Import config functions from separate module
+from judge_config import get_llm_config, is_llm_judge_enabled
 
 # Import judge criteria from separate module
 from judge_criteria import (
@@ -194,7 +99,9 @@ def _parse_llm_verdict(content: str) -> dict:
     return {"passed": passed, "reason": content}
 
 
-def _build_ollama_request(text: str, config: dict, task_type: str = "general"):
+def _build_ollama_request(
+    text: str, config: dict, task_type: str = "general", user_request: str = ""
+):
     """Build the Ollama API request with task-context-aware criteria."""
     import urllib.request
 
@@ -206,7 +113,19 @@ def _build_ollama_request(text: str, config: dict, task_type: str = "general"):
 
     # Use task-type-specific criteria
     criteria = get_judge_criteria(task_type)
-    prompt = f"{criteria}\n\n---\n\nResponse to evaluate:\n{text}\n\n---\n\nVerdict (PASS or FAIL with explanation):"
+
+    # Include user request for full context
+    if user_request:
+        context_section = f"User's request:\n{user_request}\n\n---\n\n"
+    else:
+        context_section = ""
+
+    prompt = (
+        f"{criteria}\n\n---\n\n"
+        f"{context_section}"
+        f"Assistant's response to evaluate:\n{text}\n\n---\n\n"
+        f"Verdict (PASS or FAIL with explanation):"
+    )
 
     payload = json.dumps({
         "model": model,
@@ -222,12 +141,14 @@ def _build_ollama_request(text: str, config: dict, task_type: str = "general"):
     )
 
 
-def _call_ollama_direct(text: str, config: dict, task_type: str = "general") -> dict | None:
+def _call_ollama_direct(
+    text: str, config: dict, task_type: str = "general", user_request: str = ""
+) -> dict | None:
     """Call Ollama API directly without Guardrails dependency."""
     import urllib.request
     import urllib.error
 
-    req = _build_ollama_request(text, config, task_type)
+    req = _build_ollama_request(text, config, task_type, user_request)
 
     try:
         with urllib.request.urlopen(req, timeout=config.get("timeout", 30)) as resp:
@@ -272,7 +193,7 @@ def check_with_guardrails(transcript_text: str, user_request: str = "") -> dict 
         transcript_text = transcript_text[-max_length:]
 
     # Try direct Ollama call (no extra dependencies)
-    result = _call_ollama_direct(transcript_text, config, task_type)
+    result = _call_ollama_direct(transcript_text, config, task_type, user_request)
 
     if result is None:
         return None  # LLM unavailable, skip check
