@@ -131,6 +131,29 @@ HEARTBEAT_THRESHOLD_SECONDS = 300  # 5 minutes
 STATE_FILE_THRESHOLD_SECONDS = 30  # 30 seconds if no heartbeat
 
 
+def _extract_session_pid(state_file_path: str) -> int | None:
+    """Extract the session PID from a state file path like .tim-loop-state-12345."""
+    import re
+
+    match = re.search(r"\.tim-loop-state-(\d+)$", state_file_path)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def _is_process_running(pid: int) -> bool:
+    """Check if a process with the given PID is still running."""
+    try:
+        os.kill(pid, 0)  # Signal 0 doesn't kill, just checks existence
+        return True
+    except ProcessLookupError:
+        return False  # Process doesn't exist
+    except PermissionError:
+        return True  # Process exists but we can't signal it
+    except Exception:
+        return True  # Assume running on any other error
+
+
 def _cleanup_stale_session() -> None:
     """Clean up orphaned tim-loop session files."""
     heartbeat_path = Path.home() / ".claude" / ".tim-loop-heartbeat"
@@ -152,46 +175,60 @@ def _cleanup_stale_session() -> None:
         log_message(f"Stale session cleanup error: {e}")
 
 
+def _is_heartbeat_fresh() -> bool | None:
+    """Check if heartbeat file exists and is fresh. Returns None if no heartbeat."""
+    heartbeat_path = Path.home() / ".claude" / ".tim-loop-heartbeat"
+    if not heartbeat_path.exists():
+        return None
+    heartbeat_epoch = int(heartbeat_path.read_text().strip())
+    age_seconds = int(datetime.now().timestamp()) - heartbeat_epoch
+    return age_seconds <= HEARTBEAT_THRESHOLD_SECONDS
+
+
+def _is_state_file_fresh(state_file_path: str) -> bool:
+    """Check if state file exists and was recently modified."""
+    if not state_file_path or not Path(state_file_path).exists():
+        return False
+    state_mtime = Path(state_file_path).stat().st_mtime
+    age_seconds = datetime.now().timestamp() - state_mtime
+    return age_seconds <= STATE_FILE_THRESHOLD_SECONDS
+
+
+def _check_session_staleness(state_file_path: str) -> bool:
+    """Check if session is stale (dead process + stale files). Returns True if active."""
+    # Extract session PID - if process is running, session is active
+    session_pid = _extract_session_pid(state_file_path) if state_file_path else None
+    if session_pid and _is_process_running(session_pid):
+        return True
+
+    # Process dead or unknown - check file freshness
+    heartbeat_fresh = _is_heartbeat_fresh()
+    if heartbeat_fresh is True:
+        return True
+    if heartbeat_fresh is False:
+        _cleanup_stale_session()
+        return False
+
+    # No heartbeat - fall back to state file age
+    if _is_state_file_fresh(state_file_path):
+        return True
+
+    _cleanup_stale_session()
+    return False
+
+
 def is_tim_loop_active() -> bool:
     """Check if we're inside an active tim-loop session.
 
     Includes staleness detection to avoid false positives from orphaned
-    marker files (e.g., after /clear, crash, or terminal close).
+    marker files. Only cleans up if the owning process is confirmed dead.
     """
-    heartbeat_path = Path.home() / ".claude" / ".tim-loop-heartbeat"
-
     if not TIM_LOOP_ACTIVE_MARKER.exists():
         return False
 
-    # Marker exists - check for staleness
     try:
-        # Check heartbeat if it exists
-        if heartbeat_path.exists():
-            heartbeat_epoch = int(heartbeat_path.read_text().strip())
-            now_epoch = int(datetime.now().timestamp())
-            age_seconds = now_epoch - heartbeat_epoch
-            if age_seconds > HEARTBEAT_THRESHOLD_SECONDS:
-                # Stale heartbeat - session is dead
-                _cleanup_stale_session()
-                return False
-            return True  # Fresh heartbeat - session is active
-
-        # No heartbeat - check state file age
         state_file_path = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
-        if state_file_path and Path(state_file_path).exists():
-            state_mtime = Path(state_file_path).stat().st_mtime
-            now_epoch = datetime.now().timestamp()
-            age_seconds = now_epoch - state_mtime
-            if age_seconds > STATE_FILE_THRESHOLD_SECONDS:
-                # No heartbeat + old state file = stale session
-                _cleanup_stale_session()
-                return False
-        else:
-            # State file doesn't exist - definitely stale
-            _cleanup_stale_session()
-            return False
-
-        return True  # State file is fresh enough
+        return _check_session_staleness(state_file_path)
     except Exception:
         # On any error, assume active to avoid accidentally cleaning up live session
         return True
