@@ -273,20 +273,30 @@ def check_task_drift(latest_text: str) -> dict | None:
 def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | None:
     """Run all detection passes in order. Returns first blocking response or None.
 
-    Uses latest_text (most recent message) for pattern detection to avoid
-    false positives from historical context in the conversation.
+    Uses latest_text (most recent message) for excuse patterns to avoid
+    false positives from historical context.
+
+    Uses ALL assistant text for mode violations and task drift since these
+    indicate Claude is doing the wrong task entirely - we need to catch this
+    even if it was said earlier in the conversation.
     """
+    # Get ALL assistant text for mode/task checks (not just latest)
+    all_assistant_text = extract_assistant_text(transcript)
+
     # Pass 0: Mode violation check (catches completely wrong task)
-    result = check_mode_violations(latest_text)
+    # Checks ALL assistant text since Claude might have said it earlier
+    result = check_mode_violations(all_assistant_text)
     if result:
         return result
 
     # Pass 0.5: Task drift check (doing more than was asked)
-    result = check_task_drift(latest_text)
+    # Checks ALL assistant text since Claude might have announced intent earlier
+    result = check_task_drift(all_assistant_text)
     if result:
         return result
 
     # Pass 1: Local regex from YAML (fast, free)
+    # Uses only latest text to avoid false positives from earlier discussion
     result = check_excuse_patterns(latest_text)
     if result:
         return result
