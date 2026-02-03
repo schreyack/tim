@@ -296,8 +296,10 @@ def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | Non
     this even if it was said a few messages ago, but not so far back that we get
     false positives from earlier unrelated discussion.
     """
-    # Get recent assistant text for mode/task checks (last 5 messages)
-    recent_assistant_text = extract_assistant_text(transcript, max_messages=5)
+    # Get recent assistant text for mode/task checks (last 10 messages)
+    # Analysis of transcripts shows 7-9 assistant messages typically follow
+    # an implementation announcement before the stop hook fires
+    recent_assistant_text = extract_assistant_text(transcript, max_messages=10)
 
     # Pass 0: Mode violation check (catches completely wrong task)
     # Checks recent text since Claude might have said it a few messages ago
