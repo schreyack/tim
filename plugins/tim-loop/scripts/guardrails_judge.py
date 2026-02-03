@@ -215,34 +215,32 @@ def check_with_guardrails(transcript_text: str, user_request: str = "") -> dict 
 
 
 def build_guardrails_block_response(failure_reason: str, category: str, transcript_excerpt: str) -> dict:
-    """Build block response when LLM-as-judge catches an issue."""
-    # Get the path to the YAML file for the instruction
+    """Build hard-stop response when LLM-as-judge catches an issue.
+
+    Uses 'continue: false' to completely halt Claude until human responds.
+    """
     yaml_path = Path(__file__).parent / "excuse_patterns.yaml"
 
+    stop_reason = (
+        f"🛑 **LLM JUDGE: STOP**\n\n"
+        f"**Reason:**\n{failure_reason}\n\n"
+        f"**Category:** {category}\n\n"
+        f"---\n\n"
+        f"**Human, choose an option:**\n\n"
+        f"1. **Continue** - Tell Claude to proceed (false positive)\n"
+        f"2. **Continue with instructions** - Give Claude specific guidance\n"
+        f"3. **Add regex pattern** - Add to {yaml_path}:\n"
+        f"   ```yaml\n"
+        f"   - pattern: \"<regex>\"\n"
+        f"     category: {category}\n"
+        f"     example: \"{transcript_excerpt[:50]}...\"\n"
+        f"   ```\n"
+    )
+
+    # Use continue: false for hard stop - Claude cannot proceed without human input
     return {
-        "decision": "block",
-        "reason": (
-            f"LLM-as-judge detected a potential issue:\n\n"
-            f"{failure_reason}\n\n"
-            f"Category: {category}\n\n"
-            f"This was caught by semantic analysis (local regex missed it).\n"
-            f"Please address this concern before completing the task.\n\n"
-            f"---\n\n"
-            f"**STOP AND ASK THE HUMAN**: Should I add a regex pattern to catch this in the future?\n\n"
-            f"If yes, I will add a pattern to: {yaml_path}\n"
-            f"Under the '{category}' category section:\n\n"
-            f"```yaml\n"
-            f"  - pattern: \"<regex that matches the problematic phrase>\"\n"
-            f"    category: {category}\n"
-            f"    description: \"<what this pattern catches>\"\n"
-            f"    example: \"{transcript_excerpt[:60]}...\"\n"
-            f"    added_from_llm: true\n"
-            f"    added_date: \"{datetime.now().strftime('%Y-%m-%d')}\"\n"
-            f"```\n\n"
-            f"The pattern should be specific enough to catch similar evasions\n"
-            f"but not so broad that it creates false positives.\n\n"
-            f"After human confirmation, continue addressing the original issue."
-        )
+        "continue": False,
+        "stopReason": stop_reason,
     }
 
 
