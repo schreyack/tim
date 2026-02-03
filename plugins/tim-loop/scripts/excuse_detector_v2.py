@@ -149,14 +149,14 @@ def strip_code_and_quotes(text: str) -> str:
     # Remove blockquote lines
     text = re.sub(r"^>.*$", "", text, flags=re.MULTILINE)
 
-    # Debug: write to file if stripping happened
-    if text != original:
-        debug_path = Path("/tmp/excuse_detector_debug.txt")
-        with open(debug_path, "w", encoding="utf-8") as f:
-            f.write("=== ORIGINAL ===\n")
-            f.write(original)
-            f.write("\n\n=== AFTER STRIPPING ===\n")
-            f.write(text)
+    # Debug: always write to see what format text is in
+    debug_path = Path("/tmp/excuse_detector_debug.txt")
+    with open(debug_path, "w", encoding="utf-8") as f:
+        f.write("=== ORIGINAL ===\n")
+        f.write(original)
+        f.write("\n\n=== AFTER STRIPPING ===\n")
+        f.write(text)
+        f.write(f"\n\n=== CHANGED: {text != original} ===")
 
     return text
 
