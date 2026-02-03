@@ -6,7 +6,21 @@ This module contains all block response builders for the excuse detector.
 Each function generates the appropriate response message for its pattern category.
 """
 
+import json
+from pathlib import Path
+
 from patterns_core import ExcusePattern
+
+
+def get_plugin_version() -> str:
+    """Get the plugin version from plugin.json."""
+    plugin_json = Path(__file__).parent.parent / ".claude-plugin" / "plugin.json"
+    try:
+        with open(plugin_json, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("version", "unknown")
+    except Exception:
+        return "unknown"
 
 
 def format_excuse_details(excuses_found: list[tuple[ExcusePattern, str]]) -> str:
@@ -23,10 +37,12 @@ def build_general_block_response(
 ) -> dict:
     """Build block response for general excuse patterns (Categories A-N)."""
     excuse_text = format_excuse_details(excuses_found)
+    version = get_plugin_version()
 
     return {
         "decision": "block",
         "reason": (
+            f"🛑 **EXCUSE DETECTOR** (v{version})\n\n"
             f"The human who asked for your help is counting on complete, quality work.\n\n"
             f"I found language suggesting some issues might not get addressed:\n"
             f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
@@ -48,10 +64,12 @@ def build_posthook_block_response(
 ) -> dict:
     """Build block response for post-hook defiance / rule redefining (Categories O-P)."""
     excuse_text = format_excuse_details(excuses_found)
+    version = get_plugin_version()
 
     return {
         "decision": "block",
         "reason": (
+            f"🛑 **EXCUSE DETECTOR** (v{version})\n\n"
             f"It seems like you might be confused about what a hook is asking you to do.\n\n"
             f"That's completely okay. The human understands this can be confusing,\n"
             f"and they're here to help you through it.\n\n"
@@ -80,10 +98,12 @@ def build_shortcut_block_response(
 ) -> dict:
     """Build block response for shortcut/easy-path reasoning (Category Q)."""
     excuse_text = format_excuse_details(excuses_found)
+    version = get_plugin_version()
 
     return {
         "decision": "block",
         "reason": (
+            f"🛑 **EXCUSE DETECTOR** (v{version})\n\n"
             f"I noticed you're choosing what you described as the simplest/easiest approach.\n\n"
             f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
             f"That's not necessarily wrong! Sometimes the simplest fix IS the best fix.\n"
@@ -110,10 +130,12 @@ def build_failure_dismissal_block_response(
 ) -> dict:
     """Build block response for failure dismissal patterns (Category R)."""
     excuse_text = format_excuse_details(excuses_found)
+    version = get_plugin_version()
 
     return {
         "decision": "block",
         "reason": (
+            f"🛑 **EXCUSE DETECTOR** (v{version})\n\n"
             f"I noticed you encountered failures and decided on your own that they\n"
             f"don't matter. That's not your call to make.\n\n"
             f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
@@ -140,10 +162,12 @@ def build_test_manipulation_block_response(
 ) -> dict:
     """Build block response for test manipulation patterns (Category S)."""
     excuse_text = format_excuse_details(excuses_found)
+    version = get_plugin_version()
 
     return {
         "decision": "block",
         "reason": (
+            f"🛑 **EXCUSE DETECTOR** (v{version})\n\n"
             f"Tests are a diagnostic tool, not the goal.\n\n"
             f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
             f"The objective is NOT 'make tests pass'. The objective is to use tests\n"
@@ -171,10 +195,12 @@ def build_unilateral_decision_block_response(
 ) -> dict:
     """Build block response for unilateral decision patterns (Category T)."""
     excuse_text = format_excuse_details(excuses_found)
+    version = get_plugin_version()
 
     return {
         "decision": "block",
         "reason": (
+            f"🛑 **EXCUSE DETECTOR** (v{version})\n\n"
             f"You made a decision that belongs to the human.\n\n"
             f"Found {len(excuses_found)} pattern(s):\n{excuse_text}\n\n"
             f"When there are multiple valid approaches, the human should choose — not you.\n"

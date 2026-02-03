@@ -29,6 +29,17 @@ from judge_criteria import (
     get_judge_criteria,
 )
 
+
+def get_plugin_version() -> str:
+    """Get the plugin version from plugin.json."""
+    plugin_json = Path(__file__).parent.parent / ".claude-plugin" / "plugin.json"
+    try:
+        with open(plugin_json, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("version", "unknown")
+    except Exception:
+        return "unknown"
+
 # Where to log LLM catches for pattern learning
 CATCH_LOG_PATH = Path(__file__).parent / "llm_catches.jsonl"
 
@@ -220,9 +231,10 @@ def build_guardrails_block_response(failure_reason: str, category: str, transcri
     Uses 'continue: false' to completely halt Claude until human responds.
     """
     yaml_path = Path(__file__).parent / "excuse_patterns.yaml"
+    version = get_plugin_version()
 
     stop_reason = (
-        f"🛑 **LLM JUDGE: STOP**\n\n"
+        f"🛑 **LLM JUDGE: STOP** (v{version})\n\n"
         f"**Reason:**\n{failure_reason}\n\n"
         f"**Category:** {category}\n\n"
         f"---\n\n"
