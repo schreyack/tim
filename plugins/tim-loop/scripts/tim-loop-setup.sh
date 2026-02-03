@@ -710,8 +710,24 @@ build_prompt() {
 }
 FULL_PROMPT=$(build_prompt)
 
+# Find the Claude parent process (walk up from PPID to find 'claude')
+find_claude_pid() {
+    local pid=$PPID
+    while [ "$pid" != "1" ] && [ -n "$pid" ]; do
+        local comm
+        comm=$(ps -p "$pid" -o comm= 2>/dev/null) || break
+        if [[ "$comm" == "claude" ]]; then
+            echo "$pid"
+            return
+        fi
+        pid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ') || break
+    done
+    echo "$$"  # Fallback to self if Claude not found
+}
+
 # State files for the loop
 TIM_LOOP_SESSION_ID="$$"
+TIM_LOOP_CLAUDE_PID=$(find_claude_pid)
 TIM_LOOP_STATE_FILE="$HOME/.claude/.tim-loop-state-${TIM_LOOP_SESSION_ID}"
 TIM_LOOP_PROMPT_FILE="$HOME/.claude/.tim-loop-prompt-${TIM_LOOP_SESSION_ID}"
 TIM_LOOP_HOOK_SCRIPT="python3 ${PLUGIN_ROOT}/scripts/tim_loop_hook.py"
@@ -763,6 +779,7 @@ PROJECT_PATH="$CONTEXT_PWD"
 PLAN_FILE="$PLAN_FILEPATH"
 CREATED_AT="$CREATED_AT"
 SESSION_ID="$TIM_LOOP_SESSION_ID"
+CLAUDE_PID="$TIM_LOOP_CLAUDE_PID"
 REVIEW_MODE="$REVIEW_MODE"
 MIN_REVIEW_ITERATIONS="$MIN_REVIEW_ITERATIONS"
 EOF

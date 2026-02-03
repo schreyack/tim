@@ -131,11 +131,27 @@ HEARTBEAT_THRESHOLD_SECONDS = 300  # 5 minutes
 STATE_FILE_THRESHOLD_SECONDS = 30  # 30 seconds if no heartbeat
 
 
-def _extract_session_pid(state_file_path: str) -> int | None:
-    """Extract the session PID from a state file path like .tim-loop-state-12345."""
+def _extract_claude_pid(state_file_path: str) -> int | None:
+    """Extract the Claude process PID from the state file content.
+
+    Looks for CLAUDE_PID in the state file. Falls back to extracting
+    from filename for backwards compatibility.
+    """
+    # Try to read CLAUDE_PID from state file content
+    try:
+        if state_file_path and Path(state_file_path).exists():
+            content = Path(state_file_path).read_text()
+            for line in content.split("\n"):
+                if line.startswith("CLAUDE_PID="):
+                    pid_str = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    return int(pid_str)
+    except Exception:
+        pass
+
+    # Fallback: extract from filename (backwards compatibility)
     import re
 
-    match = re.search(r"\.tim-loop-state-(\d+)$", state_file_path)
+    match = re.search(r"\.tim-loop-state-(\d+)$", state_file_path or "")
     if match:
         return int(match.group(1))
     return None
@@ -196,9 +212,9 @@ def _is_state_file_fresh(state_file_path: str) -> bool:
 
 def _check_session_staleness(state_file_path: str) -> bool:
     """Check if session is stale (dead process + stale files). Returns True if active."""
-    # Extract session PID - if process is running, session is active
-    session_pid = _extract_session_pid(state_file_path) if state_file_path else None
-    if session_pid and _is_process_running(session_pid):
+    # Extract Claude PID - if process is running, session is active
+    claude_pid = _extract_claude_pid(state_file_path)
+    if claude_pid and _is_process_running(claude_pid):
         return True
 
     # Process dead or unknown - check file freshness
