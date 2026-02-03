@@ -28,6 +28,39 @@ project/
 
 ---
 
+## Plan Content Principles
+
+### No Optional Work
+
+**Plans contain only required work. There are no optional steps, phases, or tasks.**
+
+This is a core TIM principle. If something is worth including in a plan, it's required. If it's truly optional, it doesn't belong in the plan.
+
+| Include in Plan | Exclude from Plan |
+|-----------------|-------------------|
+| Required steps | "Nice to have" items |
+| Must-complete phases | Optional enhancements |
+| Blocking tasks | Future considerations |
+
+**Why this matters for AI development:**
+- AI cannot cherry-pick easy tasks while skipping "optional" harder ones
+- Verification is binary: all tasks done = complete, anything missing = incomplete
+- No room for interpretation about what was required
+- Implementation Verification Gate enforces 100% completion
+
+**Anti-patterns to avoid:**
+- "Optional: add error handling" → Either require it or remove it from the plan
+- "Phase 3 (if time permits)" → Either commit to Phase 3 or exclude it entirely
+- "Nice to have: tests for edge cases" → Either require the tests or don't mention them
+- "Stretch goal: performance optimization" → Either it's a required phase or exclude it
+
+**What to do with truly optional ideas:**
+- Document them separately (not in the plan)
+- Create a separate future plan if they become important
+- Add to project backlog or roadmap documents
+
+---
+
 ## Plan Lifecycle
 
 ```

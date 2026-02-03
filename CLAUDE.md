@@ -666,6 +666,28 @@ Use semantic versioning:
 
 All plans MUST use the project's `plans/` folder with lifecycle subfolders.
 
+### No Optional Work (Principle)
+
+**Plans contain only required work. There are no optional steps, phases, or tasks.**
+
+If something is worth including in a plan, it's required. If it's truly optional, it doesn't belong in the plan. This eliminates ambiguity about what "done" means.
+
+| Include in Plan | Exclude from Plan |
+|-----------------|-------------------|
+| Required steps | "Nice to have" items |
+| Must-complete phases | Optional enhancements |
+| Blocking tasks | Future considerations |
+
+**Why this matters for AI development:**
+- AI cannot cherry-pick easy tasks while skipping "optional" harder ones
+- Verification is binary: all tasks done = complete, anything missing = incomplete
+- No room for interpretation about what was required
+
+**Anti-patterns to avoid:**
+- "Optional: add error handling" → Either it's required or remove it
+- "Phase 3 (if time permits)" → Either commit to Phase 3 or exclude it
+- "Nice to have: tests for edge cases" → Either require the tests or don't mention them
+
 ### Folder Structure
 
 ```

@@ -48,6 +48,7 @@ These define what TIM *is*. They will not change.
 | Single source of truth | Data integrity - prevents inconsistency |
 | Completeness over speed | 100% verification, no "good enough" |
 | TDD for new features | Test-first prevents "test what I wrote" thinking |
+| No optional work in plans | Binary completion - either required or not in plan |
 
 ## Type Safety
 
