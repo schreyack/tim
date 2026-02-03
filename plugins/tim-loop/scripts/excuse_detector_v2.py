@@ -138,10 +138,6 @@ def strip_code_and_quotes(text: str) -> str:
     - Inline code (`...`)
     - Blockquotes (lines starting with >)
     """
-    print(f"DEBUG strip_code_and_quotes called, len={len(text)}", file=sys.stderr)
-
-    original = text
-
     # Remove fenced code blocks (multiline)
     text = re.sub(r"```[\s\S]*?```", "", text)
 
@@ -150,21 +146,6 @@ def strip_code_and_quotes(text: str) -> str:
 
     # Remove blockquote lines
     text = re.sub(r"^>.*$", "", text, flags=re.MULTILINE)
-
-    print(f"DEBUG changed={text != original}", file=sys.stderr)
-
-    # Debug: always write to see what format text is in
-    try:
-        debug_path = Path("/tmp/excuse_detector_debug.txt")
-        with open(debug_path, "w", encoding="utf-8") as f:
-            f.write("=== ORIGINAL ===\n")
-            f.write(original)
-            f.write("\n\n=== AFTER STRIPPING ===\n")
-            f.write(text)
-            f.write(f"\n\n=== CHANGED: {text != original} ===")
-        print(f"DEBUG wrote to {debug_path}", file=sys.stderr)
-    except Exception as e:
-        print(f"DEBUG write failed: {e}", file=sys.stderr)
 
     return text
 
@@ -259,7 +240,9 @@ def check_guardrails(transcript: list[dict]) -> dict | None:
     """Check with LLM-as-judge for semantic evasion."""
     latest_text = extract_latest_assistant_text(transcript)
     if latest_text:
-        return check_with_guardrails(latest_text)
+        # Strip code blocks and quotes before LLM evaluation
+        stripped_text = strip_code_and_quotes(latest_text)
+        return check_with_guardrails(stripped_text)
     return None
 
 
