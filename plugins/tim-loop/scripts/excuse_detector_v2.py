@@ -130,6 +130,16 @@ def extract_latest_assistant_text(transcript: list[dict]) -> str:
     return ""
 
 
+def extract_latest_user_request(transcript: list[dict]) -> str:
+    """Extract the most recent user message from transcript for task type detection."""
+    for entry in reversed(transcript):
+        role, content = _get_entry_role_and_content(entry)
+        if role == "user":
+            texts = extract_text_from_content(content)
+            return "\n".join(texts)
+    return ""
+
+
 def strip_code_and_quotes(text: str) -> str:
     """Remove code blocks and quoted content to avoid false positives.
 
@@ -242,7 +252,9 @@ def check_guardrails(transcript: list[dict]) -> dict | None:
     if latest_text:
         # Strip code blocks and quotes before LLM evaluation
         stripped_text = strip_code_and_quotes(latest_text)
-        return check_with_guardrails(stripped_text)
+        # Get user request for task type detection
+        user_request = extract_latest_user_request(transcript)
+        return check_with_guardrails(stripped_text, user_request)
     return None
 
 
