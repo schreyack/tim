@@ -41,6 +41,7 @@ def cleanup_state_files(state_file: str, prompt_file: str) -> None:
         str(Path.home() / ".claude" / ".tim-loop-iteration-count"),
         str(Path.home() / ".claude" / ".tim-loop-auto-approve"),
         str(Path.home() / ".claude" / ".tim-loop-heartbeat"),
+        str(Path.home() / ".claude" / ".tim-loop-pending-options"),
     ]
     for file_path in files_to_remove:
         if file_path and os.path.isfile(file_path):
@@ -72,7 +73,7 @@ def cleanup_hooks_from_settings() -> None:
             settings = json.load(f)
         if "hooks" not in settings:
             return
-        for hook_type in ["stop", "PreToolUse", "SessionStart"]:
+        for hook_type in ["stop", "PreToolUse", "SessionStart", "UserPromptSubmit"]:
             _filter_tim_loop_hooks(settings["hooks"], hook_type)
         if not settings["hooks"]:
             del settings["hooks"]

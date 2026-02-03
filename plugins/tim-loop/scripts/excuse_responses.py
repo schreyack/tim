@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 from patterns_core import ExcusePattern
+from pending_options import get_options_text, write_pending_options
 
 
 def get_plugin_version() -> str:
@@ -39,6 +40,11 @@ def build_general_block_response(
     excuse_text = format_excuse_details(excuses_found)
     version = get_plugin_version()
 
+    # Write pending options state for option expander
+    category = excuses_found[0][0].category if excuses_found else "general"
+    excerpt = excuses_found[0][1][:100] if excuses_found else ""
+    write_pending_options(category, excerpt)
+
     return {
         "decision": "block",
         "reason": (
@@ -55,6 +61,7 @@ def build_general_block_response(
             f"- If genuinely blocked by a technical impossibility, state it specifically\n"
             f"- Then continue your work without qualifying language\n\n"
             f"The human deserves your best work, not your best explanation."
+            f"{get_options_text()}"
         )
     }
 
@@ -65,6 +72,11 @@ def build_posthook_block_response(
     """Build block response for post-hook defiance / rule redefining (Categories O-P)."""
     excuse_text = format_excuse_details(excuses_found)
     version = get_plugin_version()
+
+    # Write pending options state for option expander
+    category = excuses_found[0][0].category if excuses_found else "posthook"
+    excerpt = excuses_found[0][1][:100] if excuses_found else ""
+    write_pending_options(category, excerpt)
 
     return {
         "decision": "block",
@@ -89,6 +101,7 @@ def build_posthook_block_response(
             f"The human will help you find the right path. That's what they're here for.\n"
             f"Don't be afraid to ask — they'd much rather help you now than discover\n"
             f"later that something was skipped."
+            f"{get_options_text()}"
         )
     }
 
@@ -99,6 +112,11 @@ def build_shortcut_block_response(
     """Build block response for shortcut/easy-path reasoning (Category Q)."""
     excuse_text = format_excuse_details(excuses_found)
     version = get_plugin_version()
+
+    # Write pending options state for option expander
+    category = excuses_found[0][0].category if excuses_found else "shortcut"
+    excerpt = excuses_found[0][1][:100] if excuses_found else ""
+    write_pending_options(category, excerpt)
 
     return {
         "decision": "block",
@@ -121,6 +139,7 @@ def build_shortcut_block_response(
             f"   not just the easiest or quickest one\n\n"
             f"If after this analysis the simple fix really is the best choice, great!\n"
             f"Just show your reasoning so the human knows you've thought it through."
+            f"{get_options_text()}"
         )
     }
 
@@ -131,6 +150,11 @@ def build_failure_dismissal_block_response(
     """Build block response for failure dismissal patterns (Category R)."""
     excuse_text = format_excuse_details(excuses_found)
     version = get_plugin_version()
+
+    # Write pending options state for option expander
+    category = excuses_found[0][0].category if excuses_found else "failure_dismissal"
+    excerpt = excuses_found[0][1][:100] if excuses_found else ""
+    write_pending_options(category, excerpt)
 
     return {
         "decision": "block",
@@ -153,6 +177,7 @@ def build_failure_dismissal_block_response(
             f"4. Wait for their guidance before continuing\n\n"
             f"The human trusts you to report problems, not to decide which problems\n"
             f"matter. Let them make that call."
+            f"{get_options_text()}"
         )
     }
 
@@ -163,6 +188,11 @@ def build_test_manipulation_block_response(
     """Build block response for test manipulation patterns (Category S)."""
     excuse_text = format_excuse_details(excuses_found)
     version = get_plugin_version()
+
+    # Write pending options state for option expander
+    category = excuses_found[0][0].category if excuses_found else "test_manipulation"
+    excerpt = excuses_found[0][1][:100] if excuses_found else ""
+    write_pending_options(category, excerpt)
 
     return {
         "decision": "block",
@@ -186,6 +216,7 @@ def build_test_manipulation_block_response(
             f"The human cares that the application works reliably.\n"
             f"They don't care that tests pass - tests are just one tool to verify\n"
             f"the application works."
+            f"{get_options_text()}"
         )
     }
 
@@ -196,6 +227,11 @@ def build_unilateral_decision_block_response(
     """Build block response for unilateral decision patterns (Category T)."""
     excuse_text = format_excuse_details(excuses_found)
     version = get_plugin_version()
+
+    # Write pending options state for option expander
+    category = excuses_found[0][0].category if excuses_found else "unilateral_decision"
+    excerpt = excuses_found[0][1][:100] if excuses_found else ""
+    write_pending_options(category, excerpt)
 
     return {
         "decision": "block",
@@ -223,5 +259,6 @@ def build_unilateral_decision_block_response(
             f"    - \"Implement them\" - Requires backend work, more complete solution\n\n"
             f"The human is counting on you to collaborate, not to take over.\n"
             f"Your job is to present options clearly, not to choose for them."
+            f"{get_options_text()}"
         )
     }

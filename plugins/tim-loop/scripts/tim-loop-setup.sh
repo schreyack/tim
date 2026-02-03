@@ -743,7 +743,7 @@ try:
     with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
         settings = json.load(f)
     if 'hooks' in settings:
-        for ht in ['stop', 'PreToolUse', 'SessionStart']:
+        for ht in ['stop', 'PreToolUse', 'SessionStart', 'UserPromptSubmit']:
             if ht in settings['hooks']:
                 settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
                 if not settings['hooks'][ht]: del settings['hooks'][ht]
@@ -832,6 +832,7 @@ settings_file = os.path.expanduser("~/.claude/settings.local.json")
 stop_hook = "${TIM_LOOP_HOOK_SCRIPT}"
 permission_hook = "${PLUGIN_ROOT}/scripts/tim-loop-permission-hook.sh"
 prompt_manager_hook = "${PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook"
+option_expander_hook = "python3 ${PLUGIN_ROOT}/scripts/option_expander.py"
 
 try:
     with open(settings_file, 'r') as f:
@@ -843,7 +844,8 @@ if 'hooks' not in settings:
     settings['hooks'] = {}
 
 # SessionStart hook for prompt reinjection after context compaction
-for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook), ('SessionStart', prompt_manager_hook)]:
+# UserPromptSubmit hook for option expansion (type "1" instead of full response)
+for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook), ('SessionStart', prompt_manager_hook), ('UserPromptSubmit', option_expander_hook)]:
     if hook_type not in settings['hooks']:
         settings['hooks'][hook_type] = []
     entry = {"command": hook_cmd}
@@ -852,7 +854,7 @@ for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook)
 
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)
-print("Tim Loop hooks registered (stop, PreToolUse, SessionStart)")
+print("Tim Loop hooks registered (stop, PreToolUse, SessionStart, UserPromptSubmit)")
 PYTHON_EOF
 
 echo -e "\nTim Loop: Starting iteration 1 of $MAX_ITERATIONS\n"

@@ -30,6 +30,10 @@ from patterns_mode_violation import (
     build_mode_violation_response,
     find_mode_violations,
 )
+from patterns_task_drift import (
+    build_task_drift_response,
+    find_task_drift,
+)
 from tim_loop_state import load_state
 
 
@@ -258,6 +262,14 @@ def check_guardrails(transcript: list[dict]) -> dict | None:
     return None
 
 
+def check_task_drift(latest_text: str) -> dict | None:
+    """Check for task drift (doing more than was asked)."""
+    drifts = find_task_drift(latest_text)
+    if drifts:
+        return build_task_drift_response(drifts)
+    return None
+
+
 def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | None:
     """Run all detection passes in order. Returns first blocking response or None.
 
@@ -266,6 +278,11 @@ def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | Non
     """
     # Pass 0: Mode violation check (catches completely wrong task)
     result = check_mode_violations(latest_text)
+    if result:
+        return result
+
+    # Pass 0.5: Task drift check (doing more than was asked)
+    result = check_task_drift(latest_text)
     if result:
         return result
 

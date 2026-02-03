@@ -230,8 +230,13 @@ def build_guardrails_block_response(failure_reason: str, category: str, transcri
 
     Uses 'continue: false' to completely halt Claude until human responds.
     """
+    from pending_options import get_options_text, write_pending_options
+
     yaml_path = Path(__file__).parent / "excuse_patterns.yaml"
     version = get_plugin_version()
+
+    # Write pending options state for option expander
+    write_pending_options(category, transcript_excerpt[:100])
 
     stop_reason = (
         f"🛑 **LLM JUDGE: STOP** (v{version})\n\n"
@@ -247,6 +252,7 @@ def build_guardrails_block_response(failure_reason: str, category: str, transcri
         f"     category: {category}\n"
         f"     example: \"{transcript_excerpt[:50]}...\"\n"
         f"   ```\n"
+        f"{get_options_text()}"
     )
 
     # Use continue: false for hard stop - Claude cannot proceed without human input
