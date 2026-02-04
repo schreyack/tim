@@ -17,11 +17,11 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        args: [--strict, --ignore-missing-imports]
+        args: [--strict]
         additional_dependencies:
           - pydantic>=2.0
           - types-passlib
-          - types-python-jose
+          - types-pyjwt
 
   # Detect secrets - Prevent committing secrets
   - repo: https://github.com/Yelp/detect-secrets
@@ -59,8 +59,7 @@ repos:
     rev: 1.7.10
     hooks:
       - id: bandit
-        args: [-r, src/, -ll]  # Low severity and above
-        exclude: tests/
+        args: [-r, src/, tests/, -ll]  # Low severity and above, includes tests
 
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local

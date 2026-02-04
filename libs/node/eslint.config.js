@@ -75,9 +75,9 @@ export default tseslint.config(
       "security/detect-non-literal-fs-filename": "error",
       "security/detect-eval-with-expression": "error",
       "security/detect-no-csrf-before-method-override": "error",
-      "security/detect-possible-timing-attacks": "warn",
+      "security/detect-possible-timing-attacks": "error",
       "security/detect-pseudoRandomBytes": "error",
-      "security/detect-child-process": "warn",
+      "security/detect-child-process": "error",
       "security/detect-buffer-noassert": "error",
 
       // =======================================================================
@@ -149,21 +149,20 @@ export default tseslint.config(
     },
   },
 
-  // Test files - relaxed rules
+  // Test files - minimal relaxations (security rules still enforced)
   {
     files: ["tests/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
     rules: {
-      // Allow any in tests for mocking flexibility
+      // Allow any in tests for mocking flexibility (unavoidable for some mocks)
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
-      // Allow non-null assertions in tests
+      // Non-null assertions OK in tests (test data is controlled)
       "@typescript-eslint/no-non-null-assertion": "off",
-      // Allow floating promises in test cleanup
-      "@typescript-eslint/no-floating-promises": "off",
+      // KEEP floating-promises as error - causes real bugs in tests
     },
   },
 

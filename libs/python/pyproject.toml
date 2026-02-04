@@ -51,9 +51,9 @@ select = ["E", "W", "F", "I", "B", "C4", "UP", "S", "T20", "SIM", "ARG", "PTH", 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
     "S101",   # Allow assert in tests
-    "S105",   # Allow hardcoded passwords in tests
-    "ARG001", # Allow unused args (ASGI signature)
+    "ARG001", # Allow unused args (fixture signatures)
     "F841",   # Allow unused vars in test setup
+    # NOTE: S105 (hardcoded passwords) NOT ignored - use env vars or fixtures
 ]
 "tim_lib/api.py" = ["ARG001"]  # Exception handlers have required signature
 "tim_lib/logging.py" = ["ARG001"]  # structlog processors have required signature
