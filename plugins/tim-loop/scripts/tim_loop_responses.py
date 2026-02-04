@@ -7,7 +7,15 @@ returned by the tim-loop hook to control conversation flow.
 """
 
 
-PHASE_NAMES = {1: "Tech Review", 2: "AI-Ready Review", 3: "Goal Alignment"}
+PHASE_NAMES = {
+    1: "Tech Review",
+    2: "Devil's Advocate",
+    3: "Security Review",
+    4: "AI-Ready Review",
+    5: "Goal Alignment",
+    6: "PM Review",
+    7: "User Advocate",
+}
 
 
 def build_continue_response(
@@ -153,10 +161,14 @@ def build_phase_skip_challenge(prompt: str, current_phase: int) -> dict:
         "decision": "block",
         "reason": (
             f"Tim Loop: Cannot complete full review - still on Phase {current_phase}\n\n"
-            f"Full review requires completing all three phases in order:\n"
+            f"Full review requires completing all 7 phases in order:\n"
             f"1. Tech Review (`<promise>PHASE-1-TECH-DONE</promise>`)\n"
-            f"2. AI-Ready Review (`<promise>PHASE-2-AI-READY-DONE</promise>`)\n"
-            f"3. Goal Alignment (`<promise>PHASE-3-GOAL-ALIGN-DONE</promise>`)\n\n"
+            f"2. Devil's Advocate (`<promise>PHASE-2-DEVILS-ADVOCATE-DONE</promise>`)\n"
+            f"3. Security Review (`<promise>PHASE-3-SECURITY-DONE</promise>`)\n"
+            f"4. AI-Ready Review (`<promise>PHASE-4-AI-READY-DONE</promise>`)\n"
+            f"5. Goal Alignment (`<promise>PHASE-5-GOAL-ALIGN-DONE</promise>`)\n"
+            f"6. PM Review (`<promise>PHASE-6-PM-DONE</promise>`)\n"
+            f"7. User Advocate (`<promise>PHASE-7-USER-ADVOCATE-DONE</promise>`)\n\n"
             f"You are on Phase {current_phase}. Complete it first.\n\n"
             f"---\n\n{prompt}"
         ),
@@ -168,12 +180,46 @@ def build_final_completion_instruction(prompt: str) -> dict:
     return {
         "decision": "block",
         "reason": (
-            "Tim Loop: All 3 phases complete!\n\n"
+            "Tim Loop: All 7 phases complete!\n\n"
             "Phase 1 (Tech Review): DONE\n"
-            "Phase 2 (AI-Ready Review): DONE\n"
-            "Phase 3 (Goal Alignment): DONE\n\n"
+            "Phase 2 (Devil's Advocate): DONE\n"
+            "Phase 3 (Security Review): DONE\n"
+            "Phase 4 (AI-Ready Review): DONE\n"
+            "Phase 5 (Goal Alignment): DONE\n"
+            "Phase 6 (PM Review): DONE\n"
+            "Phase 7 (User Advocate): DONE\n\n"
             "You may now output the final completion signal: "
             "`<promise>FULL-REVIEW-DONE</promise>`\n\n"
             f"---\n\n{prompt}"
+        ),
+    }
+
+
+def build_full_review_complete_hard_stop(plan_file: str) -> dict:
+    """Build HARD STOP response when full-review completes - blocks implementation."""
+    return {
+        "decision": "block",
+        "reason": (
+            "═══════════════════════════════════════════════════════════════════\n"
+            "                    🛑 FULL REVIEW COMPLETE - HARD STOP 🛑\n"
+            "═══════════════════════════════════════════════════════════════════\n\n"
+            "The full review process has completed successfully.\n\n"
+            f"Plan file: {plan_file}\n\n"
+            "╔═══════════════════════════════════════════════════════════════════╗\n"
+            "║  ⚠️  IMPLEMENTATION CANNOT PROCEED WITHOUT HUMAN APPROVAL  ⚠️     ║\n"
+            "╚═══════════════════════════════════════════════════════════════════╝\n\n"
+            "DO NOT:\n"
+            "- Start implementing the plan\n"
+            "- Make any code changes\n"
+            "- Create, edit, or modify any files\n"
+            "- Run any commands that change the codebase\n\n"
+            "THE SESSION IS NOW BLOCKED.\n\n"
+            "To proceed, the HUMAN must:\n"
+            "1. Review the plan file\n"
+            "2. Explicitly approve implementation by running:\n"
+            f"   /tim-loop --implement {plan_file}\n\n"
+            "Any attempt to continue work in this session without human approval\n"
+            "is a violation of the review process.\n\n"
+            "═══════════════════════════════════════════════════════════════════\n"
         ),
     }

@@ -18,6 +18,7 @@ from tim_loop_responses import (
     build_continue_response,
     build_early_phase_completion_challenge,
     build_final_completion_instruction,
+    build_full_review_complete_hard_stop,
     build_phase_skip_challenge,
     build_phase_transition_response,
 )
@@ -132,7 +133,39 @@ def _check_final_signal(state: dict, prompt: str, text: str, phase: int) -> dict
         return None  # No final signal - continue normal processing
     if phase < FINAL_PHASE or state.get(f"PHASE_{FINAL_PHASE}_COMPLETE") != "true":
         return build_phase_skip_challenge(prompt, phase)
-    return {"allow_exit": True}  # All phases complete
+    # All phases complete - return HARD STOP to block implementation
+    plan_file = state.get("PLAN_FILE", "the plan file")
+    return {"hard_stop": True, "plan_file": plan_file}
+
+
+def _handle_hard_stop(final_result: dict) -> dict:
+    """Handle full review complete - return HARD STOP response."""
+    log_stderr("Tim Loop: Full review complete - HARD STOP (requires human approval)")
+    plan_file = final_result.get("plan_file", "the plan file")
+    return build_full_review_complete_hard_stop(plan_file)
+
+
+def _handle_phase_signal(
+    state: dict, prompt: str, phase_signal: tuple[int, str],
+    current_phase: int, phase_iterations: int, min_iterations: int, max_iterations: int
+) -> dict:
+    """Handle detected phase signal - validate and process."""
+    detected_phase, _ = phase_signal
+    if detected_phase != current_phase:
+        return _handle_wrong_phase_signal(
+            state, prompt, current_phase, detected_phase, phase_iterations, max_iterations
+        )
+    if phase_iterations < min_iterations:
+        return _handle_early_completion(
+            state, prompt, current_phase, phase_iterations, min_iterations
+        )
+    # Phase complete - mark and transition
+    state[f"PHASE_{current_phase}_COMPLETE"] = "true"
+    log_stderr(f"Tim Loop: Phase {current_phase} complete")
+    if current_phase < FINAL_PHASE:
+        return _handle_phase_transition(state, current_phase, max_iterations)
+    save_state(state)
+    return build_final_completion_instruction(prompt)
 
 
 def handle_full_review_phase(
@@ -140,46 +173,25 @@ def handle_full_review_phase(
 ) -> dict | None:
     """Handle phase transitions for full-review mode. Returns response or None."""
     current_phase = int(state.get("CURRENT_PHASE", "1"))
-    phase_iter_key = f"PHASE_{current_phase}_ITERATIONS"
-    phase_iterations = int(state.get(phase_iter_key, "0"))
-    min_iter_key = f"MIN_PHASE_{current_phase}_ITERATIONS"
-    min_iterations = int(state.get(min_iter_key, "3"))
+    phase_iterations = int(state.get(f"PHASE_{current_phase}_ITERATIONS", "0"))
+    min_iterations = int(state.get(f"MIN_PHASE_{current_phase}_ITERATIONS", "3"))
     max_iterations = int(state.get("MAX_ITERATIONS", "30"))
 
-    # Check for final completion signal
+    # Check for final completion signal first
     final_result = _check_final_signal(state, prompt, assistant_text, current_phase)
     if final_result is not None:
-        return None if final_result.get("allow_exit") else final_result
+        if final_result.get("hard_stop"):
+            return _handle_hard_stop(final_result)
+        return final_result
 
     # Check for phase completion signal
     phase_signal = detect_phase_signal(assistant_text)
-
     if phase_signal is None:
         return _handle_no_signal(
             state, prompt, current_phase, phase_iterations, max_iterations
         )
 
-    detected_phase, _ = phase_signal
-
-    # Check if signal matches current phase
-    if detected_phase != current_phase:
-        return _handle_wrong_phase_signal(
-            state, prompt, current_phase, detected_phase, phase_iterations, max_iterations
-        )
-
-    # Correct phase signal - check minimum iterations
-    if phase_iterations < min_iterations:
-        return _handle_early_completion(
-            state, prompt, current_phase, phase_iterations, min_iterations
-        )
-
-    # Phase complete - mark and transition
-    state[f"PHASE_{current_phase}_COMPLETE"] = "true"
-    log_stderr(f"Tim Loop: Phase {current_phase} complete")
-
-    if current_phase < FINAL_PHASE:
-        return _handle_phase_transition(state, current_phase, max_iterations)
-
-    # Final phase complete - instruct to output final signal
-    save_state(state)
-    return build_final_completion_instruction(prompt)
+    return _handle_phase_signal(
+        state, prompt, phase_signal,
+        current_phase, phase_iterations, min_iterations, max_iterations
+    )
