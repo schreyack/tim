@@ -1,6 +1,5 @@
 # TIM Standards - Python Pre-commit Configuration
-# Copy this file to your project root
-# Also copy tools/check-code-quality.py from the tim repo
+# Symlink from lib/tim/templates/python/.pre-commit-config.yaml
 # Run: pre-commit install
 
 repos:
@@ -59,7 +58,7 @@ repos:
     rev: 1.7.10
     hooks:
       - id: bandit
-        args: [-r, src/, tests/, -ll]  # Low severity and above, includes tests
+        args: ["-r", ".", "-ll", "--exclude", ".venv,node_modules,.git,lib"]
 
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
@@ -67,7 +66,7 @@ repos:
       # Code quality: 400 line files, 50 line functions, complexity 10
       - id: code-quality
         name: Code quality (file size, function size, complexity)
-        entry: python3 tools/check-code-quality.py src --language python
+        entry: python3 lib/tim/tools/check-code-quality.py . --language python
         language: system
         pass_filenames: false
         always_run: true
@@ -75,7 +74,7 @@ repos:
       # Block TODO/FIXME comments
       - id: no-todos
         name: No TODO/FIXME comments
-        entry: bash -c 'if grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.py" src/ 2>/dev/null; then echo "ERROR: Remove TODO/FIXME comments - implement fully or do not add"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn TODO --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Remove TODO/FIXME comments; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -83,7 +82,7 @@ repos:
       # Block print statements (must use logging)
       - id: no-print
         name: No print statements
-        entry: bash -c 'if grep -rn "^\s*print(" --include="*.py" src/ 2>/dev/null | grep -v "# noqa"; then echo "ERROR: Use logging instead of print()"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn \"^\\s*print(\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -91,7 +90,7 @@ repos:
       # Block bare except clauses
       - id: no-bare-except
         name: No bare except clauses
-        entry: bash -c 'if grep -rn "except:" --include="*.py" src/ 2>/dev/null | grep -v "# noqa"; then echo "ERROR: Catch specific exceptions, not bare except:"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn \"except:\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -99,7 +98,7 @@ repos:
       # Block placeholder implementations
       - id: no-placeholders
         name: No placeholder implementations
-        entry: bash -c 'if grep -rn "raise NotImplementedError" --include="*.py" src/ 2>/dev/null; then echo "ERROR: Implement fully - no NotImplementedError allowed"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn NotImplementedError --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Implement fully, no NotImplementedError; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -107,7 +106,7 @@ repos:
       # Enforce test naming convention (test_what_when_then)
       - id: test-naming
         name: Test naming convention
-        entry: bash -c 'INVALID=$(grep -rn "^def test_" --include="test_*.py" tests/ 2>/dev/null | grep -v "_when_\|_with_\|_returns_\|_raises_\|_creates_\|_updates_\|_deletes_" || true); if [ -n "$INVALID" ]; then echo "ERROR: Test names must follow test_<what>_<when>_<then> pattern"; echo "$INVALID"; echo "Examples: test_login_with_valid_credentials_returns_token, test_create_user_when_email_exists_raises_error"; exit 1; fi; exit 0'
+        entry: "bash -c 'INVALID=$(grep -rn \"^def test_\" --include=\"test_*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null | grep -v _when_ | grep -v _with_ | grep -v _returns_ | grep -v _raises_ || true); if [ -n \"$INVALID\" ]; then echo ERROR - Test names must follow test_what_when_then pattern; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true

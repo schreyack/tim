@@ -160,10 +160,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
-      // Allow non-null assertions in tests
+      // Allow non-null assertions in tests (test data is controlled)
       "@typescript-eslint/no-non-null-assertion": "off",
-      // Allow floating promises in test cleanup
-      "@typescript-eslint/no-floating-promises": "off",
+      // KEEP floating-promises as error - causes real bugs in tests
     },
   },
 

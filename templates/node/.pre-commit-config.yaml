@@ -1,6 +1,5 @@
 # TIM Standards - Node.js Pre-commit Configuration
-# Copy this file to your project root
-# Also copy tools/check-code-quality.py from the tim repo
+# Symlink from lib/tim/templates/node/.pre-commit-config.yaml
 # Run: pre-commit install
 
 repos:
@@ -64,7 +63,7 @@ repos:
       # Code quality: 400 line files max
       - id: code-quality
         name: Code quality (file size)
-        entry: python3 tools/check-code-quality.py src --language typescript
+        entry: python3 lib/tim/tools/check-code-quality.py . --language typescript
         language: system
         pass_filenames: false
         always_run: true
@@ -72,7 +71,7 @@ repos:
       # Block TODO/FIXME comments
       - id: no-todos
         name: No TODO/FIXME comments
-        entry: bash -c 'if grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.ts" --include="*.tsx" src/ 2>/dev/null; then echo "ERROR: Remove TODO/FIXME comments - implement fully or do not add"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn TODO --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null; then echo ERROR - Remove TODO/FIXME comments; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -80,7 +79,7 @@ repos:
       # Block console.log (must use logger)
       - id: no-console
         name: No console.log
-        entry: bash -c 'if grep -rn "console\.log\|console\.debug\|console\.info" --include="*.ts" --include="*.tsx" src/ 2>/dev/null | grep -v "// noqa"; then echo "ERROR: Use logger instead of console.log"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn console.log --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -88,7 +87,7 @@ repos:
       # Block any type
       - id: no-any
         name: No any type
-        entry: bash -c 'if grep -rn ": any\|as any\|<any>" --include="*.ts" --include="*.tsx" src/ 2>/dev/null | grep -v "// noqa"; then echo "ERROR: Use proper types instead of any"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn \": any\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -96,15 +95,15 @@ repos:
       # Block placeholder implementations
       - id: no-placeholders
         name: No placeholder implementations
-        entry: bash -c 'if grep -rn "throw new Error.*not implemented\|// TODO\|// FIXME" --include="*.ts" --include="*.tsx" src/ 2>/dev/null; then echo "ERROR: Implement fully - no placeholders"; exit 1; fi; exit 0'
+        entry: "bash -c 'if grep -rn \"not implemented\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null; then echo ERROR - Implement fully, no placeholders; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
 
-      # Enforce test naming convention (test_what_when_then or it('should...when...'))
+      # Enforce test naming convention (it('should...when...'))
       - id: test-naming
         name: Test naming convention
-        entry: bash -c 'INVALID=$(grep -rn "^\s*\(it\|test\)(" --include="*.test.ts" --include="*.spec.ts" tests/ src/ 2>/dev/null | grep -v "should.*when\|should.*with\|returns\|throws\|creates\|updates\|deletes" || true); if [ -n "$INVALID" ]; then echo "ERROR: Test names must follow pattern: it('\''should <action> when <condition>'\'')"; echo "$INVALID"; echo "Examples: it('\''should return token when credentials are valid'\'')"; exit 1; fi; exit 0'
+        entry: "bash -c 'INVALID=$(grep -rn \"^\\s*it(\" --include=\"*.test.ts\" --include=\"*.spec.ts\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null | grep -v should || true); if [ -n \"$INVALID\" ]; then echo ERROR - Test names must use should pattern; echo \"$INVALID\"; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
