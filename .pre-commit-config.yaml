@@ -10,11 +10,25 @@ repos:
   # =============================================================================
   - repo: local
     hooks:
-      - id: protect-precommit-config
-        name: LOCKED - pre-commit config requires human approval to modify
-        entry: bash -c 'echo "ERROR: .pre-commit-config.yaml is LOCKED. To modify, get human approval and use --no-verify" && exit 1'
+      - id: protect-enforcement-files
+        name: LOCKED - enforcement files require human approval to modify
+        entry: bash -c 'echo "ERROR: This file is LOCKED (enforcement config). To modify, get human approval and use --no-verify" && exit 1'
         language: system
-        files: ^\.pre-commit-config\.yaml$
+        files: >-
+          (?x)^(
+            \.pre-commit-config\.yaml|
+            tools/check-code-quality\.py|
+            libs/node/eslint\.config\.js|
+            \.secrets\.baseline|
+            templates/python/\.pre-commit-config\.yaml|
+            templates/node/\.pre-commit-config\.yaml
+          )$
+
+      - id: protect-tool-config-sections
+        name: LOCKED - tool config changes require human approval
+        entry: bash -c 'echo "ERROR: Tool config sections are LOCKED. To modify ruff/mypy/eslint settings, get human approval and use --no-verify" && exit 1'
+        language: system
+        files: ^libs/python/pyproject\.toml$
 
   # =============================================================================
   # PYTHON HOOKS (libs/python/)
