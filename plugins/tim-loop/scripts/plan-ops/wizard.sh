@@ -20,6 +20,48 @@ fi
 # WIZARD HELPERS
 # =============================================================================
 
+# Reset plan for full review - moves to drafts and resets status fields
+# Usage: reset_plan_for_full_review "$current_state"
+# Uses global: WIZARD_PLAN_FILE, WIZARD_IS_PACKAGE, WIZARD_PACKAGE_DIR, WIZARD_USER_NAME
+reset_plan_for_full_review() {
+    local current_state="$1"
+    echo ""
+    log_info "Resetting plan for full review..."
+
+    # Move plan to drafts if not already there
+    if [[ "$WIZARD_PLAN_FILE" != *"/drafts/"* ]]; then
+        local plans_dir
+        plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+        mkdir -p "${plans_dir}/drafts"
+
+        if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+            local pkg_name="${WIZARD_PACKAGE_DIR##*/}"
+            local new_pkg_dir="${plans_dir}/drafts/${pkg_name}"
+            mv "$WIZARD_PACKAGE_DIR" "$new_pkg_dir"
+            WIZARD_PACKAGE_DIR="$new_pkg_dir"
+            WIZARD_PLAN_FILE="${new_pkg_dir}/MASTER.md"
+            log_info "Moved package to: $WIZARD_PACKAGE_DIR"
+        else
+            local basename new_path
+            basename=$(basename "$WIZARD_PLAN_FILE")
+            new_path="${plans_dir}/drafts/${basename}"
+            mv "$WIZARD_PLAN_FILE" "$new_path"
+            WIZARD_PLAN_FILE="$new_path"
+            log_info "Moved plan to: $WIZARD_PLAN_FILE"
+        fi
+    fi
+
+    # Reset status fields for full review
+    reset_for_full_review "$WIZARD_PLAN_FILE"
+
+    # Add progress log entry
+    update_status "$WIZARD_PLAN_FILE" "draft" "Reset for full review by ${WIZARD_USER_NAME}"
+
+    local new_state
+    new_state=$(get_plan_state "$WIZARD_PLAN_FILE")
+    log_info "Plan reset complete. New state: $new_state"
+}
+
 # Update wizard path variables after a stage move
 # Usage: wizard_update_paths_after_move "active"
 wizard_update_paths_after_move() {
@@ -150,47 +192,15 @@ cmd_wizard() {
         state=$(get_plan_state "$WIZARD_PLAN_FILE")
     fi
 
-    # Offer full review option for plans past review state
-    if [[ "$state" == "ai-ready" || "$state" == "tim-loop" || "$state" == "complete" || "$state" == "done" ]]; then
+    # Offer full review option for any valid plan state
+    if [[ "$state" != "not-found" && "$state" != "import" && "$state" != "unknown" ]]; then
         echo ""
         echo "Current state: $state"
         echo -n "Would you like to run a full review on this plan? [y/N] "
         read -r response </dev/tty
         if [[ "$response" =~ ^[Yy] ]]; then
-            echo ""
-            log_info "Resetting plan for full review..."
-
-            # Move plan to drafts if not already there
-            if [[ "$WIZARD_PLAN_FILE" != *"/drafts/"* ]]; then
-                local plans_dir basename new_path
-                plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
-                mkdir -p "${plans_dir}/drafts"
-
-                if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
-                    local pkg_name="${WIZARD_PACKAGE_DIR##*/}"
-                    local new_pkg_dir="${plans_dir}/drafts/${pkg_name}"
-                    mv "$WIZARD_PACKAGE_DIR" "$new_pkg_dir"
-                    WIZARD_PACKAGE_DIR="$new_pkg_dir"
-                    WIZARD_PLAN_FILE="${new_pkg_dir}/MASTER.md"
-                    log_info "Moved package to: $WIZARD_PACKAGE_DIR"
-                else
-                    basename=$(basename "$WIZARD_PLAN_FILE")
-                    new_path="${plans_dir}/drafts/${basename}"
-                    mv "$WIZARD_PLAN_FILE" "$new_path"
-                    WIZARD_PLAN_FILE="$new_path"
-                    log_info "Moved plan to: $WIZARD_PLAN_FILE"
-                fi
-            fi
-
-            # Reset status fields for full review
-            reset_for_full_review "$WIZARD_PLAN_FILE"
-
-            # Add progress log entry
-            update_status "$WIZARD_PLAN_FILE" "draft" "Reset for full review by ${WIZARD_USER_NAME}"
-
-            # Refresh state - should now be "review"
+            reset_plan_for_full_review "$state"
             state=$(get_plan_state "$WIZARD_PLAN_FILE")
-            log_info "Plan reset complete. New state: $state"
         fi
     fi
 
