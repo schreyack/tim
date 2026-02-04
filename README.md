@@ -302,12 +302,43 @@ plan-ops adds human approval gates to the workflow. Use it when:
 
 To create a TIM-compliant project:
 
-1. Copy `CLAUDE.md` to your project root
-2. Copy templates from `templates/python/` or `templates/node/`
-3. Install shared library (see [libs/python/](libs/python/) or [libs/node/](libs/node/))
-4. Copy `.tim-patterns.yaml` template and register your patterns
-5. Run `pre-commit install`
-6. Configure CI pipeline using templates from `templates/ci/`
+```bash
+# 1. Add tim as git submodule
+git submodule add /path/to/tim lib/tim   # local
+# OR: git submodule add https://github.com/your-org/tim lib/tim  # remote
+
+# 2. Symlink enforcement configs (Python project)
+ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml
+
+# 2. OR for Node.js project
+ln -s lib/tim/templates/node/.pre-commit-config.yaml .pre-commit-config.yaml
+
+# 3. Make symlinks immutable (prevents AI from bypassing)
+sudo chflags -h schg .pre-commit-config.yaml
+
+# 4. Create project-specific CLAUDE.md content
+cat > CLAUDE-PROJECT.md << 'EOF'
+# Project-Specific Instructions
+<!-- Add your project context here -->
+EOF
+
+# 5. Sync CLAUDE.md from tim standards
+/path/to/tim/bin/sync-claude-md
+
+# 6. Install pre-commit hooks
+pre-commit install
+
+# 7. Create .tim-patterns.yaml and register your patterns
+cp lib/tim/templates/tim-patterns.yaml.template .tim-patterns.yaml
+
+# 8. Configure CI pipeline
+cp lib/tim/templates/ci/python-ci.yml .github/workflows/ci.yml  # or node-ci.yml
+```
+
+**Why submodule + symlinks?**
+- **Consistent**: All projects use identical enforcement configs
+- **Easy to maintain**: Update tim once, run `git submodule update --remote` in projects
+- **Immutable**: `chflags -h schg` prevents AI from modifying or removing symlinks
 
 ## Existing Project Migration
 

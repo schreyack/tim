@@ -56,41 +56,67 @@ See [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) for d
 
 ## Usage
 
-### New Python Project
+### Recommended: Submodule + Symlinks
+
+The recommended approach uses git submodules and symlinks for consistent, immutable enforcement:
 
 ```bash
-# Copy Python templates
+cd my-project
+
+# Add tim as submodule
+git submodule add /path/to/tim lib/tim
+
+# Symlink enforcement configs (Python)
+ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml
+
+# OR for Node.js
+ln -s lib/tim/templates/node/.pre-commit-config.yaml .pre-commit-config.yaml
+
+# Make symlinks immutable (prevents AI from bypassing)
+sudo chflags -h schg .pre-commit-config.yaml
+
+# Copy pattern registry template
+cp lib/tim/templates/tim-patterns.yaml.template .tim-patterns.yaml
+
+# Create project-specific CLAUDE.md content
+echo "# Project-Specific Instructions" > CLAUDE-PROJECT.md
+
+# Generate CLAUDE.md from tim standards
+lib/tim/bin/sync-claude-md
+
+# Install pre-commit hooks
+pre-commit install
+
+# Install Tim Loop plugin (in Claude Code)
+# /plugin marketplace add schreyack/tim
+# /plugin install tim-loop@tim
+```
+
+**Why symlinks?**
+- All projects use identical configs from single source
+- Updates to tim automatically apply when submodule is updated
+- `chflags -h schg` makes symlinks immutable - AI cannot bypass
+
+### Alternative: Copy Templates
+
+If you prefer copying (e.g., need customization):
+
+```bash
+# Python project
 cp templates/python/.pre-commit-config.yaml my-project/
 cp templates/CLAUDE.md.template my-project/CLAUDE.md
 cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
-cp templates/plan.md.template my-project/plans/
 
-# Customize CLAUDE.md for your project
-# Install pre-commit hooks
-cd my-project && pre-commit install
-
-# Install Tim Loop plugin for AI behavioral gates (in Claude Code)
-# /plugin marketplace add schreyack/tim
-# /plugin install tim-loop@tim
-```
-
-### New Node.js Project
-
-```bash
-# Copy Node.js templates
+# Node.js project
 cp templates/node/.pre-commit-config.yaml my-project/
-cp templates/CLAUDE.md.template my-project/CLAUDE.md
-cp templates/tim-patterns.yaml.template my-project/.tim-patterns.yaml
-cp templates/plan.md.template my-project/plans/
+cp templates/node/tsconfig.json my-project/
+cp templates/node/eslint.config.js my-project/
 
-# Customize CLAUDE.md for your project
 # Install pre-commit hooks
 cd my-project && pre-commit install
-
-# Install Tim Loop plugin for AI behavioral gates (in Claude Code)
-# /plugin marketplace add schreyack/tim
-# /plugin install tim-loop@tim
 ```
+
+**Note:** Copying templates means manual updates when tim standards change.
 
 ## Template-to-Gate Mapping
 

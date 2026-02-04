@@ -99,16 +99,27 @@ npm install @tim/lib
 
 ## Distribution Methods
 
-### Method 1: Git Submodule (Recommended for Now)
+### Method 1: Git Submodule + Symlinks (Recommended)
 
-Best for small teams with private repos. Changes are explicit.
+Best for small teams with private repos. Ensures consistent, immutable enforcement.
 
 ```bash
-# Add to project
+# Add tim as submodule
 git submodule add https://github.com/your-org/tim lib/tim
+# OR for local repos:
+git submodule add /path/to/tim lib/tim
+
+# Symlink enforcement configs (Python)
+ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml
+# OR for Node.js:
+ln -s lib/tim/templates/node/.pre-commit-config.yaml .pre-commit-config.yaml
+
+# Make symlinks immutable (prevents AI bypass)
+sudo chflags -h schg .pre-commit-config.yaml
 
 # Update to latest
-git submodule update --remote lib/tim
+cd lib/tim && git pull origin main
+cd ../.. && git add lib/tim && git commit -m "chore: update tim submodule"
 
 # In pyproject.toml
 [tool.poetry.dependencies]
@@ -120,14 +131,21 @@ tim-lib = { path = "lib/tim/libs/python", develop = true }
 }
 ```
 
+**Why symlinks + immutability?**
+- Symlinks ensure all projects use identical configs from tim
+- `chflags -h schg` makes the symlink itself immutable (not just the target)
+- AI cannot remove, modify, or redirect the symlink to bypass enforcement
+
 **Pros:**
-- Explicit version control
-- Works without package registry
+- Consistent enforcement across all projects
+- Single source of truth in tim repo
+- Immutable - AI cannot bypass
 - Full source access for debugging
 
 **Cons:**
-- Must manually update submodule
+- Must update submodule when tim changes
 - Everyone needs repo access
+- macOS-specific immutability (Linux uses `chattr +i`)
 
 ### Method 2: Package Registry (Future)
 

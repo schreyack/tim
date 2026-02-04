@@ -178,21 +178,29 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
 ## Using This Repository
 
 ### For New TIM Projects
-1. Copy `CLAUDE.md` to project root
-2. Copy templates from `templates/`
-3. Install shared library
-4. Create `.tim-patterns.yaml`
-5. Install tim-loop plugin
-6. Configure CI pipeline
-7. Set up remote environments
-8. Run `tools/tim-compliance-check.sh`
+1. Add tim as git submodule: `git submodule add /path/to/tim lib/tim`
+2. Symlink enforcement configs: `ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml`
+3. Make symlinks immutable: `sudo chflags -h schg .pre-commit-config.yaml`
+4. Create `CLAUDE-PROJECT.md` with project-specific content
+5. Run `tim/bin/sync-claude-md` to generate CLAUDE.md
+6. Create `.tim-patterns.yaml` from template
+7. Install tim-loop plugin
+8. Run `pre-commit install`
+9. Run `tools/tim-compliance-check.sh`
 
 ### For Existing Projects
 1. Run `tools/tim-compliance-check.sh` to identify gaps
-2. Install shared library and create `.tim-patterns.yaml`
+2. Add tim submodule and symlink configs (see above)
 3. Install tim-loop plugin
 4. Implement all four gates
 5. Migrate to remote-first deployment
+
+### Updating Tim Standards in Projects
+When tim is updated, run in each project:
+```bash
+cd lib/tim && git pull origin main
+cd ../.. && git add lib/tim && git commit -m "chore: update tim submodule"
+```
 <!-- TIM-ONLY-END -->
 
 ---
