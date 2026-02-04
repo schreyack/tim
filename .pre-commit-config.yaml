@@ -1,8 +1,21 @@
 # TIM Standards Repository - Pre-commit Configuration
 # This repo contains both Python and Node.js shared libraries
 # Run: pre-commit install
+#
+# LOCKED: This file is protected. Changes require human approval (--no-verify).
 
 repos:
+  # =============================================================================
+  # PROTECTED FILES - Cannot be modified without human approval
+  # =============================================================================
+  - repo: local
+    hooks:
+      - id: protect-precommit-config
+        name: LOCKED - pre-commit config requires human approval to modify
+        entry: bash -c 'echo "ERROR: .pre-commit-config.yaml is LOCKED. To modify, get human approval and use --no-verify" && exit 1'
+        language: system
+        files: ^\.pre-commit-config\.yaml$
+
   # =============================================================================
   # PYTHON HOOKS (libs/python/)
   # =============================================================================
