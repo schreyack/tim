@@ -47,8 +47,10 @@ MODULES=(
     security
     status
     approval
+    reset
     verification
     wizard
+    wizard-steps
     commands-lifecycle
     commands-approval
     commands-execution

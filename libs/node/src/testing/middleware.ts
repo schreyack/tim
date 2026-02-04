@@ -12,13 +12,13 @@ import type { Application, Request, Response, NextFunction } from "express";
  * @param setupRoutes - Optional function to add routes to the app
  * @returns Configured Express app for testing
  */
-export function createTestApp(
+export async function createTestApp(
   setupRoutes?: (app: Application) => void
-): Application {
-  const express = require("express") as typeof import("express");
-  const app = express();
+): Promise<Application> {
+  const express = await import("express");
+  const app = express.default();
 
-  app.use(express.json());
+  app.use(express.default.json());
 
   if (setupRoutes !== undefined) {
     setupRoutes(app);
@@ -49,20 +49,20 @@ export function createMockAuthMiddleware(
  */
 export function createRequestCapture(): {
   middleware: (req: Request, res: Response, next: NextFunction) => void;
-  requests: Array<{
+  requests: {
     method: string;
     path: string;
     body: unknown;
     headers: Record<string, string | string[] | undefined>;
-  }>;
+  }[];
   clear: () => void;
 } {
-  const requests: Array<{
+  const requests: {
     method: string;
     path: string;
     body: unknown;
     headers: Record<string, string | string[] | undefined>;
-  }> = [];
+  }[] = [];
 
   return {
     middleware: (req: Request, _res: Response, next: NextFunction): void => {

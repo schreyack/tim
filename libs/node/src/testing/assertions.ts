@@ -12,13 +12,10 @@ import type { Response as SupertestResponse } from "supertest";
  * @param response - Supertest response
  * @param expectedStatus - Expected status code (default 200)
  */
-export function assertResponseOk(
-  response: SupertestResponse,
-  expectedStatus: number = 200
-): void {
+export function assertResponseOk(response: SupertestResponse, expectedStatus = 200): void {
   if (response.status !== expectedStatus) {
     throw new Error(
-      `Expected status ${expectedStatus}, got ${response.status}. ` +
+      `Expected status ${expectedStatus.toString()}, got ${response.status.toString()}. ` +
         `Body: ${JSON.stringify(response.body)}`
     );
   }
@@ -47,14 +44,14 @@ export function assertResponseError(
 ): void {
   if (response.status !== expectedStatus) {
     throw new Error(
-      `Expected status ${expectedStatus}, got ${response.status}. ` +
+      `Expected status ${expectedStatus.toString()}, got ${response.status.toString()}. ` +
         `Body: ${JSON.stringify(response.body)}`
     );
   }
 
   if (expectedMessage !== undefined) {
     const body = response.body as Record<string, unknown>;
-    const actualMessage = body?.error ?? body?.message;
+    const actualMessage = body.error ?? body.message;
     if (actualMessage !== expectedMessage) {
       throw new Error(
         `Expected error message "${expectedMessage}", got "${String(actualMessage)}"`
@@ -69,13 +66,10 @@ export function assertResponseError(
  * @param response - Supertest response
  * @param fields - Fields that must exist in response body
  */
-export function assertResponseContains(
-  response: SupertestResponse,
-  fields: string[]
-): void {
+export function assertResponseContains(response: SupertestResponse, fields: string[]): void {
   const body = response.body as Record<string, unknown>;
   const missingFields = fields.filter(
-    (field) => !(field in body) || body[field] === undefined
+    (field) => !Object.hasOwn(body, field) || body[field] === undefined // eslint-disable-line security/detect-object-injection -- field comes from trusted test code
   );
 
   if (missingFields.length > 0) {
@@ -92,16 +86,13 @@ export function assertResponseContains(
  * @param response - Supertest response
  * @param expectedCount - Expected number of items (optional)
  */
-export function assertPaginatedResponse(
-  response: SupertestResponse,
-  expectedCount?: number
-): void {
+export function assertPaginatedResponse(response: SupertestResponse, expectedCount?: number): void {
   assertResponseOk(response);
 
   const body = response.body as Record<string, unknown>;
   const requiredFields = ["items", "total", "page", "pageSize"];
   const missingFields = requiredFields.filter(
-    (field) => !(field in body) || body[field] === undefined
+    (field) => !Object.hasOwn(body, field) || body[field] === undefined // eslint-disable-line security/detect-object-injection -- field comes from hardcoded list
   );
 
   if (missingFields.length > 0) {
@@ -117,7 +108,7 @@ export function assertPaginatedResponse(
 
   if (expectedCount !== undefined && body.items.length !== expectedCount) {
     throw new Error(
-      `Expected ${expectedCount} items, got ${body.items.length}`
+      `Expected ${expectedCount.toString()} items, got ${body.items.length.toString()}`
     );
   }
 }

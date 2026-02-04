@@ -1,34 +1,23 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with TIM projects.
 
 ---
 
-## STOP AND READ: Critical Rules
+## Critical Rules
+- **Help the Human** - Deflecting requests because you didn't cause a problem is not helpful.  If the human asks you to resolve an issue, they are not blaming you, they need the problem resolved.
+- **Follow requests exactly** - If uncertain, ASK rather than guess
+- **Investigate root causes** - No quick workarounds that mask issues, the objective is functioning code, not quickest resolution
+- **Complete features fully** - No TODOs, placeholders, or partial implementations
 
-**Before doing ANYTHING, read and understand these rules. They are not optional.**
-
-### Rule 1: Never Prioritize Speed Over Process
-
-This is the most critical rule. No matter what:
-- Follow the rules in this document exactly
-- If uncertain about the correct approach, **ASK the user** rather than guessing
-- Never take shortcuts that could cause problems later
-
-### Rule 2: Ask Before Assuming
-
-When encountering complicated problems:
-- Investigate root causes thoroughly before implementing fixes
-- If in doubt about the approach, **pause and ask for instructions**
-- Avoid quick workarounds that mask underlying issues
-
+<!-- TIM-ONLY-START -->
 ---
 
 ## Execution Environment
 
 **This repository (tim) is local-only.** All commands execute on your machine.
 
-- This is a documentation/standards repository - no application to deploy
+- Documentation/standards repository - no application to deploy
 - Tests: Run locally if any test infrastructure exists
 - File operations: Standard local editing
 
@@ -38,557 +27,173 @@ When encountering complicated problems:
 
 This is the **TIM Standards** repository - the authoritative source for coding, testing, security, and deployment standards used across all TIM projects.
 
-**Philosophy**: Defense in depth. Never trust. Always verify. Build systems that ENFORCE rules, not just document them. If a rule can be bypassed, an AI will bypass it.
+**Philosophy**: Defense in depth. Never trust. Always verify. Build systems that ENFORCE rules, not just document them.
+<!-- TIM-ONLY-END -->
 
-**Stakes**: $20K+/minute downtime costs, millions in data breach liability. These aren't guidelines - they're requirements.
+---
 
-## Critical: AI Development Context
+## AI Development Context
 
-TIM develops exclusively with AI developers. This context informs EVERYTHING:
+TIM develops exclusively with AI. Strict enforcement works because AI doesn't fatigue from iteration - when code fails checks, the agent simply tries again. This makes feedback loops incredibly powerful.
 
-- **Strict rules are appropriate** - AI doesn't fatigue from strict enforcement
-- **Hard gates catch AI mistakes** - Plausible-sounding bugs need verification
-- **NO bypass flags anywhere** - If AI can bypass, AI will bypass
-- **Human approval is the escape hatch** - For undefined or blocked operations
-- **Fast iteration is expected** - Quick failure, quick fix, quick retry
-- **Human review is critical** - See `standards/enforcement/ai-review-checklist.md`
+**Key behaviors:**
+- Hard gates catch AI mistakes - plausible-sounding bugs need verification
+- NO bypass flags anywhere - if AI can bypass, AI will bypass
+- Human approval is the escape hatch for blocked operations
+- If you touched a file with violations, you must fix them (no "it was already broken")
 
-### Why Strict Enforcement Works for AI
+**AI Behavioral Gates** enforce rules in real-time:
+- Code Quality Validator: File >400 lines, function >50 lines → BLOCKED
+- Excuse Pattern Detector: Deflection like "was already broken" → BLOCKED
 
-AI agents don't get frustrated by repetition. When code fails type checking or tests, the agent simply tries again. This makes feedback loops (and pre-commit hooks especially) incredibly powerful for AI-driven development.
-
-**Key insight**: Strictness is a feature, not a bug.
-
-| Human Developer | AI Developer |
-|----------------|--------------|
-| Frustrated by repeated failures | Unfazed by iteration |
-| May disable "annoying" checks | Cannot bypass enforcement |
-| Tires after many fix cycles | Unlimited patience |
-| May cut corners under pressure | Follows rules consistently |
-
-This is why TIM enforces:
-- **Type checking on every commit** - Catches AI hallucinations about types
-- **Tests must pass before merge** - Catches plausible-sounding but broken logic
-- **90% coverage minimum** - Forces comprehensive testing, not just happy paths
-- **No bypass flags** - Removes temptation to skip verification
-- **AI Behavioral Gates** - Real-time enforcement during Claude Code sessions
-
-### AI Behavioral Gates (Real-time Enforcement)
-
-Claude Code hooks provide immediate enforcement that AI cannot bypass:
-
-| Hook | When | What It Catches |
-|------|------|-----------------|
-| **Code Quality Validator** | After Edit/Write | File >400 lines, function >50 lines |
-| **Excuse Pattern Detector** | Before completion | Deflection like "was already broken" |
-
-**TIM Rule**: If you touched a file with violations, you must fix them. No exceptions.
-
-The Excuse Pattern Detector specifically catches when AI tries to avoid responsibility:
-- "The file was already over the limit before my changes"
-- "This isn't part of my scope"
-- "I didn't cause this violation"
-
-These patterns trigger a BLOCK - AI cannot complete the task until the violation is fixed.
-
-See: `standards/enforcement/ai-behavioral-gates.md` for full documentation.
-
-### The Unified Check Command
-
-Every TIM project should have a single command that runs all verification:
-
-```bash
-# Node.js projects
-npm run check    # Types + lint + format + tests
-
-# Python projects
-poe check        # Types + lint + format + tests
-```
-
-This is the **primary feedback mechanism** for AI development. The check command should:
-1. Run fast (under 2 minutes for local checks)
-2. Fail early (type errors before tests)
-3. Provide clear error messages (AI needs to understand what failed)
-4. Be idempotent (running twice gives same result)
-
-When AI sees check failures, it can iterate immediately. This tight feedback loop is what makes AI development effective.
-
-See: `standards/operations/afk-coding-patterns.md` for extended autonomous development patterns.
-
-## Approved Technology Stacks
-
-### Stack 1: Python
-- **Backend**: FastAPI + SQLAlchemy 2.0 (async) + Alembic migrations
-- **Frontend**: Next.js 16+ with TypeScript
-- **Database**: PostgreSQL
-- **Queue**: Celery + Redis
-- **Shared Library**: tim-lib (REQUIRED)
-- **Deployment**: Docker Compose / Kubernetes
-
-### Stack 2: Node.js (TypeScript-First)
-- **Backend**: Express.js or NestJS with TypeScript (strict mode)
-- **Frontend**: React 18+ with TypeScript
-- **ORM**: Prisma (recommended) or Sequelize with CLI migrations
-- **Database**: PostgreSQL
-- **Shared Library**: @tim/lib (REQUIRED)
-- **Deployment**: Docker Compose / Kubernetes
-
-**Non-Negotiable**: Both stacks require strict type checking. No vanilla JavaScript. No `any` types.
-
+<!-- TIM-ONLY-START -->
 ---
 
 ## Repository Structure
 
 ```
 tim/
-├── CLAUDE.md                    # This file - copy to new TIM projects
-├── README.md                    # Quick reference guide
-├── standards/
-│   ├── enforcement/             # Gate definitions, compliance, AI review
-│   │   ├── gates.md             # Four-gate model
-│   │   ├── ai-review-checklist.md
-│   │   └── strict-compliance.md # Pattern registry enforcement
-│   ├── architecture/
-│   │   └── shared-libraries.md  # Required library usage
+├── CLAUDE.md                    # This file
+├── standards/                   # All TIM standards
+│   ├── enforcement/             # Gate definitions, AI review
 │   ├── coding/                  # Language-specific standards
-│   ├── testing/                 # Test requirements and patterns
-│   ├── security/                # Security requirements + secrets.md
-│   ├── database/                # Migration and backup requirements
-│   ├── deployment/              # CI/CD, ops, feature flags, canary, observability
-│   └── governance/              # Rule classification (principles vs. contextual)
-├── libs/                        # Shared libraries (REQUIRED in all projects)
-│   ├── python/                  # tim-lib Python package
-│   └── node/                    # @tim/lib Node.js package
-├── templates/                   # Ready-to-copy configuration files
-│   ├── python/                  # Python project templates
-│   ├── node/                    # Node.js project templates
-│   ├── ci/                      # CI pipeline templates
-│   ├── ops/                     # ops.sh templates
-│   └── tim-patterns.yaml.template
+│   ├── testing/                 # Test requirements
+│   ├── security/                # Security requirements
+│   ├── database/                # Migration requirements
+│   └── deployment/              # CI/CD, ops requirements
+├── libs/                        # Shared libraries (REQUIRED)
+├── templates/                   # Ready-to-copy configs
 └── tools/                       # Enforcement tools
-    ├── tim-compliance-check.sh  # Compliance verification
-    └── tim-ops-approve          # Human approval for ops
 ```
+
 
 ---
 
 ## Four-Gate Enforcement Model
 
-All TIM projects must implement four enforcement gates:
+All TIM projects implement four gates. Each blocks on failure.
 
-### Gate 1: Local (Pre-commit)
-Runs on every commit attempt. Blocks commit on failure.
-- Type checking (mypy/tsc)
-- Linting (ruff/ESLint)
-- Formatting (ruff/Prettier)
-- Secrets detection
+1. **Local (Pre-commit)**: Type checking, linting, formatting, secrets detection
+2. **CI (Pull Request)**: All Gate 1 + tests (100% pass), coverage (90%), security scan
+3. **Deploy (Pre-deployment)**: Integration/E2E tests, migration dry-run, canary (10%)
+4. **Pattern Compliance**: All patterns in `.tim-patterns.yaml`, shared library installed
 
-### Gate 2: CI (Pull Request)
-Runs on every PR. Blocks merge on failure.
-- All Gate 1 checks (server-side enforcement)
-- Test suite (100% pass required)
-- Coverage threshold (90% minimum)
-- Security scanning (HIGH/CRITICAL = blocked)
-- Container scanning
-
-### Gate 3: Deploy (Pre-deployment)
-Runs before production deployment. Blocks deploy on failure.
-- Integration tests
-- E2E tests (critical paths, max 15 min)
-- Database migration dry-run
-- Health check validation
-- Security header verification
-- Canary deployment (10% traffic)
-- Manual approval with AI-specific checklist
-
-### Gate 4: Pattern Compliance
-Runs at deploy time. Blocks deploy if non-compliant.
-- All patterns registered in `.tim-patterns.yaml`
-- CUSTOM patterns have human approval
-- Shared library is installed
-- No secrets in code
-
+<!-- TIM-ONLY-END -->
 ---
 
 ## Shared Libraries (REQUIRED)
 
-Every TIM project MUST use the shared libraries:
-
-### Python
-```python
-from tim_lib import (
-    BaseAppSettings,           # Pydantic settings with validation
-    configure_logging, get_logger,
-    hash_password, verify_password,
-    create_access_token, verify_token,
-    AppError, NotFoundError, ValidationError,
-    setup_exception_handlers,
-    create_async_engine_with_pool, get_session_factory,
-)
-```
-
-### Node.js
-```typescript
-import {
-  createConfig, baseEnvSchema,
-  createLogger, LogContextMiddleware,
-  hashPassword, verifyPassword,
-  createAccessToken, verifyToken,
-  AppError, NotFoundError, ValidationError,
-  setupErrorHandlers, securityHeadersMiddleware,
-} from "@tim/lib";
-```
+Every TIM project MUST use `tim-lib` (Python) or `@tim/lib` (Node.js) for: settings, logging, auth (hash/verify password, JWT), errors, exception handlers, database pooling.
 
 ---
 
 ## Pattern Registry
 
-Every project MUST have `.tim-patterns.yaml` in the root:
-
-```yaml
-patterns:
-  authentication:
-    standard: "jwt-bearer"
-    reference: "standards/security/authentication.md"
-    implemented: true
-
-  # For patterns without TIM standards:
-  custom_audio_processing:
-    standard: "CUSTOM"
-    justification: "No TIM standard exists for audio DSP"
-    approved_by: "human@example.com"  # REQUIRED
-    approved_date: "2025-01-15"
-    ticket: "STANDARDS-42"            # REQUIRED
-```
-
-If code uses an unregistered or unapproved pattern, deployment is BLOCKED.
+Every project MUST have `.tim-patterns.yaml`. CUSTOM patterns require human approval with ticket reference. Unregistered patterns block deployment.
 
 ---
 
-## Remote-First Deployment (MANDATORY)
+## Remote-First Deployment
 
-**Remote by default. Local development is opt-in and requires human approval.**
+**Remote by default.** Use `./ops.sh --env <env>` for all operations. The `--env` flag is REQUIRED.
 
-### Four Available Environments
+| Environment | Access |
+|-------------|--------|
+| local | Human-approved only |
+| dev | All developers |
+| uat | QA team, tech leads |
+| prod | DevOps/SRE only |
 
-| Environment | Access | Restrictions |
-|-------------|--------|--------------|
-| **local** | Human-approved only | None (all SAFE) |
-| **dev** | All developers | Minimal (sandbox only) |
-| **uat** | QA team, tech leads | Moderate |
-| **prod** | DevOps/SRE only | Maximum |
-
-### The --env Flag is REQUIRED
-
-```bash
-# ALWAYS specify environment
-./ops.sh --env local deploy   # Deploy locally (requires human approval)
-./ops.sh --env dev deploy     # Deploy to dev
-./ops.sh --env uat deploy     # Deploy to UAT
-./ops.sh --env prod deploy --ticket PROJ-123  # Deploy to prod
-
-# This will FAIL
-./ops.sh deploy               # ERROR: --env required
-```
-
-### Local Development (Opt-In)
-
-Local development is **disabled by default**. A human must explicitly enable it:
-
-```bash
-# A human must run this (AI cannot):
-tim-local-dev-enable --project /path/to/project
-
-# Then ops.sh --env local will work
-./ops.sh --env local deploy
-```
-
-AI developers cannot enable local development - the tool has multiple bypass prevention layers.
-
-### Configuration Files
-
-| File | In Git? | Purpose |
-|------|---------|---------|
-| `environments.yaml` | NO (.gitignore) | Connection details per environment |
-| `environments.yaml.example` | YES | Template showing structure |
-| `ops-config.yaml` | YES | Project settings (services, database) |
-
-See `standards/deployment/environments.md` for full schema.
-See `standards/deployment/command-matrix.md` for per-environment restrictions.
+Local development is disabled by default. A human must run `tim-local-dev-enable`.
 
 ---
 
-## ops.sh Safety Tiers (NO BYPASS FLAGS)
-
-**Safety tiers vary by environment.** Dev is permissive. Prod is restrictive.
+## ops.sh Safety Tiers
 
 | Tier | Behavior | Examples |
 |------|----------|----------|
-| **SAFE** | Always allowed | status, health, logs, backup |
-| **MODERATE** | Allowed with logging | deploy, restart, migrate |
-| **HUMAN_REQUIRED** | Requires human approval | rollback, stop, db:rollback |
-| **BLOCKED** | Never allowed in ops.sh | destroy, db:restore |
+| SAFE | Always allowed | status, health, logs, backup |
+| MODERATE | Logged | deploy, restart, migrate |
+| HUMAN_REQUIRED | Needs approval | rollback, stop, db:rollback |
+| BLOCKED | Never in ops.sh | destroy, db:restore |
 
-**Example: `shell` command by environment:**
-- Dev: SAFE (debug freely)
-- UAT: MODERATE (allowed, logged)
-- Prod: BLOCKED (data theft risk)
-
-For HUMAN_REQUIRED operations:
-1. AI attempts operation → creates approval request
-2. Human reviews and runs `tim-ops-approve <request_id>`
-3. AI retries operation → succeeds with valid approval
-
-BLOCKED operations MUST be performed manually via SSH.
-
-### Never Do These (in projects using ops.sh)
-
-| DO NOT | WHY |
-|--------|-----|
-| Run `ssh` commands directly | Bypasses safety controls |
-| Run `docker exec` directly | Can execute destructive operations |
-| Run SQL directly on database | No validation, no audit trail |
-| Run `docker-compose up` directly | Use ops.sh --env local instead |
-| Enable local dev without human | AI cannot bypass approval |
-
-**If you need to interact with any environment, use `./ops.sh --env <env>`. No exceptions.**
+**Never bypass ops.sh** - No direct SSH, docker exec, raw SQL, or docker-compose up.
 
 ---
 
 ## Hard Rules (No Exceptions)
 
-### Code Quality
-- **Python**: `mypy --strict` must pass. `ruff` with security rules enabled.
-- **TypeScript**: `strict: true` in tsconfig. `eslint --max-warnings 0`.
-- **Coverage**: 90% minimum (line, branch, function). New code requires 95%.
-- **Shared Library**: tim-lib/@tim/lib MUST be used for common patterns.
-
-### Security
-- **Secrets**: NEVER committed. Pre-commit hook blocks. No default values.
-- **Input validation**: All external input validated (Pydantic/Zod).
-- **Headers**: CSP, HSTS, X-Content-Type-Options, X-Frame-Options required.
-- **Dependencies**: HIGH/CRITICAL vulnerabilities block merge.
-
-### Database
-- **Migrations only**: No `sequelize.sync()`, no `db.create_all()`, no manual DDL.
-- **Rollback required**: Every migration must have a tested rollback.
-
-### Testing
-- **Naming**: `test_<what>_<when>_<then>` format required.
-- **TDD**: Red-green-refactor workflow for new features.
-
-### Patterns
-- **Registry required**: Every design pattern must be in `.tim-patterns.yaml`
-- **CUSTOM requires approval**: Human must approve with ticket reference
-- **Standards first**: Check for existing standard before creating CUSTOM
-
----
-
-## Principles vs. Contextual Rules
-
-TIM distinguishes between two types of rules:
-
-### Principles (Immutable)
-
-Core philosophical commitments that define what TIM *is*. These will never change.
-
-**Core Philosophy:**
-- Trust, but verify
-- Defense in depth
-- Hard gates that AI cannot bypass
-- Human oversight for consequential decisions
-- No bypass flags anywhere
-- Accountability (if you touched it, you own it)
-- Completeness over speed (100% verification)
-- TDD for new features
-
-**Type Safety:**
-- 100% type coverage required
-- No `any` types
-- All functions must have type hints
-
 **Code Quality:**
-- Zero warnings policy
-- No print/console.log in committed code
-- Must have coverage threshold
+- Python: `mypy --strict`, ruff with security rules
+- TypeScript: `strict: true`, `eslint --max-warnings 0`
+- Coverage: 90% minimum, 95% for new code
+- Shared library MUST be used
 
 **Security:**
-- All security rules are principles (secrets, validation, headers, etc.)
+- Secrets NEVER committed (pre-commit blocks)
+- All external input validated (Pydantic/Zod)
+- Required headers: CSP, HSTS, X-Content-Type-Options, X-Frame-Options
+- HIGH/CRITICAL vulnerabilities block merge
 
-### Contextual Rules (Subject to Review)
+**Database:**
+- Migrations only - no sync(), create_all(), or manual DDL
+- Every migration must have tested rollback
 
-Calibrations based on current constraints. May change as AI capabilities evolve.
+**Testing:**
+- Naming: `test_<what>_<when>_<then>`
+- TDD for new features
 
-| Category | Examples | Review Trigger |
-|----------|----------|----------------|
-| File size limits | 400 lines max | AI context windows improve |
-| Complexity thresholds | Cyclomatic 10 | Evidence of successful higher complexity |
-| Coverage percentages | 90% minimum | Evidence different threshold works better |
-| Tool choices | ruff, mypy, ESLint | Better tools emerge |
-| Deployment parameters | Canary 10%, 5 min | Operational data suggests change |
-
-**Key insight:** The *existence* of limits is a principle. The *specific numbers* are contextual.
-
-See `standards/governance/rule-classification.md` for the complete list with review triggers and change procedures.
-
----
-
-## Mandatory: Single Source of Truth
-
-Every piece of data, configuration, or definition must have exactly one authoritative source.
-
-### Why This Matters
-- Prevents inconsistency when values change
-- Eliminates "which one is correct?" ambiguity
-- Makes updates atomic - change once, apply everywhere
-
-### Applying the Principle
-1. **Identify the source of truth** - Where should this value be defined?
-2. **Define it once** - Add to the authoritative source
-3. **Import, don't duplicate** - All consumers reference the source
-4. **Update the source** - When changes are needed, change only the source
-
-### Anti-patterns to Avoid
-- Hardcoding the same value in multiple files
-- Creating "local" versions of shared constants
-- Copying test data between test files instead of importing
-- Duplicating validation logic instead of sharing utilities
+**Code Style:**
+- No TODO/FIXME/XXX comments
+- No placeholder code (NotImplementedError, pass, ...)
+- No print debugging - use logging
+- No bare except clauses
+- All functions have type hints
 
 ---
 
-## Mandatory: Code Quality Rules
+## Single Source of Truth
 
-### No TODOs or Placeholders
-
-- **NO `TODO`, `FIXME`, `XXX`, `HACK` comments** - Implement fully or don't add it
-- **NO placeholder code** - No `raise NotImplementedError`, no `pass`, no `...`
-- **NO print debugging** - Use logging module (`structlog`, `logging`)
-- **NO bare except clauses** - Catch specific exceptions
-
-### Type Safety
-
-- **ALL functions must have type hints** (parameters and return types)
-- **Use `mypy --strict`** (Python) or **`tsc --strict`** (TypeScript)
-- **No `any` types** in TypeScript
-
-### Error Handling
-
-- Catch specific exceptions, not `Exception` or bare `except:`
-- Include context in error messages (user ID, relevant IDs)
-- Log errors server-side with context for debugging
-- Never expose internal details to clients
-
-### Security
-
-- Validate all user input server-side
-- Use parameterized queries (never string interpolation for SQL)
-- Validate authorization for all operations
-- Never commit secrets, credentials, or .env files
+Every piece of data must have exactly one authoritative source. Define once, import everywhere, update only the source.
 
 ---
 
-## Mandatory: Test Requirements
+## Test Requirements
 
-**No changes are complete without testing.**
+**Tests are diagnostic tools, not goals.** The objective is a functioning application, not passing tests.
 
-### The Purpose of Testing (Critical Mindset)
 
-**Tests are a diagnostic tool, not the goal.**
+---
 
-The objective is NOT "make tests pass". The objective is to use tests as a tool to discover issues and get the application to a functioning, reliable state. Passing tests is a *symptom* of correctness, not *proof* of it.
+## Plan Lifecycle Management
 
-**What this means in practice:**
+Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `completed/`, `abandoned/`.
 
-| Wrong Mindset | Right Mindset |
-|---------------|---------------|
-| "How do I make this test pass?" | "What is this test telling me about the application?" |
-| "The test is wrong, I'll fix the test" | "The test expected X but got Y - why is the app returning Y?" |
-| "20 tests fail but they're pre-existing" | "20 tests fail - what problems do they reveal?" |
-| "All my new tests pass" | "Do these tests actually verify the app works correctly?" |
+**No optional work** - Everything in a plan is required. No "nice to have" items.
 
-**When tests fail:**
-1. **Investigate what the failure reveals** - The test is trying to tell you something
-2. **Understand the root cause** - Don't just make the error go away
-3. **Fix the application** - Tests verify behavior, not the other way around
-4. **Only modify tests when the test itself is wrong** - Not to match broken behavior
 
-**When to modify a test:**
-- The test has a bug (wrong assertion, bad setup, flaky timing)
-- Requirements genuinely changed and old behavior is no longer correct
-- The test is testing implementation details instead of behavior
-
-**When NOT to modify a test:**
-- To make a failing test pass without understanding why it failed
-- Because "the test expectation doesn't match current behavior"
-- To dismiss failures as "pre-existing" or "unrelated"
-
-**Remember**: The human cares that the application works reliably. They don't care that tests pass. Tests are just one tool to verify the application works.
-
-### Test Naming Convention
-
-Use `test_<what>_<when>_<expected>` format:
-
-```python
-def test_login_with_valid_credentials_returns_token():
-def test_upload_with_invalid_format_returns_400():
-def test_create_user_when_email_exists_raises_error():
-```
-
-### Test Coverage
-
-- **Minimum 90% coverage** - All new code must meet this bar
-- **Both unit and integration tests** - Test in isolation AND with real dependencies
-- **E2E tests for critical paths** - Test full user workflows
-
-### Bug Fix Protocol
-
-When a bug is reported:
-1. **Write a test that reproduces the bug FIRST**
-2. **Run the test - verify it FAILS**
-3. **Fix the bug**
-4. **Run the test - verify it PASSES**
-5. **Run all tests to ensure no regressions**
-
-### Completion Checklist
-
-A task is NOT complete until:
-- [ ] All implementation steps are done (no TODOs, no placeholders)
-- [ ] Tests exist and pass (unit, integration, E2E as appropriate)
-- [ ] Code is deployed (if applicable)
-- [ ] Manual verification confirms the fix/feature works
-- [ ] No errors in logs
-
+<!-- TIM-ONLY-START -->
 ---
 
 ## Using This Repository
 
 ### For New TIM Projects
-1. Copy this `CLAUDE.md` to the new project root
-2. Copy templates from `templates/python/` or `templates/node/`
-3. Install shared library: `pip install ./lib/tim/libs/python` or `npm install ./lib/tim/libs/node`
-4. Copy `.tim-patterns.yaml` template and register patterns
-5. **Install AI Behavioral Gates**: Install the `tim-loop` plugin via Claude Code marketplace (hooks auto-register)
-6. Configure CI pipeline from `templates/ci/`
-7. **Set up remote environments:**
-   - Copy `templates/environments.yaml.example` to project root
-   - Add `environments.yaml` to `.gitignore`
-   - Configure dev/uat/prod remote servers
-   - Create `environments.yaml` with real connection details
-8. Run `tools/tim-compliance-check.sh` to verify setup
+1. Copy `CLAUDE.md` to project root
+2. Copy templates from `templates/`
+3. Install shared library
+4. Create `.tim-patterns.yaml`
+5. Install tim-loop plugin
+6. Configure CI pipeline
+7. Set up remote environments
+8. Run `tools/tim-compliance-check.sh`
 
 ### For Existing Projects
 1. Run `tools/tim-compliance-check.sh` to identify gaps
-2. Create remediation plan for gaps
-3. Install shared library
-4. Create `.tim-patterns.yaml` and register all patterns
-5. **Install AI Behavioral Gates**: Install the `tim-loop` plugin via Claude Code marketplace (hooks auto-register)
-6. Implement pre-commit hooks (Gate 1)
-7. Add CI pipeline (Gate 2)
-8. Implement deploy gates (Gate 3 + 4)
-9. **Migrate to remote-first deployment:**
-   - Set up remote dev/uat/prod environments
-   - Update team workflow to use `./ops.sh --env dev` by default
-   - For local dev: humans can opt-in via `tim-local-dev-enable`
+2. Install shared library and create `.tim-patterns.yaml`
+3. Install tim-loop plugin
+4. Implement all four gates
+5. Migrate to remote-first deployment
+<!-- TIM-ONLY-END -->
 
 ---
 
@@ -596,288 +201,34 @@ A task is NOT complete until:
 
 | Standard | Python | Node.js |
 |----------|--------|---------|
-| Type checking | mypy --strict | tsc strict mode |
+| Type checking | mypy --strict | tsc strict |
 | Linting | ruff | ESLint |
-| Formatting | ruff format | Prettier |
 | Testing | pytest | Jest/Vitest |
-| Coverage | pytest-cov (90%) | coverage (90%) |
+| Coverage | 90% | 90% |
 | ORM | SQLAlchemy + Alembic | Prisma |
 | Validation | Pydantic | Zod |
-| Secrets scan | detect-secrets | gitleaks |
-| Security scan | bandit + safety | npm audit + Snyk |
-| Container scan | trivy | trivy |
 | Shared lib | tim-lib | @tim/lib |
 
 ---
 
 ## Commit Message Format
 
-Use Conventional Commits:
-```
-feat: add user authentication
-fix: resolve token expiration bug
-refactor: simplify database queries
-test: add coverage for billing service
-docs: update API documentation
-```
+Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 
-Always include co-author line:
-```
-Co-Authored-By: Claude <model>/<version> <noreply@anthropic.com>
-```
-
+<!-- TIM-ONLY-START -->
 ---
 
 ## Plugin Version Management
 
-When updating the tim-loop plugin version, you MUST update BOTH version files to keep them in sync:
-
-| File | Purpose |
-|------|---------|
-| `.claude-plugin/marketplace.json` | Top-level marketplace metadata |
-| `plugins/tim-loop/.claude-plugin/plugin.json` | **Plugin-specific metadata (marketplace reads this)** |
-
-The marketplace reads from `plugins/tim-loop/.claude-plugin/plugin.json`, so if you only update the top-level file, the marketplace will show the old version.
-
-### Version Update Checklist
-
-```bash
-# 1. Update both files
-# In .claude-plugin/marketplace.json:
-"version": "X.Y.Z",
-
-# In plugins/tim-loop/.claude-plugin/plugin.json:
-"version": "X.Y.Z",
-
-# 2. Commit with version in message
-git commit -m "feat: description of changes (vX.Y.Z)"
-```
-
-### Versioning Scheme
-
-Use semantic versioning:
-- **Major (X.0.0)**: Breaking changes
-- **Minor (0.X.0)**: New features, backward compatible
-- **Patch (0.0.X)**: Bug fixes, backward compatible
-
----
-
-## Mandatory: Plan Lifecycle Management
-
-All plans MUST use the project's `plans/` folder with lifecycle subfolders.
-
-### No Optional Work (Principle)
-
-**Plans contain only required work. There are no optional steps, phases, or tasks.**
-
-If something is worth including in a plan, it's required. If it's truly optional, it doesn't belong in the plan. This eliminates ambiguity about what "done" means.
-
-| Include in Plan | Exclude from Plan |
-|-----------------|-------------------|
-| Required steps | "Nice to have" items |
-| Must-complete phases | Optional enhancements |
-| Blocking tasks | Future considerations |
-
-**Why this matters for AI development:**
-- AI cannot cherry-pick easy tasks while skipping "optional" harder ones
-- Verification is binary: all tasks done = complete, anything missing = incomplete
-- No room for interpretation about what was required
-
-**Anti-patterns to avoid:**
-- "Optional: add error handling" → Either it's required or remove it
-- "Phase 3 (if time permits)" → Either commit to Phase 3 or exclude it
-- "Nice to have: tests for edge cases" → Either require the tests or don't mention them
-
-### Folder Structure
-
-```
-plans/
-├── drafts/      # Plans being designed (not yet approved)
-├── active/      # Approved plans under implementation
-├── completed/   # Successfully executed plans
-└── abandoned/   # Cancelled plans (preserves learnings)
-```
-
-**Naming convention:** `YYYY-MM-DD-<project>-<description>.md`
-
-### Adding plan-ops to PATH (Recommended)
-
-Add the tim repo's `bin/` directory to your PATH to run `plan-ops` from anywhere:
-
-```bash
-# Add to ~/.bashrc or ~/.zshrc:
-export PATH="/path/to/tim/bin:$PATH"
-
-# Reload your shell
-source ~/.bashrc  # or source ~/.zshrc
-```
-
-After setup, run `plan-ops` directly instead of the full path:
-```bash
-plan-ops init
-plan-ops import ~/.claude/plans/my-plan.md
-plan-ops wizard plans/drafts/my-plan.md
-```
-
-The `plan-ops init` command will display these instructions with the correct path.
-
-### Plan Lifecycle
-
-1. **Draft** - Claude creates plan, imports to `plans/drafts/`
-2. **Plan Review** - Multi-phase plans (2+ phases) MUST complete Plan Review
-3. **Active** - Human approves, moves to `plans/active/`
-4. **Completed** - All phases done, moves to `plans/completed/`
-5. **Abandoned** - Cancelled with reason, moves to `plans/abandoned/`
-
-### Plan Review Gate (MANDATORY for Multi-Phase Plans)
-
-Plans with 2+ phases **cannot be promoted** until Plan Review is completed:
-
-```bash
-# 1. Show Plan Review command
-plan-ops review plans/drafts/my-plan.md
-
-# 2. Run the displayed /tim-loop --tech-review command in Claude Code
-
-# 3. Mark review complete
-plan-ops review plans/drafts/my-plan.md --mark-complete
-
-# 4. Now promotion is allowed
-plan-ops promote plans/drafts/my-plan.md --approver "Name"
-```
-
-Single-phase plans can skip Plan Review and promote directly.
-
-
-### Tim Loop Execution
-
-After AI Developer Ready approval, execute the plan:
-
-```bash
-# 1. Run execute to get the tim-loop command
-plan-ops execute plans/active/my-plan.md
-
-# 2. Run the /tim-loop command in Claude Code
-```
-
-### AI Developer Ready Gate (MANDATORY)
-
-Before execution, ALL plans require AI Developer Ready approval:
-
-```bash
-# After promoting to active/, human reviews for AI concerns:
-plan-ops ai-ready plans/active/my-plan.md --reviewer "Name"
-```
-
-This is a HARD REQUIREMENT. Both `execute` and `tim-loop --implement` will fail without this approval.
-
-The reviewer should verify:
-- Instructions are unambiguous (AI has one interpretation)
-- No hallucination opportunities (referenced APIs/files exist)
-- Guard rails are explicit (error handling specified)
-- Verification criteria are code-checkable
-
-See: `standards/enforcement/ai-developer-ready-checklist.md`
-
-### Implementation Verification Gate (MANDATORY)
-
-After implementation, tim-loop verifies 100% of plan objectives are met. There is NO escape hatch.
-
-- If 100% verified → `<!-- VERIFIED: YES -->` → tim-loop exits
-- If gaps found → Creates remediation plan → Full lifecycle required
-- Tim-loop CANNOT exit until verification passes
-
-### Designing for Parallel Agent Execution
-
-Plans should be designed for parallel agent execution. Include an Execution Strategy table:
-
-| Phase | Task | Dependencies | Agent Type | Parallelizable |
-|-------|------|--------------|------------|----------------|
-| 1 | Search patterns | none | Explore | Yes |
-| 1 | Search models | none | Explore | Yes |
-| 2 | Implement | Phase 1 | Bash | No |
-
-**Agent types:** `Explore` (search/research), `Plan` (design), `Bash` (commands)
-
-**Guidelines:**
-- Max 3 agents in parallel
-- Don't parallelize tasks that modify the same files
-- Break large tasks into smaller parallelizable units
-
-See `standards/operations/plan-management.md` for full guidance.
-
-### Importing Plans from ~/.claude/plans
-
-When Claude Code creates plans in `~/.claude/plans/`, use the import command:
-
-```bash
-plan-ops import ~/.claude/plans/<plan-name>.md --name "description"
-```
-
-This automatically:
-- Copies to `plans/drafts/` with proper date-prefixed naming
-- Adds Status Header if missing
-- Deletes the original from `~/.claude/plans/`
-- Shows the next step to run
-
-### Status Header (Required)
-
-Every plan MUST start with:
-
-```markdown
-## Status
-
-| Field | Value |
-|-------|-------|
-| Stage | draft / active / completed / abandoned |
-| Created | 2025-01-16 14:30 |
-| Last Updated | 2025-01-16 16:45 |
-| Author | Claude Opus 4.5 |
-| Approver | [human name or "-"] |
-| Plan Review | required / completed / not-required |
-| Review Date | [YYYY-MM-DD or "-"] |
-| Execution Approved | yes / no |
-| Execution Approved By | [human name or "-"] |
-| Execution Started | [YYYY-MM-DD HH:MM or "-"] |
-
-### Progress Log
-
-| Timestamp | Stage | Event |
-|-----------|-------|-------|
-| 2025-01-16 14:30 | draft | Plan created |
-```
-
-**Plan Review values:**
-- `required` - Multi-phase plan, review not yet done
-- `completed` - Review finished, ready for promotion
-- `not-required` - Single-phase plan
-
-### Plan Requirements
-
-Every plan MUST include:
-1. **Problem/Goal** - What needs to be done
-2. **Implementation Steps** - Technical approach
-3. **Testing Strategy** - How to verify changes
-4. **Completion Criteria** - What "done" looks like
-
-### Automation
-
-Use `plan-ops` for lifecycle operations (requires PATH setup, see above):
-- `init` - Create folder structure
-- `import` - Import from ~/.claude/plans (auto-deletes original)
-- `review` - Start/complete Plan Review (multi-phase plans)
-- `promote` - Move draft to active (blocked for multi-phase until reviewed)
-- `execute` - Output tim-loop command for active plan
-- `complete` - Move active to completed
-- `abandon` - Move to abandoned with reason
-
-See `standards/operations/plan-management.md` for full documentation.
+When updating tim-loop version, update BOTH:
+- `.claude-plugin/marketplace.json`
+- `plugins/tim-loop/.claude-plugin/plugin.json`
+
+Use semantic versioning: Major (breaking), Minor (features), Patch (fixes).
 
 ---
 
 ## TIM Standards Reference
-
-This project defines TIM Standards. Key requirements for all TIM projects:
 
 | Requirement | Threshold |
 |-------------|-----------|
@@ -886,15 +237,16 @@ This project defines TIM Standards. Key requirements for all TIM projects:
 | File size | 400 lines maximum |
 | Function size | 50 lines maximum |
 | Complexity | 10 maximum (cyclomatic) |
+<!-- TIM-ONLY-END -->
 
 ---
 
 ## AI Developer Acknowledgment
 
-Before making any changes, confirm you understand:
-1. All rules in this CLAUDE.md file
-2. The test naming convention (test_what_when_then)
-3. The file size limits (400 lines max)
-4. The requirement to complete features fully (no TODOs)
+Before making changes, confirm you understand:
+1. All rules in this CLAUDE.md
+2. Test naming: `test_what_when_then`
+3. File size limits: 400 lines max
+4. Complete features fully - no TODOs
 
-**If you are uncertain about any rule, ASK before proceeding.**
+**If uncertain about any rule, ASK before proceeding.**

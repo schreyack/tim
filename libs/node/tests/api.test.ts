@@ -99,15 +99,9 @@ describe("securityHeadersMiddleware", () => {
 
     securityHeadersMiddleware(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "X-Content-Type-Options",
-      "nosniff"
-    );
+    expect(res.setHeader).toHaveBeenCalledWith("X-Content-Type-Options", "nosniff");
     expect(res.setHeader).toHaveBeenCalledWith("X-Frame-Options", "DENY");
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "X-XSS-Protection",
-      "1; mode=block"
-    );
+    expect(res.setHeader).toHaveBeenCalledWith("X-XSS-Protection", "1; mode=block");
     expect(res.setHeader).toHaveBeenCalledWith(
       "Referrer-Policy",
       "strict-origin-when-cross-origin"
@@ -304,7 +298,7 @@ describe("setupErrorHandlers", () => {
 describe("createHealthRouter", () => {
   it("returns healthy status on /health", async () => {
     const app = express();
-    app.use(createHealthRouter());
+    app.use(await createHealthRouter());
 
     const response = await request(app).get("/health");
 
@@ -314,7 +308,7 @@ describe("createHealthRouter", () => {
 
   it("returns ready status on /health/ready", async () => {
     const app = express();
-    app.use(createHealthRouter());
+    app.use(await createHealthRouter());
 
     const response = await request(app).get("/health/ready");
 
@@ -324,7 +318,7 @@ describe("createHealthRouter", () => {
 
   it("returns detailed status on /health/live", async () => {
     const app = express();
-    app.use(createHealthRouter());
+    app.use(await createHealthRouter());
 
     const response = await request(app).get("/health/live");
 

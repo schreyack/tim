@@ -17,20 +17,15 @@ repos:
       - id: ruff-format
         files: ^libs/python/
 
-  # MyPy - Type checking
-  # Note: Disabled in pre-commit due to type stub issues with python-jose
-  # Run manually: cd libs/python && poetry run mypy tim_lib
-  # TODO: Re-enable when python-jose type stubs are updated
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.13.0
-  #   hooks:
-  #     - id: mypy
-  #       args: [--ignore-missing-imports]
-  #       files: ^libs/python/tim_lib/
-  #       additional_dependencies:
-  #         - pydantic>=2.0
-  #         - types-passlib
-  #         - types-python-jose
+  # MyPy - Type checking (strict mode)
+  - repo: local
+    hooks:
+      - id: mypy-python
+        name: MyPy type check (libs/python)
+        entry: bash -c 'cd libs/python && poetry run mypy tim_lib --strict'
+        language: system
+        files: ^libs/python/.*\.py$
+        pass_filenames: false
 
   # Bandit - Python security scanning
   - repo: https://github.com/PyCQA/bandit
@@ -40,29 +35,95 @@ repos:
         args: [-r, libs/python/tim_lib/, -ll]
         pass_filenames: false
 
+  # pip-audit - Python dependency vulnerability scanning
+  - repo: local
+    hooks:
+      - id: pip-audit
+        name: pip-audit (Python dependency vulnerabilities)
+        entry: bash -c 'cd libs/python && poetry run pip-audit'
+        language: system
+        files: ^libs/python/(pyproject\.toml|poetry\.lock)$
+        pass_filenames: false
+
+  # Semgrep - Comprehensive SAST (more thorough than Bandit)
+  - repo: local
+    hooks:
+      - id: semgrep
+        name: Semgrep SAST (Python)
+        entry: bash -c 'cd libs/python && poetry run semgrep --config auto --error tim_lib/'
+        language: system
+        files: ^libs/python/.*\.py$
+        pass_filenames: false
+
+  # Vulture - Python dead code detection
+  - repo: local
+    hooks:
+      - id: vulture
+        name: Vulture (Python dead code detection)
+        entry: bash -c 'cd libs/python && poetry run vulture tim_lib/ --min-confidence 80'
+        language: system
+        files: ^libs/python/.*\.py$
+        pass_filenames: false
+
+  # pip-licenses - Python license compliance
+  # Blocks GPL/AGPL (viral licenses). LGPL allowed for dev tools.
+  - repo: local
+    hooks:
+      - id: pip-licenses
+        name: pip-licenses (Python license compliance)
+        entry: bash -c 'cd libs/python && poetry run pip-licenses --fail-on="GPL-2.0;GPL-3.0;AGPL" --ignore-packages semgrep'
+        language: system
+        files: ^libs/python/(pyproject\.toml|poetry\.lock)$
+        pass_filenames: false
+
   # =============================================================================
   # NODE.JS HOOKS (libs/node/)
   # =============================================================================
 
-  # Node.js type checking
-  # Note: Temporarily disabled due to exactOptionalPropertyTypes edge cases
-  # Run manually: cd libs/node && npx tsc --noEmit
-  # TODO: Fix type issues and re-enable
-  # - repo: local
-  #   hooks:
-  #     - id: tsc-node
-  #       name: TypeScript type check (libs/node)
-  #       entry: bash -c 'cd libs/node && npx tsc --noEmit'
-  #       language: system
-  #       files: ^libs/node/.*\.ts$
-  #       pass_filenames: false
-  #
-  #     - id: eslint-node
-  #       name: ESLint (libs/node)
-  #       entry: bash -c 'cd libs/node && npx eslint --max-warnings 0 src/'
-  #       language: system
-  #       files: ^libs/node/src/.*\.ts$
-  #       pass_filenames: false
+  # Node.js type checking and linting
+  - repo: local
+    hooks:
+      - id: tsc-node
+        name: TypeScript type check (libs/node)
+        entry: bash -c 'cd libs/node && npx tsc --noEmit'
+        language: system
+        files: ^libs/node/.*\.ts$
+        pass_filenames: false
+
+      - id: eslint-node
+        name: ESLint (libs/node)
+        entry: bash -c 'cd libs/node && npx eslint --max-warnings 0 src/'
+        language: system
+        files: ^libs/node/src/.*\.ts$
+        pass_filenames: false
+
+      - id: prettier-node
+        name: Prettier format check (libs/node)
+        entry: bash -c 'cd libs/node && npx prettier --check src/ tests/'
+        language: system
+        files: ^libs/node/.*\.ts$
+        pass_filenames: false
+
+      - id: npm-audit
+        name: npm audit (Node.js dependency vulnerabilities)
+        entry: bash -c 'cd libs/node && npm audit --audit-level=high'
+        language: system
+        files: ^libs/node/(package\.json|package-lock\.json)$
+        pass_filenames: false
+
+      - id: ts-prune
+        name: ts-prune (Node.js dead code detection)
+        entry: bash -c 'cd libs/node && UNUSED=$(npx ts-prune --ignore "index.ts" 2>/dev/null | grep -v "(used in module)" || true); if [ -n "$UNUSED" ]; then echo "$UNUSED"; exit 1; fi'
+        language: system
+        files: ^libs/node/src/.*\.ts$
+        pass_filenames: false
+
+      - id: license-checker
+        name: license-checker (Node.js license compliance)
+        entry: bash -c 'cd libs/node && npx license-checker --failOn "GPL-2.0;GPL-3.0;AGPL-3.0"'
+        language: system
+        files: ^libs/node/(package\.json|package-lock\.json)$
+        pass_filenames: false
 
   # =============================================================================
   # GENERAL HOOKS
@@ -113,13 +174,48 @@ repos:
         args: [--severity=error]
         files: ^tools/.*\.sh$
 
+  # Markdownlint - Markdown style and consistency
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.43.0
+    hooks:
+      - id: markdownlint
+        args: [--disable, MD013, MD033, MD041, --]
+        exclude: ^(templates/|examples/|node_modules/)
+
+  # Codespell - Spell checking for code
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: [--skip, "*.lock,package-lock.json,*.min.js,*.min.css", --ignore-words-list, "crate,ot,fo,afterall,thirdparty,socio"]
+        exclude: ^(node_modules/|dist/|build/|\.git/)
+
   # =============================================================================
   # CLAUDE.md ENFORCEMENT
   # =============================================================================
 
   - repo: local
     hooks:
-      # Block TODO/FIXME comments in Python
+      # -------------------------------------------------------------------------
+      # Code Quality: File size, function size, complexity
+      # -------------------------------------------------------------------------
+      - id: code-quality-python
+        name: Code quality (Python - 400 lines, 50 line functions, complexity 10)
+        entry: python3 tools/check-code-quality.py libs/python --language python
+        language: system
+        files: ^libs/python/.*\.py$
+        pass_filenames: false
+
+      - id: code-quality-node
+        name: Code quality (Node.js - 400 lines max)
+        entry: python3 tools/check-code-quality.py libs/node --language typescript
+        language: system
+        files: ^libs/node/.*\.ts$
+        pass_filenames: false
+
+      # -------------------------------------------------------------------------
+      # No TODO/FIXME comments
+      # -------------------------------------------------------------------------
       - id: no-todos-python
         name: No TODO/FIXME comments (Python)
         entry: bash -c 'grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.py" libs/python/tim_lib/ 2>/dev/null && exit 1 || exit 0'
@@ -127,7 +223,6 @@ repos:
         files: ^libs/python/
         pass_filenames: false
 
-      # Block TODO/FIXME comments in TypeScript
       - id: no-todos-node
         name: No TODO/FIXME comments (Node.js)
         entry: bash -c 'grep -rn "TODO\|FIXME\|XXX\|HACK" --include="*.ts" libs/node/src/ 2>/dev/null && exit 1 || exit 0'
@@ -135,7 +230,9 @@ repos:
         files: ^libs/node/
         pass_filenames: false
 
-      # Block print statements (Python)
+      # -------------------------------------------------------------------------
+      # No print/console.log (use logging)
+      # -------------------------------------------------------------------------
       - id: no-print-python
         name: No print statements (Python)
         entry: bash -c 'grep -rn "^\s*print(" --include="*.py" libs/python/tim_lib/ 2>/dev/null | grep -v "# noqa" && exit 1 || exit 0'
@@ -143,7 +240,6 @@ repos:
         files: ^libs/python/tim_lib/
         pass_filenames: false
 
-      # Block console.log (Node.js)
       - id: no-console-node
         name: No console.log (Node.js)
         entry: bash -c 'grep -rn "console\.log\|console\.debug\|console\.info" --include="*.ts" libs/node/src/ 2>/dev/null | grep -v "// noqa" && exit 1 || exit 0'
@@ -151,13 +247,49 @@ repos:
         files: ^libs/node/src/
         pass_filenames: false
 
-      # Enforce co-author line in commits (disabled - conflicts with commitizen)
-      # Enable manually if not using commitizen:
-      # - id: require-coauthor
-      #   name: Require Co-Authored-By line
-      #   entry: bash -c 'grep -q "Co-Authored-By" "$1" || exit 1'
-      #   language: system
-      #   stages: [commit-msg]
+      # -------------------------------------------------------------------------
+      # No bare except clauses (Python)
+      # -------------------------------------------------------------------------
+      - id: no-bare-except
+        name: No bare except clauses (Python)
+        entry: bash -c 'grep -rn "except:" --include="*.py" libs/python/tim_lib/ 2>/dev/null | grep -v "# noqa" && echo "ERROR - Use specific exception types, not bare except" && exit 1 || exit 0'
+        language: system
+        files: ^libs/python/tim_lib/
+        pass_filenames: false
+
+      # -------------------------------------------------------------------------
+      # No placeholder implementations
+      # -------------------------------------------------------------------------
+      - id: no-placeholders-python
+        name: No placeholder code (Python)
+        entry: bash -c 'grep -rn "raise NotImplementedError\|^\s*pass$\|^\s*\.\.\.$" --include="*.py" libs/python/tim_lib/ 2>/dev/null | grep -v "# noqa\|test_" && echo "ERROR - Implement fully, no NotImplementedError, pass, or ... allowed" && exit 1 || exit 0'
+        language: system
+        files: ^libs/python/tim_lib/
+        pass_filenames: false
+
+      - id: no-placeholders-node
+        name: No placeholder code (Node.js)
+        entry: bash -c 'grep -rn "throw new Error.*not implemented\|throw new Error.*TODO" --include="*.ts" libs/node/src/ 2>/dev/null && echo "ERROR - Implement fully, no placeholder errors" && exit 1 || exit 0'
+        language: system
+        files: ^libs/node/src/
+        pass_filenames: false
+
+      # -------------------------------------------------------------------------
+      # Test naming convention: test_<what>_<when>_<then>
+      # -------------------------------------------------------------------------
+      - id: test-naming-python
+        name: Test naming convention (Python)
+        entry: bash -c 'INVALID=$(grep -rn "^def test_" --include="test_*.py" libs/python/tests/ 2>/dev/null | grep -v "_when_\|_with_\|_returns_\|_raises_\|_creates_\|_updates_\|_deletes_\|_is_\|_has_\|_should_\|_can_\|_does_" || true); if [ -n "$INVALID" ]; then echo "ERROR - Test names should follow test_what_when_then pattern"; echo "$INVALID" | head -5; exit 1; fi; exit 0'
+        language: system
+        files: ^libs/python/tests/
+        pass_filenames: false
+
+      - id: test-naming-node
+        name: Test naming convention (Node.js)
+        entry: bash -c 'INVALID=$(grep -rn "^\s*it(" --include="*.test.ts" libs/node/tests/ 2>/dev/null | grep -v "should\|when\|with\|returns\|throws\|creates\|updates\|deletes" || true); if [ -n "$INVALID" ]; then echo "ERROR - Test names should follow it should action when condition pattern"; echo "$INVALID" | head -5; exit 1; fi; exit 0'
+        language: system
+        files: ^libs/node/tests/
+        pass_filenames: false
 
 # CI runs these same checks
 ci:

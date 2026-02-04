@@ -11,7 +11,7 @@
  * setupErrorHandlers(app);
  */
 
-import type { Request, Response, NextFunction, Application } from "express";
+import type { Request, Response, NextFunction, Application, Router } from "express";
 
 /**
  * Base application error class.
@@ -22,12 +22,7 @@ export class AppError extends Error {
   public readonly isOperational: boolean;
   public readonly detail: string | undefined;
 
-  constructor(
-    statusCode: number,
-    message: string,
-    detail?: string,
-    isOperational: boolean = true
-  ) {
+  constructor(statusCode: number, message: string, detail?: string, isOperational = true) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
@@ -41,7 +36,7 @@ export class AppError extends Error {
  * Resource not found error (404).
  */
 export class NotFoundError extends AppError {
-  constructor(message: string = "Resource not found", detail?: string) {
+  constructor(message = "Resource not found", detail?: string) {
     super(404, message, detail);
   }
 }
@@ -50,7 +45,7 @@ export class NotFoundError extends AppError {
  * Conflict error (409).
  */
 export class ConflictError extends AppError {
-  constructor(message: string = "Resource already exists", detail?: string) {
+  constructor(message = "Resource already exists", detail?: string) {
     super(409, message, detail);
   }
 }
@@ -59,7 +54,7 @@ export class ConflictError extends AppError {
  * Validation error (400).
  */
 export class ValidationError extends AppError {
-  constructor(message: string = "Validation failed", detail?: string) {
+  constructor(message = "Validation failed", detail?: string) {
     super(400, message, detail);
   }
 }
@@ -68,7 +63,7 @@ export class ValidationError extends AppError {
  * Unauthorized error (401).
  */
 export class UnauthorizedError extends AppError {
-  constructor(message: string = "Unauthorized", detail?: string) {
+  constructor(message = "Unauthorized", detail?: string) {
     super(401, message, detail);
   }
 }
@@ -77,7 +72,7 @@ export class UnauthorizedError extends AppError {
  * Forbidden error (403).
  */
 export class ForbiddenError extends AppError {
-  constructor(message: string = "Forbidden", detail?: string) {
+  constructor(message = "Forbidden", detail?: string) {
     super(403, message, detail);
   }
 }
@@ -98,34 +93,32 @@ export function setupErrorHandlers(
   });
 
   // Error handler
-  app.use(
-    (err: Error, req: Request, res: Response, _next: NextFunction): void => {
-      if (err instanceof AppError && err.isOperational) {
-        res.status(err.statusCode).json({
-          error: err.message,
-          ...(err.detail !== undefined && { detail: err.detail }),
-        });
-        return;
-      }
-
-      // Log unexpected errors
-      if (logger !== undefined) {
-        logger.error(
-          {
-            error: err.message,
-            stack: err.stack,
-            path: req.path,
-            method: req.method,
-          },
-          "Unhandled error"
-        );
-      }
-
-      res.status(500).json({
-        error: "Internal server error",
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction): void => {
+    if (err instanceof AppError && err.isOperational) {
+      res.status(err.statusCode).json({
+        error: err.message,
+        ...(err.detail !== undefined && { detail: err.detail }),
       });
+      return;
     }
-  );
+
+    // Log unexpected errors
+    if (logger !== undefined) {
+      logger.error(
+        {
+          error: err.message,
+          stack: err.stack,
+          path: req.path,
+          method: req.method,
+        },
+        "Unhandled error"
+      );
+    }
+
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  });
 }
 
 /**
@@ -133,11 +126,7 @@ export function setupErrorHandlers(
  *
  * Adds standard security headers to all responses.
  */
-export function securityHeadersMiddleware(
-  _req: Request,
-  res: Response,
-  next: NextFunction
-): void {
+export function securityHeadersMiddleware(_req: Request, res: Response, next: NextFunction): void {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
@@ -162,7 +151,7 @@ const rateLimitState = new Map<string, number[]>();
  * @param requestsPerMinute - Max requests per client per minute
  */
 export function rateLimitMiddleware(
-  requestsPerMinute: number = 60
+  requestsPerMinute = 60
 ): (req: Request, res: Response, next: NextFunction) => void {
   return (req: Request, res: Response, next: NextFunction): void => {
     const clientIp = getClientIp(req);
@@ -204,9 +193,9 @@ function getClientIp(req: Request): string {
  *
  * @returns Express router with health endpoints
  */
-export function createHealthRouter(): import("express").Router {
-  const { Router } = require("express") as typeof import("express");
-  const router = Router();
+export async function createHealthRouter(): Promise<Router> {
+  const express = await import("express");
+  const router = express.Router();
 
   router.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "healthy" });

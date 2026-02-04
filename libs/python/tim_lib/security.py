@@ -1,7 +1,7 @@
 """TIM Shared Security Module.
 
 Provides secure password hashing and JWT token handling.
-Uses bcrypt for passwords and jose for JWTs.
+Uses bcrypt for passwords and PyJWT for JWTs.
 
 NEVER roll your own crypto. Use these helpers.
 
@@ -23,7 +23,8 @@ Example:
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-from jose import JWTError, jwt  # type: ignore[import-untyped]
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 from passlib.context import CryptContext  # type: ignore[import-untyped]
 
 # Password hashing context (bcrypt with secure defaults)
@@ -96,7 +97,8 @@ def create_access_token(
     to_encode = data.copy()
     expire = datetime.now(UTC) + timedelta(minutes=expires_minutes)
     to_encode.update({"exp": expire})
-    return cast(str, jwt.encode(to_encode, secret, algorithm=algorithm))
+    token = jwt.encode(to_encode, secret, algorithm=algorithm)
+    return token if isinstance(token, str) else token.decode("utf-8")
 
 
 class TokenValidationError(Exception):
@@ -136,9 +138,9 @@ def verify_token(
     try:
         payload: dict[str, Any] = jwt.decode(token, secret, algorithms=[algorithm])
         return payload
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise TokenValidationError("Token has expired", detail="expired") from None
-    except JWTError as e:
+    except InvalidTokenError as e:
         raise TokenValidationError("Invalid token", detail=str(e)) from e
 
 

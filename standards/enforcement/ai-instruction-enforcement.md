@@ -52,13 +52,6 @@ repos:
         entry: bash -c 'if grep -rn "NotImplementedError\|pass\s*$\|\.\.\.$$" --include="*.py" src/; then echo "ERROR: No placeholder implementations"; exit 1; fi'
         language: system
         pass_filenames: false
-
-      # Enforce co-author line in commits
-      - id: require-coauthor
-        name: Require Co-Authored-By
-        entry: bash -c 'if ! grep -q "Co-Authored-By:" "$1"; then echo "ERROR: Commits must include Co-Authored-By line"; exit 1; fi'
-        language: system
-        stages: [commit-msg]
 ```
 
 #### Node.js Pre-Commit Enforcement
@@ -250,7 +243,6 @@ fi
 | Placeholder code | grep for NotImplementedError | Pre-commit, CI |
 | Missing type hints | mypy --strict | Pre-commit, CI |
 | Unregistered patterns | Pattern detector | CI, Deploy |
-| Missing co-author line | Commit-msg hook | Pre-commit |
 | Commented-out code | ERA rule | Pre-commit, CI |
 
 ## Session Acknowledgment

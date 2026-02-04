@@ -55,8 +55,6 @@ export async function cleanTables(
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(table)) {
       throw new Error(`Invalid table name: ${table}`);
     }
-    await prisma.$executeRawUnsafe(
-      `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`
-    );
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`);
   }
 }

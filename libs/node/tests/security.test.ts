@@ -63,10 +63,7 @@ describe("createAccessToken", () => {
   });
 
   it("includes payload data in token", () => {
-    const token = createAccessToken(
-      { sub: "user123", role: "admin" },
-      secret
-    );
+    const token = createAccessToken({ sub: "user123", role: "admin" }, secret);
 
     const payload = verifyToken(token, secret);
     expect(payload.sub).toBe("user123");
@@ -87,9 +84,7 @@ describe("verifyToken", () => {
   it("throws for wrong secret", () => {
     const token = createAccessToken({ sub: "user123" }, secret);
 
-    expect(() => verifyToken(token, "wrong_secret".repeat(3))).toThrow(
-      TokenValidationError
-    );
+    expect(() => verifyToken(token, "wrong_secret".repeat(3))).toThrow(TokenValidationError);
   });
 
   it("throws for expired token", () => {
@@ -99,9 +94,7 @@ describe("verifyToken", () => {
   });
 
   it("throws for malformed token", () => {
-    expect(() => verifyToken("not.a.valid.jwt", secret)).toThrow(
-      TokenValidationError
-    );
+    expect(() => verifyToken("not.a.valid.jwt", secret)).toThrow(TokenValidationError);
   });
 });
 
@@ -118,11 +111,7 @@ describe("verifyTokenWithFallback", () => {
 
   it("falls back to secondary secret", () => {
     const token = createAccessToken({ sub: "user123" }, fallbackSecret);
-    const payload = verifyTokenWithFallback(
-      token,
-      primarySecret,
-      fallbackSecret
-    );
+    const payload = verifyTokenWithFallback(token, primarySecret, fallbackSecret);
 
     expect(payload.sub).toBe("user123");
   });
@@ -130,17 +119,15 @@ describe("verifyTokenWithFallback", () => {
   it("throws when both secrets fail", () => {
     const token = createAccessToken({ sub: "user123" }, "other_" + "c".repeat(28));
 
-    expect(() =>
-      verifyTokenWithFallback(token, primarySecret, fallbackSecret)
-    ).toThrow(TokenValidationError);
+    expect(() => verifyTokenWithFallback(token, primarySecret, fallbackSecret)).toThrow(
+      TokenValidationError
+    );
   });
 
   it("throws when no fallback and primary fails", () => {
     const token = createAccessToken({ sub: "user123" }, "other_" + "c".repeat(28));
 
-    expect(() => verifyTokenWithFallback(token, primarySecret)).toThrow(
-      TokenValidationError
-    );
+    expect(() => verifyTokenWithFallback(token, primarySecret)).toThrow(TokenValidationError);
   });
 });
 

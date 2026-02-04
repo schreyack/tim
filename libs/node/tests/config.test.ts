@@ -82,9 +82,7 @@ describe("createConfig", () => {
     process.env.DATABASE_URL = "postgresql://localhost:5432/test";
     // Missing JWT_SECRET
 
-    expect(() => createConfig(baseEnvSchema)).toThrow(
-      "Environment validation failed"
-    );
+    expect(() => createConfig(baseEnvSchema)).toThrow("Environment validation failed");
   });
 });
 

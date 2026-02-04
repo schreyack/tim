@@ -22,6 +22,48 @@ from structlog.stdlib import BoundLogger
 from structlog.types import Processor
 
 
+def _create_service_context_processor(
+    service_name: str | None, environment: str | None
+) -> Processor:
+    """Create a processor that adds service context to log events."""
+
+    def add_service_context(
+        _logger: Any, _method_name: str, event_dict: dict[str, Any]
+    ) -> dict[str, Any]:
+        if service_name:
+            event_dict["service"] = service_name
+        if environment:
+            event_dict["environment"] = environment
+        return event_dict
+
+    return cast(Processor, add_service_context)
+
+
+def _build_processors(
+    json_output: bool, service_name: str | None, environment: str | None
+) -> list[Processor]:
+    """Build the structlog processor chain."""
+    renderer: Processor = (
+        structlog.processors.JSONRenderer()
+        if json_output
+        else structlog.dev.ConsoleRenderer(colors=True)
+    )
+
+    processors: list[Processor] = [
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+    ]
+
+    if service_name or environment:
+        processors.append(_create_service_context_processor(service_name, environment))
+
+    processors.append(renderer)
+    return processors
+
+
 def configure_logging(
     level: str = "INFO",
     json_output: bool = True,
@@ -36,55 +78,18 @@ def configure_logging(
         service_name: Service name to include in all logs
         environment: Environment name to include in all logs
     """
-    # Determine output format
-    if json_output:
-        renderer: Processor = structlog.processors.JSONRenderer()
-    else:
-        renderer = structlog.dev.ConsoleRenderer(colors=True)
+    processors = _build_processors(json_output, service_name, environment)
+    log_level = getattr(logging, level.upper())
 
-    # Build processor chain
-    processors: list[Processor] = [
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-    ]
-
-    # Add service context if provided
-    if service_name or environment:
-
-        def add_service_context(
-            logger: Any, method_name: str, event_dict: dict[str, Any]
-        ) -> dict[str, Any]:
-            if service_name:
-                event_dict["service"] = service_name
-            if environment:
-                event_dict["environment"] = environment
-            return event_dict
-
-        processors.append(cast(Processor, add_service_context))
-
-    # Add renderer
-    processors.append(renderer)
-
-    # Configure structlog
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, level.upper())
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(log_level),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
         cache_logger_on_first_use=True,
     )
 
-    # Also configure standard library logging to use structlog
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, level.upper()),
-    )
+    logging.basicConfig(format="%(message)s", stream=sys.stdout, level=log_level)
 
 
 def get_logger(name: str | None = None) -> BoundLogger:

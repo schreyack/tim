@@ -1,5 +1,6 @@
 # TIM Standards - Python Pre-commit Configuration
 # Copy this file to your project root
+# Also copy tools/check-code-quality.py from the tim repo
 # Run: pre-commit install
 
 repos:
@@ -64,6 +65,14 @@ repos:
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
     hooks:
+      # Code quality: 400 line files, 50 line functions, complexity 10
+      - id: code-quality
+        name: Code quality (file size, function size, complexity)
+        entry: python3 tools/check-code-quality.py src --language python
+        language: system
+        pass_filenames: false
+        always_run: true
+
       # Block TODO/FIXME comments
       - id: no-todos
         name: No TODO/FIXME comments
@@ -95,13 +104,6 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-
-      # Enforce co-author line in commits
-      - id: require-coauthor
-        name: Require Co-Authored-By line
-        entry: bash -c 'if ! grep -q "Co-Authored-By:" "$1" 2>/dev/null; then echo "ERROR: Commit must include Co-Authored-By line"; exit 1; fi'
-        language: system
-        stages: [commit-msg]
 
       # Enforce test naming convention (test_what_when_then)
       - id: test-naming

@@ -15,6 +15,7 @@
  */
 
 import bcrypt from "bcrypt";
+import { randomBytes, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 
 const SALT_ROUNDS = 12;
@@ -64,11 +65,12 @@ export interface TokenPayload {
 export function createAccessToken(
   data: TokenPayload,
   secret: string,
-  expiresInMinutes: number = 30
+  expiresInMinutes = 30
 ): string {
+  const expiresInSeconds = expiresInMinutes * 60;
   return jwt.sign(data, secret, {
     algorithm: "HS256",
-    expiresIn: `${expiresInMinutes}m`,
+    expiresIn: expiresInSeconds,
   });
 }
 
@@ -140,8 +142,7 @@ export function verifyTokenWithFallback(
  * @param length - Number of random bytes (output will be 2x this in hex)
  * @returns Hex-encoded random token string
  */
-export function generateSecureToken(length: number = 32): string {
-  const { randomBytes } = require("crypto") as typeof import("crypto");
+export function generateSecureToken(length = 32): string {
   return randomBytes(length).toString("hex");
 }
 
@@ -154,7 +155,6 @@ export function generateSecureToken(length: number = 32): string {
  * @returns True if strings are equal
  */
 export function constantTimeCompare(a: string, b: string): boolean {
-  const { timingSafeEqual } = require("crypto") as typeof import("crypto");
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);
 

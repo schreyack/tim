@@ -23,17 +23,11 @@ import { z } from "zod";
 export const baseEnvSchema = z.object({
   // Required settings
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  JWT_SECRET: z
-    .string()
-    .min(32, "JWT_SECRET must be at least 32 characters"),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
 
   // Optional settings with defaults
-  LOG_LEVEL: z
-    .enum(["debug", "info", "warn", "error"])
-    .default("info"),
-  NODE_ENV: z
-    .enum(["development", "test", "staging", "production"])
-    .default("development"),
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  NODE_ENV: z.enum(["development", "test", "staging", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
 
   // JWT settings
@@ -55,22 +49,26 @@ export type BaseEnv = z.infer<typeof baseEnvSchema>;
  *   CUSTOM_VAR: z.string(),
  * }));
  */
-export function createConfig<T extends z.ZodTypeAny>(
-  schema: T
-): z.infer<T> {
-  const result = schema.safeParse(process.env);
+export function createConfig<T extends z.ZodType>(schema: T): z.output<T> {
+  try {
+    // TypeScript cannot track Zod schema types through generics, so parse() returns unknown.
+    // The cast is safe because Zod's parse() validates and returns the correct type at runtime.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const parsed: z.output<T> = schema.parse(process.env);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return parsed;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formatted = error.issues
+        .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+        .join("\n");
 
-  if (!result.success) {
-    const formatted = result.error.issues
-      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-      .join("\n");
-
-    throw new Error(
-      `Environment validation failed:\n${formatted}\n\nCheck your .env file or environment variables.`
-    );
+      throw new Error(
+        `Environment validation failed:\n${formatted}\n\nCheck your .env file or environment variables.`
+      );
+    }
+    throw error;
   }
-
-  return result.data as z.infer<T>;
 }
 
 /**
@@ -112,17 +110,13 @@ export function maskSecret(value: string): string {
  */
 export function toSafeConfig(config: BaseEnv): Record<string, unknown> {
   const sensitiveKeys = new Set(["DATABASE_URL", "JWT_SECRET"]);
-  const result: Record<string, unknown> = {};
 
-  for (const [key, value] of Object.entries(config)) {
-    if (sensitiveKeys.has(key) && typeof value === "string") {
-      result[key] = maskSecret(value);
-    } else {
-      result[key] = value;
-    }
-  }
-
-  return result;
+  return Object.fromEntries(
+    Object.entries(config).map(([key, value]) => [
+      key,
+      sensitiveKeys.has(key) && typeof value === "string" ? maskSecret(value) : value,
+    ])
+  );
 }
 
 /**
@@ -137,10 +131,7 @@ export function validateProductionConfig(config: BaseEnv): void {
   const errors: string[] = [];
 
   // Check for localhost database in production
-  if (
-    config.DATABASE_URL.includes("localhost") ||
-    config.DATABASE_URL.includes("127.0.0.1")
-  ) {
+  if (config.DATABASE_URL.includes("localhost") || config.DATABASE_URL.includes("127.0.0.1")) {
     errors.push("DATABASE_URL cannot be localhost in production");
   }
 

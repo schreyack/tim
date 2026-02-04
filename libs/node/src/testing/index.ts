@@ -26,11 +26,7 @@ export {
 } from "./assertions.js";
 
 // Middleware
-export {
-  createTestApp,
-  createMockAuthMiddleware,
-  createRequestCapture,
-} from "./middleware.js";
+export { createTestApp, createMockAuthMiddleware, createRequestCapture } from "./middleware.js";
 
 // Database utilities
 export { withRollback, cleanTables } from "./database.js";

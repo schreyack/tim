@@ -33,7 +33,7 @@ export async function waitFor(
     await sleep(interval);
   }
 
-  throw new Error(`Condition not met within ${timeout}ms`);
+  throw new Error(`Condition not met within ${timeout.toString()}ms`);
 }
 
 /**
@@ -45,17 +45,17 @@ export async function waitFor(
 export function createMock<T extends (...args: unknown[]) => unknown>(
   implementation?: T
 ): T & {
-  calls: Array<{ args: Parameters<T>; result: ReturnType<T> }>;
+  calls: { args: Parameters<T>; result: ReturnType<T> }[];
   reset: () => void;
 } {
-  const calls: Array<{ args: Parameters<T>; result: ReturnType<T> }> = [];
+  const calls: { args: Parameters<T>; result: ReturnType<T> }[] = [];
 
   const mock = ((...args: Parameters<T>): ReturnType<T> => {
     const result = implementation?.(...args) as ReturnType<T>;
     calls.push({ args, result });
     return result;
   }) as T & {
-    calls: Array<{ args: Parameters<T>; result: ReturnType<T> }>;
+    calls: { args: Parameters<T>; result: ReturnType<T> }[];
     reset: () => void;
   };
 
@@ -73,18 +73,16 @@ export function createMock<T extends (...args: unknown[]) => unknown>(
  * @param responses - Array of responses (or Error to reject)
  * @returns Mock function that returns responses in order
  */
-export function createSequenceMock<T>(
-  responses: Array<T | Error>
-): () => Promise<T> {
+export function createSequenceMock<T>(responses: (T | Error)[]): () => Promise<T> {
   let callCount = 0;
 
-  return async (): Promise<T> => {
+  return (): Promise<T> => {
     const response = responses[callCount % responses.length];
     callCount++;
 
     if (response instanceof Error) {
-      throw response;
+      return Promise.reject(response);
     }
-    return response as T;
+    return Promise.resolve(response as T);
   };
 }

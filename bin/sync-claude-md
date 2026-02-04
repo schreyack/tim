@@ -95,6 +95,12 @@ check_projects() {
     return $needs_update
 }
 
+strip_tim_only_sections() {
+    # Remove content between <!-- TIM-ONLY-START --> and <!-- TIM-ONLY-END --> markers
+    # Also removes the markers themselves and any trailing blank lines
+    sed '/<!-- TIM-ONLY-START -->/,/<!-- TIM-ONLY-END -->/d'
+}
+
 sync_project() {
     local proj="$1"
     local name=$(basename "$proj")
@@ -134,8 +140,8 @@ sync_project() {
 
 HEADER
 
-    # Add TIM standards
-    cat "$TIM_CLAUDE_MD" >> "$temp_file"
+    # Add TIM standards (strip tim-only sections for other projects)
+    strip_tim_only_sections < "$TIM_CLAUDE_MD" >> "$temp_file"
 
     # Add separator
     cat >> "$temp_file" << 'SEPARATOR'

@@ -78,62 +78,38 @@ class ForbiddenError(AppError):
     message = "Forbidden"
 
 
+async def _handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+    """Handle AppError exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.message, "detail": exc.detail},
+    )
+
+
+async def _handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+    """Handle HTTPException exceptions."""
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+
+
 def setup_exception_handlers(app: FastAPI) -> None:
     """Setup exception handlers for common errors.
 
     Converts AppError subclasses to appropriate HTTP responses.
     Also catches unexpected errors and returns 500.
-
-    Args:
-        app: FastAPI application instance.
-
-    Example:
-        app = FastAPI()
-        setup_exception_handlers(app)
-
-        @app.get("/users/{user_id}")
-        async def get_user(user_id: int):
-            user = await user_service.get(user_id)
-            if not user:
-                raise NotFoundError(f"User {user_id} not found")
-            return user
     """
     from tim_lib.logging import get_logger
 
     logger = get_logger(__name__)
 
-    @app.exception_handler(AppError)
-    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": exc.message,
-                "detail": exc.detail,
-            },
-        )
-
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(
-        request: Request, exc: HTTPException
-    ) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": exc.detail,
-            },
-        )
+    app.add_exception_handler(AppError, _handle_app_error)
+    app.add_exception_handler(HTTPException, _handle_http_exception)
 
     @app.exception_handler(Exception)
     async def general_exception_handler(
         request: Request, exc: Exception
     ) -> JSONResponse:
         logger.exception("unhandled_exception", error=str(exc))
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Internal server error",
-            },
-        )
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 async def security_headers_middleware(

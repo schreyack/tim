@@ -12,9 +12,7 @@
  * @param overrides - Values to override
  * @returns Test configuration object
  */
-export function createMockConfig<T extends Record<string, unknown>>(
-  overrides: Partial<T> = {}
-): T {
+export function createMockConfig<T extends Record<string, unknown>>(overrides: Partial<T> = {}): T {
   const defaults = {
     DATABASE_URL: "postgresql://test:test@localhost:5432/test_db", // pragma: allowlist secret
     JWT_SECRET: "test-secret-key-minimum-32-characters-long", // pragma: allowlist secret
@@ -28,79 +26,78 @@ export function createMockConfig<T extends Record<string, unknown>>(
 }
 
 /**
+ * User test data type.
+ */
+export interface TestUser {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  role: string;
+  isActive: boolean;
+}
+
+/**
+ * User factory interface.
+ */
+interface UserFactoryMethods {
+  create(overrides?: Partial<TestUser>): TestUser;
+  createMany(count: number, overrides?: Partial<Pick<TestUser, "role" | "isActive">>): TestUser[];
+  reset(): void;
+}
+
+/**
  * User factory for creating test user data.
  */
-export class UserFactory {
-  private static counter = 0;
+function createUserFactory(): UserFactoryMethods {
+  let counter = 0;
 
-  /**
-   * Create a test user object.
-   *
-   * @param overrides - Values to override
-   * @returns Test user data
-   */
-  static create(
-    overrides: Partial<{
-      id: string;
-      email: string;
-      password: string;
-      name: string;
-      role: string;
-      isActive: boolean;
-    }> = {}
-  ): {
-    id: string;
-    email: string;
-    password: string;
-    name: string;
-    role: string;
-    isActive: boolean;
-  } {
-    UserFactory.counter++;
-    const n = UserFactory.counter;
+  return {
+    /**
+     * Create a test user object.
+     *
+     * @param overrides - Values to override
+     * @returns Test user data
+     */
+    create(overrides: Partial<TestUser> = {}): TestUser {
+      counter++;
+      const n = counter;
 
-    return {
-      id: `user-${n}`,
-      email: `testuser${n}@example.com`,
-      password: `password${n}`, // pragma: allowlist secret
-      name: `Test User ${n}`,
-      role: "user",
-      isActive: true,
-      ...overrides,
-    };
-  }
+      return {
+        id: `user-${n.toString()}`,
+        email: `testuser${n.toString()}@example.com`,
+        password: `password${n.toString()}`, // pragma: allowlist secret
+        name: `Test User ${n.toString()}`,
+        role: "user",
+        isActive: true,
+        ...overrides,
+      };
+    },
 
-  /**
-   * Create multiple test users.
-   *
-   * @param count - Number of users to create
-   * @param overrides - Values to override for all users
-   * @returns Array of test user data
-   */
-  static createMany(
-    count: number,
-    overrides: Partial<{
-      role: string;
-      isActive: boolean;
-    }> = {}
-  ): Array<{
-    id: string;
-    email: string;
-    password: string;
-    name: string;
-    role: string;
-    isActive: boolean;
-  }> {
-    return Array.from({ length: count }, () => UserFactory.create(overrides));
-  }
+    /**
+     * Create multiple test users.
+     *
+     * @param count - Number of users to create
+     * @param overrides - Values to override for all users
+     * @returns Array of test user data
+     */
+    createMany(
+      count: number,
+      overrides: Partial<Pick<TestUser, "role" | "isActive">> = {}
+    ): TestUser[] {
+      return Array.from({ length: count }, () => this.create(overrides));
+    },
 
-  /**
-   * Reset the counter (call in beforeEach/afterEach).
-   */
-  static reset(): void {
-    UserFactory.counter = 0;
-  }
+    /**
+     * Reset the counter (call in beforeEach/afterEach).
+     */
+    reset(): void {
+      counter = 0;
+    },
+  };
 }
+
+export const UserFactory = createUserFactory();
 
 /**
  * Generic factory for creating test data.

@@ -90,10 +90,7 @@ describe("LogContextMiddleware", () => {
 
     middleware(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "x-correlation-id",
-      expect.any(String)
-    );
+    expect(res.setHeader).toHaveBeenCalledWith("x-correlation-id", expect.any(String));
     expect(next).toHaveBeenCalled();
   });
 
@@ -113,10 +110,7 @@ describe("LogContextMiddleware", () => {
 
     middleware(req, res, next);
 
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "x-correlation-id",
-      correlationId
-    );
+    expect(res.setHeader).toHaveBeenCalledWith("x-correlation-id", correlationId);
   });
 
   it("creates child logger with request context", () => {

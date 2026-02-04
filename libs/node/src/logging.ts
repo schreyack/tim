@@ -46,23 +46,9 @@ export interface CreateLoggerOptions {
  * });
  */
 export function createLogger(options: CreateLoggerOptions = {}): Logger {
-  const {
-    level = "info",
-    serviceName,
-    environment,
-    pretty = false,
-    redact = [],
-  } = options;
+  const { level = "info", serviceName, environment, pretty = false, redact = [] } = options;
 
-  const defaultRedact = [
-    "password",
-    "token",
-    "authorization",
-    "cookie",
-    "jwt",
-    "apiKey",
-    "secret",
-  ];
+  const defaultRedact = ["password", "token", "authorization", "cookie", "jwt", "apiKey", "secret"];
 
   const pinoOptions: LoggerOptions = {
     level,
@@ -116,8 +102,7 @@ export function LogContextMiddleware(
     const startTime = Date.now();
 
     // Get or generate correlation ID
-    const correlationId =
-      (req.headers["x-correlation-id"] as string | undefined) ?? generateId();
+    const correlationId = (req.headers["x-correlation-id"] as string | undefined) ?? generateId();
 
     // Add correlation ID to response
     res.setHeader("x-correlation-id", correlationId);
@@ -181,9 +166,6 @@ function generateId(): string {
  * const userLogger = withContext(logger, { userId: 123 });
  * userLogger.info("User action"); // Will include userId
  */
-export function withContext(
-  logger: Logger,
-  context: Record<string, unknown>
-): Logger {
+export function withContext(logger: Logger, context: Record<string, unknown>): Logger {
   return logger.child(context);
 }
