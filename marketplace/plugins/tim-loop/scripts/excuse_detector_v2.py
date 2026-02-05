@@ -230,49 +230,92 @@ def run_detection_passes(
     return check_guardrails(transcript)
 
 
-def main():
-    """Main hook entry point."""
+def check_and_clear_user_initiated_marker() -> bool:
+    """Check if user initiated this turn, and clear the marker.
+
+    Returns True if the marker existed (user is interacting).
+    The marker is set by the UserPromptSubmit hook when user types input.
+    Tim-loop auto-continuations don't trigger UserPromptSubmit, so no marker.
+    """
+    marker = Path.home() / ".claude" / ".tim-loop-user-initiated"
+    try:
+        if marker.exists():
+            marker.unlink()
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def should_skip_detection() -> bool:
+    """Check if excuse detection should be skipped entirely."""
+    tim_loop_active = Path.home() / ".claude" / ".tim-loop-active"
+    if not tim_loop_active.exists():
+        return True
+    if check_and_clear_user_initiated_marker():
+        return True
+    return False
+
+
+def parse_hook_input() -> dict | None:
+    """Parse hook input from stdin. Returns None if invalid or should skip."""
     try:
         hook_input = json.load(sys.stdin)
-    except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+    except json.JSONDecodeError:
+        return None
+    if hook_input.get("stop_hook_active"):
+        return None
+    return hook_input
+
+
+def get_filtered_transcript(transcript_path: str) -> tuple[list[dict], str] | None:
+    """Load and filter transcript. Returns (transcript, latest_text) or None."""
+    transcript = read_transcript(transcript_path)
+    if not transcript:
+        return None
+    last_fired = get_last_fired_index()
+    if last_fired > 0 and last_fired < len(transcript):
+        transcript = transcript[last_fired:]
+    latest_text = extract_latest_assistant_text(transcript)
+    if not latest_text:
+        return None
+    return (transcript, latest_text)
+
+
+def handle_detection_result(
+    result: tuple[str, str] | dict, transcript_path: str
+) -> None:
+    """Handle detection result by recording state and outputting response."""
+    full_transcript = read_transcript(transcript_path)
+    set_last_fired_index(len(full_transcript))
+    if isinstance(result, dict):
+        print(json.dumps(result))
+    else:
+        category, details = result
+        system_halt(category, details)
+
+
+def main():
+    """Main hook entry point."""
+    if should_skip_detection():
         sys.exit(0)
 
-    if hook_input.get("stop_hook_active"):
+    hook_input = parse_hook_input()
+    if not hook_input:
         sys.exit(0)
 
     transcript_path = hook_input.get("transcript_path", "")
     if not transcript_path:
         sys.exit(0)
 
-    transcript = read_transcript(transcript_path)
-    if not transcript:
+    transcript_data = get_filtered_transcript(transcript_path)
+    if not transcript_data:
         sys.exit(0)
 
-    # Skip entries we've already fired on (prevents re-firing on same content)
-    last_fired = get_last_fired_index()
-    if last_fired > 0 and last_fired < len(transcript):
-        # Only check entries after where we last fired
-        transcript = transcript[last_fired:]
-
-    latest_text = extract_latest_assistant_text(transcript)
-    if not latest_text:
-        sys.exit(0)
-
+    transcript, latest_text = transcript_data
     result = run_detection_passes(latest_text, transcript)
     if result:
-        # Record where we fired so we don't re-fire on this content
-        full_transcript = read_transcript(transcript_path)
-        set_last_fired_index(len(full_transcript))
-
-        if isinstance(result, dict):
-            # Guardrails already returns proper halt response with continue: False
-            print(json.dumps(result))
-            sys.exit(0)
-        else:
-            # Tuple result from other checks - use system_halt
-            category, details = result
-            system_halt(category, details)
+        handle_detection_result(result, transcript_path)
 
     sys.exit(0)
 

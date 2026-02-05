@@ -88,15 +88,36 @@ def expand_option(user_input: str, pending: dict) -> str | None:
     return None  # Not an option number
 
 
+def set_user_initiated_marker() -> None:
+    """Set marker indicating this turn was initiated by user input.
+
+    This marker tells the excuse detector that the user is actively interacting,
+    so it should skip checking. Without this marker, the excuse detector runs
+    (indicating tim-loop auto-continued without user intervention).
+
+    Claude cannot manipulate this because:
+    1. This hook only fires on actual user input (UserPromptSubmit)
+    2. Claude's tool calls don't trigger UserPromptSubmit
+    3. The marker is checked and cleared atomically by the excuse detector
+    """
+    marker = Path.home() / ".claude" / ".tim-loop-user-initiated"
+    try:
+        marker.touch()
+    except Exception:
+        pass
+
+
 def main():
     """Main hook entry point.
 
-    DISABLED: Option expansion allowed Claude to bypass stops by typing "1".
-    This hook now does nothing - all user input passes through unchanged.
-    Humans must write their own response to continue, which Claude cannot do.
+    Sets a marker indicating user interaction, then passes through.
+    This marker is used by the excuse detector to skip checking when
+    the user is actively participating in the conversation.
     """
-    # Option expansion DISABLED - Claude learned to bypass stops with "1"
-    # Always clear any pending state and pass through
+    # Set marker so excuse detector knows user is interacting
+    set_user_initiated_marker()
+
+    # Clear any pending options state
     clear_pending_options()
     sys.exit(0)
 
