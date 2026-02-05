@@ -4,7 +4,7 @@
 #
 # Dependencies: core.sh
 # Exports: get_status_field, get_plan_state, show_plan_status, get_state_description,
-#          update_status, ensure_status_header_fields, add_status_header,
+#          update_status, ensure_status_header_fields, fix_invalid_stage, add_status_header,
 #          count_phases, requires_review, has_review_completed
 #
 # This file is sourced by plan-ops.sh, not executed directly.
@@ -344,22 +344,27 @@ ensure_status_header_fields() {
     # Check for Progress Log section
     if ! grep -q "### Progress Log" "$file"; then
         # Find the last table row and add Progress Log section after it
-        # Using awk for multi-line insertion
         local last_field_line
         last_field_line=$(grep -n "^| " "$file" | tail -1 | cut -d: -f1)
         if [[ -n "$last_field_line" ]]; then
-            local progress_section="
+            # Write progress section to temp file to avoid awk newline issues
+            local progress_tmp="${file}.progress.tmp"
+            cat > "$progress_tmp" << EOF
+
 ### Progress Log
 
 | Timestamp | Stage | Event |
 |-----------|-------|-------|
 | ${ts} | draft | Plan imported |
 
----"
-            awk -v n="$last_field_line" -v text="$progress_section" '
-                NR == n { print; print text; next }
+---
+EOF
+            # Use awk to read from temp file instead of -v (avoids newline issues)
+            awk -v n="$last_field_line" '
+                NR == n { print; while ((getline line < "'"$progress_tmp"'") > 0) print line; next }
                 { print }
             ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+            rm -f "$progress_tmp"
             added_fields+=("Progress Log")
         fi
     fi
@@ -368,6 +373,87 @@ ensure_status_header_fields() {
     if [[ ${#added_fields[@]} -gt 0 ]]; then
         log_info "Added missing Status Header fields: ${added_fields[*]}"
     fi
+}
+
+# Fix invalid or missing Stage field in a plan's Status Header
+# Determines correct stage from folder location and repairs the field
+# Returns: 0 if fixed, 1 if file has no Status Header
+fix_invalid_stage() {
+    local file="$1"
+    local ts
+    ts=$(timestamp)
+
+    # Check if Status header exists
+    if ! grep -q "## Status" "$file"; then
+        return 1
+    fi
+
+    # Determine expected stage from folder location
+    local expected_stage="draft"
+    if [[ "$file" == *"/plans/active/"* ]]; then
+        expected_stage="active"
+    elif [[ "$file" == *"/plans/completed/"* ]]; then
+        expected_stage="completed"
+    elif [[ "$file" == *"/plans/abandoned/"* ]]; then
+        expected_stage="abandoned"
+    fi
+
+    # Check current stage value
+    local current_stage
+    current_stage=$(get_status_field "$file" "Stage")
+
+    # Validate stage value
+    local valid_stages="draft active in_progress completed abandoned"
+    local is_valid=false
+    for valid in $valid_stages; do
+        if [[ "$current_stage" == "$valid" ]]; then
+            is_valid=true
+            break
+        fi
+    done
+
+    if [[ "$is_valid" == true ]]; then
+        # Stage is valid, no fix needed
+        return 0
+    fi
+
+    # Stage is missing or invalid - fix it
+    if grep -qE "\| Stage[[:space:]]*\|" "$file"; then
+        # Stage row exists but value is invalid - update it
+        log_info "Fixing invalid Stage value '${current_stage}' -> '${expected_stage}'"
+        sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | ${expected_stage} |/" "$file"
+    else
+        # Stage row is missing - add it after Field header
+        if grep -qE "\| Field[[:space:]]*\|[[:space:]]*Value[[:space:]]*\|" "$file"; then
+            log_info "Adding missing Stage field with value '${expected_stage}'"
+            # Insert Stage row after the table header row
+            awk -v stage="$expected_stage" '
+                /\| Field[[:space:]]*\|[[:space:]]*Value[[:space:]]*\|/ {
+                    print
+                    getline  # Print the separator row
+                    print
+                    print "| Stage | " stage " |"
+                    next
+                }
+                { print }
+            ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+        else
+            # No proper table structure - try adding after ## Status
+            log_info "Adding Stage field after Status header"
+            sed -i '' '/## Status/a\
+\
+| Field | Value |\
+|-------|-------|\
+| Stage | '"${expected_stage}"' |' "$file"
+        fi
+    fi
+
+    # Update Last Updated if it exists
+    if grep -qE "\| Last Updated[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
+    fi
+
+    return 0
 }
 
 # Add Status Header to a plan that doesn't have one

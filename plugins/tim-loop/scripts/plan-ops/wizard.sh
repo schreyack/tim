@@ -252,9 +252,21 @@ cmd_wizard() {
                     local new_state
                     new_state=$(get_plan_state "$WIZARD_PLAN_FILE")
                     if [[ "$new_state" == "unknown" ]]; then
-                        log_error "Plan has Status Header but Stage field is invalid or missing."
-                        log_error "Please check the Status Header in: $WIZARD_PLAN_FILE"
-                        exit 1
+                        # Status header exists but Stage is invalid - try to fix it
+                        log_info "Attempting to fix invalid Stage field..."
+                        if fix_invalid_stage "$WIZARD_PLAN_FILE"; then
+                            new_state=$(get_plan_state "$WIZARD_PLAN_FILE")
+                            if [[ "$new_state" == "unknown" ]]; then
+                                log_error "Unable to fix Status Header. Stage field is still invalid."
+                                log_error "Please manually check: $WIZARD_PLAN_FILE"
+                                exit 1
+                            fi
+                            log_info "Stage field fixed successfully."
+                        else
+                            log_error "Plan has Status Header but Stage field could not be fixed."
+                            log_error "Please check the Status Header in: $WIZARD_PLAN_FILE"
+                            exit 1
+                        fi
                     fi
                     state="$new_state"
                     continue
