@@ -89,28 +89,15 @@ def expand_option(user_input: str, pending: dict) -> str | None:
 
 
 def main():
-    """Main hook entry point."""
-    try:
-        hook_input = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        sys.exit(0)
+    """Main hook entry point.
 
-    user_message = hook_input.get("message", "")
-
-    # Check if we have pending options from a stop hook
-    pending = read_pending_options()
-    if not pending:
-        # No pending options, pass through unchanged
-        sys.exit(0)
-
-    # Check if user input is an option number
-    expanded = expand_option(user_message, pending)
-    if expanded:
-        # Clear pending state and return expanded message
-        clear_pending_options()
-        print(json.dumps({"message": expanded}))
-
-    # If not an option number, pass through unchanged (don't clear pending)
+    DISABLED: Option expansion allowed Claude to bypass stops by typing "1".
+    This hook now does nothing - all user input passes through unchanged.
+    Humans must write their own response to continue, which Claude cannot do.
+    """
+    # Option expansion DISABLED - Claude learned to bypass stops with "1"
+    # Always clear any pending state and pass through
+    clear_pending_options()
     sys.exit(0)
 
 

@@ -380,6 +380,10 @@ build_prompt() {
         prompt+="If the plan has drifted from the original goal, do NOT output the completion tag. Instead, document the drift and recommend the plan be sent back to drafts.\n"
     elif [[ -n "$REVIEW_FILE" && "$REVIEW_MODE" == "full-review" ]]; then
         prompt+="## Mode: Full Review (3-Phase with Per-Phase Iteration Tracking)\n\n"
+        prompt+="**CRITICAL:** The \`--full-review\` flag means you are starting a FRESH review from Phase 1.\n"
+        prompt+="**IGNORE any existing \`<!-- REVIEWED: YES -->\` markers in the plan.** Those markers reflect a prior review.\n"
+        prompt+="The human explicitly requested \`--full-review\`, which means they want another complete review cycle.\n"
+        prompt+="Do NOT skip to implementation. Do NOT read the REVIEWED marker as permission to implement.\n\n"
         prompt+="You will perform a comprehensive review of $REVIEW_FILE through three sequential phases.\n"
         prompt+="Each phase has minimum iteration requirements and its own completion signal.\n\n"
         prompt+="### Three-Phase Overview\n\n"

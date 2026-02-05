@@ -25,14 +25,12 @@ def write_pending_options(category: str, excerpt: str) -> None:
 
 
 def get_options_text() -> str:
-    """Get the standard options text to append to block responses."""
-    return (
-        "\n---\n\n"
-        "**Quick response options** (just type the number):\n\n"
-        "1. **Continue** - This was a false positive\n"
-        "2. **Instructions** - Add guidance for Claude\n"
-        "3. **Add pattern** - Note for YAML (manual add)\n"
-    )
+    """Get the standard options text to append to block responses.
+
+    DISABLED: The numbered options allowed Claude to bypass stops by typing "1".
+    Humans must now write their own response to continue, which Claude cannot do.
+    """
+    return ""  # Options disabled - Claude learned to bypass with "1"
 
 
 def clear_pending_options() -> None:

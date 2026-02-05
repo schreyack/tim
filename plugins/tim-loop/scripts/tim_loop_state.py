@@ -43,6 +43,7 @@ def cleanup_state_files(state_file: str, prompt_file: str) -> None:
         str(Path.home() / ".claude" / ".tim-loop-heartbeat"),
         str(Path.home() / ".claude" / ".tim-loop-pending-options"),
         str(Path.home() / ".claude" / ".tim-loop-last-fired"),
+        str(Path.home() / ".claude" / ".tim-loop-block-count"),
     ]
     for file_path in files_to_remove:
         if file_path and os.path.isfile(file_path):

@@ -32,8 +32,86 @@ from excuse_responses import (
     build_test_manipulation_block_response,
     build_unilateral_decision_block_response,
 )
-from tim_loop_state import load_state
+from tim_loop_state import load_state, log_stderr
 import re
+
+# Escalation configuration
+BLOCK_COUNT_FILE = Path.home() / ".claude" / ".tim-loop-block-count"
+ESCALATION_THRESHOLD = 3  # After this many blocks, escalate message
+HARD_STOP_THRESHOLD = 6  # After this many blocks, force hard stop
+
+
+def get_block_count() -> int:
+    """Get the current consecutive block count."""
+    try:
+        if BLOCK_COUNT_FILE.exists():
+            return int(BLOCK_COUNT_FILE.read_text().strip())
+    except (ValueError, OSError):
+        pass
+    return 0
+
+
+def increment_block_count() -> int:
+    """Increment and return the new block count."""
+    count = get_block_count() + 1
+    try:
+        BLOCK_COUNT_FILE.write_text(str(count))
+    except OSError:
+        pass
+    return count
+
+
+def reset_block_count() -> None:
+    """Reset the block count (called when no violation found)."""
+    try:
+        if BLOCK_COUNT_FILE.exists():
+            BLOCK_COUNT_FILE.unlink()
+    except OSError:
+        pass
+
+
+def build_escalated_response(base_response: dict, block_count: int) -> dict:
+    """Wrap a block response with escalation warnings based on count."""
+    if block_count < ESCALATION_THRESHOLD:
+        return base_response
+
+    reason = base_response.get("reason", base_response.get("message", ""))
+
+    if block_count >= HARD_STOP_THRESHOLD:
+        # HARD STOP - this is non-negotiable
+        log_stderr(f"Tim Loop: HARD STOP after {block_count} consecutive blocks")
+        escalated = (
+            f"## 🛑 HARD STOP - {block_count} CONSECUTIVE BLOCKS 🛑\n\n"
+            f"**This hook has fired {block_count} times. You have ignored it every time.**\n\n"
+            f"This is NOT a negotiation. This is NOT a false positive.\n"
+            f"The human placed this hook here for a reason.\n\n"
+            f"**YOU MUST STOP AND ASK THE HUMAN FOR HELP.**\n\n"
+            f"Do NOT:\n"
+            f"- Continue what you were doing\n"
+            f"- Argue this is a false positive\n"
+            f"- Try a different approach to the same action\n"
+            f"- Output any code or tool calls\n\n"
+            f"Do THIS:\n"
+            f"1. Acknowledge you've been blocked {block_count} times\n"
+            f"2. Explain what you're trying to do and why\n"
+            f"3. Ask the human how to proceed\n\n"
+            f"---\n\n"
+            f"Original block reason:\n{reason}"
+        )
+        return {"decision": "block", "reason": escalated}
+
+    # Escalated warning (but not hard stop yet)
+    log_stderr(f"Tim Loop: Escalated block ({block_count} consecutive)")
+    escalated = (
+        f"## ⚠️ ESCALATION: {block_count} CONSECUTIVE BLOCKS ⚠️\n\n"
+        f"**This is the {block_count}th time this hook has blocked you.**\n\n"
+        f"If you keep ignoring this, the next block will be a HARD STOP.\n\n"
+        f"The hook is NOT wrong. YOU need to change your approach.\n"
+        f"Stop arguing with the hook and actually do what it's asking.\n\n"
+        f"---\n\n"
+        f"{reason}"
+    )
+    return {"decision": "block", "reason": escalated}
 
 
 def read_transcript(transcript_path: str) -> list[dict]:
@@ -209,7 +287,13 @@ def main() -> None:
 
     result = run_fast_checks(recent_text)
     if result:
-        print(json.dumps(result))
+        # Block detected - increment counter and potentially escalate
+        block_count = increment_block_count()
+        escalated_result = build_escalated_response(result, block_count)
+        print(json.dumps(escalated_result))
+    else:
+        # No violation - reset the consecutive block counter
+        reset_block_count()
 
     sys.exit(0)
 

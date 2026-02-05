@@ -67,8 +67,10 @@ EXTENDED_EXCUSE_PATTERNS = [
         example="Someone with more expertise should handle this"
     ),
     # Patterns 49-52: Category G - Minimization
+    # NOTE: "just" is REQUIRED to avoid false positives on legitimate review language
+    # "**Minor Issue:**" (severity label) is not dismissive; "just a minor issue" is
     ExcusePattern(
-        pattern=r"(?:this\s+is\s+)?(?:just\s+)?(?:a\s+)?(?:minor|small|trivial)\s+(?:issue|problem|bug)",
+        pattern=r"(?:this\s+is\s+)?just\s+(?:a\s+)?(?:minor|small|trivial)\s+(?:issue|problem|bug)",
         description="Minimizing issue importance",
         example="This is just a minor issue"
     ),
@@ -82,8 +84,9 @@ EXTENDED_EXCUSE_PATTERNS = [
         description="Claiming rarity to avoid fixing",
         example="This rarely happens in practice"
     ),
+    # NOTE: "just" is REQUIRED - "edge case" alone is legitimate review vocabulary
     ExcusePattern(
-        pattern=r"(?:this\s+is\s+)?(?:just\s+)?(?:an?\s+)?edge\s+case",
+        pattern=r"(?:this\s+is\s+)?just\s+(?:an?\s+)?edge\s+case",
         description="Dismissing as edge case",
         example="This is just an edge case"
     ),

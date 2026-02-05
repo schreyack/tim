@@ -236,9 +236,10 @@ FAILURE_DISMISSAL_PATTERNS = [
         example="There's just one failing test",
         category="failure_dismissal",
     ),
-    # NEW: Catches "minor/unimportant failure"
+    # NEW: Catches "just a minor/unimportant failure" - requires dismissive context
+    # NOTE: Requires "just" or "is a" to avoid matching severity headers like "**Minor Issue:**"
     ExcusePattern(
-        pattern=r"(?:minor|small|trivial|unimportant|insignificant)\s+(?:failure|error|issue|test)",
+        pattern=r"(?:just\s+(?:a\s+)?|is\s+a\s+)(?:minor|small|trivial|unimportant|insignificant)\s+(?:failure|error|issue|test)",
         description="Minimizing failure as unimportant",
         example="This is a minor failure that we can ignore",
         category="failure_dismissal",
