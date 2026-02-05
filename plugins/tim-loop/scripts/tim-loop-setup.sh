@@ -821,6 +821,7 @@ SESSION_ID="$TIM_LOOP_SESSION_ID"
 CLAUDE_PID="$TIM_LOOP_CLAUDE_PID"
 REVIEW_MODE="$REVIEW_MODE"
 MIN_REVIEW_ITERATIONS="$MIN_REVIEW_ITERATIONS"
+IMPLEMENT_MODE="$( [[ -n "$IMPLEMENT_FILE" ]] && echo "true" || echo "false" )"
 EOF
 
 # For full-review mode, add phase tracking to state file

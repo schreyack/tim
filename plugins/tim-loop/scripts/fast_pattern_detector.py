@@ -180,6 +180,14 @@ def get_review_mode() -> str:
     return ""
 
 
+def is_implement_mode() -> bool:
+    """Check if tim-loop is in implement mode (--implement flag)."""
+    state = load_state()
+    if state:
+        return state.get("IMPLEMENT_MODE", "false") == "true"
+    return False
+
+
 def strip_code_and_quotes(text: str) -> str:
     """Remove code blocks and quoted content to avoid false positives."""
     text = re.sub(r"```[\s\S]*?```", "", text)
@@ -248,10 +256,11 @@ def run_fast_checks(recent_text: str) -> dict | None:
         if mode_violations:
             return build_mode_violation_response(mode_violations)
 
-    # Pass 2: Task drift check (skip in full-review mode - edits ARE the task)
+    # Pass 2: Task drift check (skip in full-review and implement modes)
     # In full-review mode, the agent is explicitly instructed to make improvements
     # to the plan, so "let me fix this" is legitimate work, not drift.
-    if review_mode != "full-review":
+    # In implement mode (--implement flag), implementation is explicitly requested.
+    if review_mode != "full-review" and not is_implement_mode():
         task_drifts = find_task_drift(recent_text)
         if task_drifts:
             return build_task_drift_response(task_drifts)

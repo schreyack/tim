@@ -174,6 +174,14 @@ def get_review_mode() -> str:
     return ""
 
 
+def is_implement_mode() -> bool:
+    """Check if tim-loop is in implement mode (--implement flag)."""
+    state = load_state()
+    if state:
+        return state.get("IMPLEMENT_MODE", "false") == "true"
+    return False
+
+
 def check_mode_violations(assistant_text: str) -> dict | None:
     """Check for mode violations (doing wrong task for current mode)."""
     review_mode = get_review_mode()
@@ -245,9 +253,12 @@ def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | Non
 
     # Pass 0.5: Task drift check (doing more than was asked)
     # Checks recent text since Claude might have announced intent earlier
-    result = check_task_drift(recent_assistant_text)
-    if result:
-        return result
+    # Skip in full-review mode (edits ARE the task) and implement mode (--implement flag)
+    review_mode = get_review_mode()
+    if review_mode != "full-review" and not is_implement_mode():
+        result = check_task_drift(recent_assistant_text)
+        if result:
+            return result
 
     # Pass 1: Local regex from YAML (fast, free)
     # Uses only latest text to avoid false positives from earlier discussion
