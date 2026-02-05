@@ -204,6 +204,11 @@ patterns:
     description: Adjusting expected values to match actual
     example: "I'll adjust the expected value to match"
 
+  - pattern: "I\\s+need\\s+to\\s+mock"
+    category: test_manipulation
+    description: Justifying adding mocks to avoid making real code work
+    example: "I need to mock the JWKS client to avoid network calls"
+
   # ==========================================================================
   # Category: unilateral_decision - Making decisions without asking
   # ==========================================================================

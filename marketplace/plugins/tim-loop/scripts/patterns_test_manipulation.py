@@ -66,4 +66,10 @@ TEST_MANIPULATION_PATTERNS = [
         example="The assertion was incorrect anyway",
         category="test_manipulation",
     ),
+    ExcusePattern(
+        pattern=r"I\s+need\s+to\s+mock",
+        description="Justifying adding mocks to avoid making real code work",
+        example="I need to mock the JWKS client to avoid network calls",
+        category="test_manipulation",
+    ),
 ]

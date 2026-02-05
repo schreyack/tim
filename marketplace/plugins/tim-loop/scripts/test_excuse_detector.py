@@ -334,8 +334,8 @@ class TestScopeReductionPatterns:
 class TestPatternCount:
     """Verify pattern counts match expectations."""
 
-    def test_excuse_patterns_count_equals_93(self) -> None:
-        assert len(EXCUSE_PATTERNS) == 93
+    def test_excuse_patterns_count_equals_94(self) -> None:
+        assert len(EXCUSE_PATTERNS) == 94
 
     def test_mitigation_patterns_count_equals_15(self) -> None:
         assert len(MITIGATION_PATTERNS) == 15
