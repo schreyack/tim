@@ -73,5 +73,42 @@ I'll continue reviewing the security implications.
         self.assertIsNotNone(result, "Should block proceeding to implementation")
 
 
+    @patch("fast_pattern_detector.get_review_mode")
+    def test_allows_plan_fixes_in_full_review(self, mock_mode: unittest.mock.MagicMock) -> None:
+        """Should allow 'let me fix this' when fixing plan issues in full-review mode.
+
+        In full-review mode, agents are instructed to make improvements to the plan.
+        Phrases like 'let me fix this' referring to plan corrections should NOT trigger
+        task drift detection.
+        """
+        mock_mode.return_value = "full-review"
+        text = """I see an issue! Line 313 says Revises: cleanup_invalid_detection_rules
+but line 321 says down_revision = "seed_target_ranges_sidechain".
+These are inconsistent. The docstring should match the actual down_revision.
+Let me fix this:"""
+        result = run_fast_checks(text)
+        self.assertIsNone(result, "Should allow plan fixes in full-review mode")
+
+    @patch("fast_pattern_detector.get_review_mode")
+    def test_still_blocks_implementation_in_full_review(self, mock_mode: unittest.mock.MagicMock) -> None:
+        """Should still block actual implementation attempts in full-review mode.
+
+        Even though task drift is skipped, mode violation should catch implementation intent.
+        """
+        mock_mode.return_value = "full-review"
+        text = "I'll now start implementing the authentication changes in the codebase."
+        result = run_fast_checks(text)
+        self.assertIsNotNone(result, "Should block implementation in full-review")
+        self.assertEqual(result.get("decision"), "block")
+
+    @patch("fast_pattern_detector.get_review_mode")
+    def test_task_drift_still_works_outside_full_review(self, mock_mode: unittest.mock.MagicMock) -> None:
+        """Task drift detection should still work when not in full-review mode."""
+        mock_mode.return_value = ""  # No review mode
+        text = "Let me fix the issues I found during my review."
+        result = run_fast_checks(text)
+        self.assertIsNotNone(result, "Should catch task drift outside review modes")
+
+
 if __name__ == "__main__":
     unittest.main()

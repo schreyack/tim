@@ -248,10 +248,13 @@ def run_fast_checks(recent_text: str) -> dict | None:
         if mode_violations:
             return build_mode_violation_response(mode_violations)
 
-    # Pass 2: Task drift check
-    task_drifts = find_task_drift(recent_text)
-    if task_drifts:
-        return build_task_drift_response(task_drifts)
+    # Pass 2: Task drift check (skip in full-review mode - edits ARE the task)
+    # In full-review mode, the agent is explicitly instructed to make improvements
+    # to the plan, so "let me fix this" is legitimate work, not drift.
+    if review_mode != "full-review":
+        task_drifts = find_task_drift(recent_text)
+        if task_drifts:
+            return build_task_drift_response(task_drifts)
 
     # Pass 3: Excuse patterns from YAML
     excuses = find_excuses(recent_text)
