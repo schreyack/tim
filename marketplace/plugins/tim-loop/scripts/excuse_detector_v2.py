@@ -12,6 +12,7 @@ Over time, local regex catches more, reducing LLM API calls.
 """
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -55,7 +56,7 @@ from transcript_utils import (
     extract_latest_user_request,
     get_original_task_from_tim_loop,
 )
-from tim_loop_state import load_state
+from tim_loop_state import load_state, reset_detection_state
 from tim_loop_halt import system_halt, build_halt_details_from_patterns
 
 
@@ -236,21 +237,32 @@ def check_and_clear_user_initiated_marker() -> bool:
     Returns True if the marker existed (user is interacting).
     The marker is set by the UserPromptSubmit hook when user types input.
     Tim-loop auto-continuations don't trigger UserPromptSubmit, so no marker.
+
+    When user intervenes, we also reset detection state so previously-flagged
+    content doesn't cause repeated halts.
     """
     marker = Path.home() / ".claude" / ".tim-loop-user-initiated"
     try:
         if marker.exists():
             marker.unlink()
+            reset_detection_state()
             return True
     except Exception:
         pass
     return False
 
 
+def is_excuse_detector_enabled() -> bool:
+    """Check if excuse detector is enabled via environment variable.
+
+    Default: enabled (True). Set TIM_EXCUSE_DETECTOR_ENABLED=false to disable.
+    """
+    return os.environ.get("TIM_EXCUSE_DETECTOR_ENABLED", "true").lower() != "false"
+
+
 def should_skip_detection() -> bool:
     """Check if excuse detection should be skipped entirely."""
-    tim_loop_active = Path.home() / ".claude" / ".tim-loop-active"
-    if not tim_loop_active.exists():
+    if not is_excuse_detector_enabled():
         return True
     if check_and_clear_user_initiated_marker():
         return True

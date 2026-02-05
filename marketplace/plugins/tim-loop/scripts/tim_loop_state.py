@@ -32,6 +32,23 @@ def log_stderr(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+def reset_detection_state() -> None:
+    """Reset detection state files (called after human intervention).
+
+    This clears the slate so previously-flagged content doesn't cause
+    repeated halts after the human has intervened.
+    """
+    detection_files = [
+        Path.home() / ".claude" / ".tim-loop-last-fired",
+        Path.home() / ".claude" / ".tim-loop-block-count",
+    ]
+    for file_path in detection_files:
+        try:
+            file_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def cleanup_state_files(state_file: str, prompt_file: str) -> None:
     """Remove tim-loop state files."""
     files_to_remove = [
@@ -326,7 +343,11 @@ def _check_session_staleness(state_file_path: str) -> bool:
 
 
 def is_tim_loop_active() -> bool:
-    """Check if we're inside an active tim-loop session.
+    """Check if we're inside an active tim-loop session FOR THIS PROCESS.
+
+    Uses PID-chain walking to verify the current process is actually part
+    of the tim-loop session, not just that some tim-loop exists somewhere.
+    This ensures proper session isolation when multiple Claude instances run.
 
     Includes staleness detection to avoid false positives from orphaned
     marker files. Only cleans up if the owning process is confirmed dead.
@@ -336,7 +357,21 @@ def is_tim_loop_active() -> bool:
 
     try:
         state_file_path = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
-        return _check_session_staleness(state_file_path)
+
+        # First check if the session is stale (dead process)
+        if not _check_session_staleness(state_file_path):
+            return False
+
+        # Session is alive - now verify THIS process belongs to it
+        # by walking up the parent chain to find the CLAUDE_PID
+        state_claude_pid = _extract_claude_pid(state_file_path)
+        if not state_claude_pid:
+            # No PID in state file - fall back to assuming active (legacy)
+            return True
+
+        # Walk up parent chain to see if we're a child of the tim-loop session
+        found_pid = _walk_parent_chain_for_pid({state_claude_pid})
+        return found_pid is not None
     except Exception:
-        # On any error, assume active to avoid accidentally cleaning up live session
-        return True
+        # On any error, assume NOT active to avoid blocking unrelated sessions
+        return False

@@ -18,13 +18,14 @@ The slow LLM-as-judge check remains in excuse_detector_v2.py (Stop hook only).
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
 from patterns_mode_violation import find_mode_violations
 from patterns_task_drift import find_task_drift
 from excuse_pattern_loader import ExcusePattern, get_pattern_config
-from tim_loop_state import is_tim_loop_active, load_state, log_stderr
+from tim_loop_state import load_state, log_stderr, reset_detection_state
 from tim_loop_halt import system_halt, build_halt_details_from_patterns
 import re
 
@@ -222,10 +223,40 @@ def run_fast_checks(recent_text: str) -> tuple[str, str] | None:
     return None
 
 
+def check_and_clear_user_initiated_marker() -> bool:
+    """Check if user initiated this turn, and clear the marker.
+
+    Returns True if the marker existed (user is interacting).
+    When user intervenes, we reset detection state so previously-flagged
+    content doesn't cause repeated halts.
+    """
+    marker = Path.home() / ".claude" / ".tim-loop-user-initiated"
+    try:
+        if marker.exists():
+            marker.unlink()
+            reset_detection_state()
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def is_excuse_detector_enabled() -> bool:
+    """Check if excuse detector is enabled via environment variable.
+
+    Default: enabled (True). Set TIM_EXCUSE_DETECTOR_ENABLED=false to disable.
+    """
+    return os.environ.get("TIM_EXCUSE_DETECTOR_ENABLED", "true").lower() != "false"
+
+
 def main() -> None:
     """Main hook entry point for PostToolUse."""
-    # Only run when tim-loop is active - this is a tim-loop specific hook
-    if not is_tim_loop_active():
+    # Check if excuse detector is disabled via env var
+    if not is_excuse_detector_enabled():
+        sys.exit(0)
+
+    # Skip detection when user is interacting (they typed something)
+    if check_and_clear_user_initiated_marker():
         sys.exit(0)
 
     try:
