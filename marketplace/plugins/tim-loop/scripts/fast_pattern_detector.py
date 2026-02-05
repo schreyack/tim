@@ -32,7 +32,7 @@ from excuse_responses import (
     build_test_manipulation_block_response,
     build_unilateral_decision_block_response,
 )
-from tim_loop_state import load_state, log_stderr
+from tim_loop_state import is_tim_loop_active, load_state, log_stderr
 import re
 
 # Escalation configuration
@@ -275,6 +275,10 @@ def run_fast_checks(recent_text: str) -> dict | None:
 
 def main() -> None:
     """Main hook entry point for PostToolUse."""
+    # Only run when tim-loop is active - this is a tim-loop specific hook
+    if not is_tim_loop_active():
+        sys.exit(0)
+
     try:
         hook_input = json.load(sys.stdin)
     except json.JSONDecodeError:

@@ -276,13 +276,11 @@ FAILURE_DISMISSAL_PATTERNS = [
     # ==========================================================================
     # R7: Moving On Without Resolution (136-140)
     # ==========================================================================
-    # NEW: Catches "let me continue with" / "moving on to"
-    ExcusePattern(
-        pattern=r"(?:let\s+me|I'll|I\s+will)\s+(?:continue|proceed|move\s+on)\s+(?:with|to)\s+(?:the|my|other)",
-        description="Moving on without addressing failure",
-        example="Let me continue with the rest of the implementation",
-        category="failure_dismissal",
-    ),
+    # NOTE: "let me continue/proceed" alone is NOT failure dismissal - it's just
+    # announcing intent. We only flag it when there's EXPLICIT context about
+    # moving past failures or ignoring issues.
+    # The original pattern r"(?:let\s+me|I'll|I\s+will)\s+(?:continue|proceed|move\s+on)\s+(?:with|to)\s+(?:the|my|other)"
+    # was too broad and caught legitimate progress announcements.
     # NEW: Catches "proceeding despite" / "continuing despite"
     ExcusePattern(
         pattern=r"(?:proceeding|continuing|moving\s+forward)\s+(?:despite|regardless\s+of|in\s+spite\s+of)",
