@@ -220,8 +220,8 @@ def run_fast_checks(recent_text: str) -> tuple[str, str] | None:
     """Run fast regex-only checks. Returns (category, details) or None."""
     review_mode = get_review_mode()
 
-    # Pass 1: Mode violation check (only in review modes)
-    if review_mode:
+    # Pass 1: Mode violation check (only in review modes, skip in implement mode)
+    if review_mode and not is_implement_mode():
         mode_violations = find_mode_violations(recent_text, review_mode)
         if mode_violations:
             details = "\n".join(f"  - {v}" for v in mode_violations)

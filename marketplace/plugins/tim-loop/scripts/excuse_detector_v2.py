@@ -160,7 +160,7 @@ def is_implement_mode() -> bool:
 def check_mode_violations(assistant_text: str) -> tuple[str, str] | None:
     """Check for mode violations. Returns (category, details) or None."""
     review_mode = get_review_mode()
-    if not review_mode:
+    if not review_mode or is_implement_mode():
         return None
     violations = find_mode_violations(assistant_text, review_mode)
     if violations:
