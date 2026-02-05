@@ -15,7 +15,7 @@
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"
       },
-      "source": "./plugins/tim-loop",
+      "source": "./marketplace/plugins/tim-loop",
       "category": "development"
     }
   ]

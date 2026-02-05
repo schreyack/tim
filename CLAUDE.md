@@ -54,6 +54,9 @@ TIM develops exclusively with AI. Strict enforcement works because AI doesn't fa
 ```
 tim/
 ├── CLAUDE.md                    # This file
+├── .claude-plugin/              # Marketplace definition (NOT for submodule use)
+├── marketplace/                 # Plugin source (NOT for submodule use)
+│   └── plugins/tim-loop/        # tim-loop plugin
 ├── standards/                   # All TIM standards
 │   ├── enforcement/             # Gate definitions, AI review
 │   ├── coding/                  # Language-specific standards
@@ -65,6 +68,8 @@ tim/
 ├── templates/                   # Ready-to-copy configs
 └── tools/                       # Enforcement tools
 ```
+
+**Note:** When using tim as a git submodule, exclude `.claude-plugin/` and `marketplace/` via sparse-checkout. Plugins should come from the marketplace, not the submodule.
 
 
 ---
@@ -179,14 +184,24 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
 
 ### For New TIM Projects
 1. Add tim as git submodule: `git submodule add /path/to/tim lib/tim`
-2. Symlink enforcement configs: `ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml`
-3. Make symlinks immutable: `sudo chflags -h schg .pre-commit-config.yaml`
-4. Create `CLAUDE-PROJECT.md` with project-specific content
-5. Run `tim/bin/sync-claude-md` to generate CLAUDE.md
-6. Create `.tim-patterns.yaml` from template
-7. Install tim-loop plugin
-8. Run `pre-commit install`
-9. Run `tools/tim-compliance-check.sh`
+2. Configure sparse-checkout to exclude plugin directories (plugins come from marketplace):
+   ```bash
+   git -C lib/tim config core.sparseCheckout true
+   cat > .git/modules/lib/tim/info/sparse-checkout << 'EOF'
+   /*
+   !.claude-plugin/
+   !marketplace/
+   EOF
+   git -C lib/tim read-tree -mu HEAD
+   ```
+3. Symlink enforcement configs: `ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml`
+4. Make symlinks immutable: `sudo chflags -h schg .pre-commit-config.yaml`
+5. Create `CLAUDE-PROJECT.md` with project-specific content
+6. Run `tim/bin/sync-claude-md` to generate CLAUDE.md
+7. Create `.tim-patterns.yaml` from template
+8. Install tim-loop plugin from marketplace (not from submodule)
+9. Run `pre-commit install`
+10. Run `tools/tim-compliance-check.sh`
 
 ### For Existing Projects
 1. Run `tools/tim-compliance-check.sh` to identify gaps
@@ -230,7 +245,7 @@ Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 
 When updating tim-loop version, update BOTH:
 - `.claude-plugin/marketplace.json`
-- `plugins/tim-loop/.claude-plugin/plugin.json`
+- `marketplace/plugins/tim-loop/.claude-plugin/plugin.json`
 
 Use semantic versioning: Major (breaking), Minor (features), Patch (fixes).
 
