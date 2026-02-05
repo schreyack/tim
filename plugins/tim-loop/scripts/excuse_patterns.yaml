@@ -30,6 +30,14 @@ mitigation_patterns:
   - "I('m| am) (fixing|addressing|resolving|correcting|updating|refactoring)"
   - "(fixing|addressing|resolving|correcting) (it|this|that) now"
   - "I (have|'ve) (fixed|addressed|resolved|corrected)"
+  # Reporting to human - Claude SHOULD be able to ask about potential false positives
+  - "ask(?:ing)?\\s+(?:the\\s+)?(?:human|user|you)"
+  - "check(?:ing)? with (?:the\\s+)?(?:human|user|you)"
+  - "stop(?:ping)? and (?:ask|tell|report)"
+  - "let me (?:ask|check with|stop and)"
+  - "could you (?:check|verify|confirm|look at)"
+  - "(?:should|can) I (?:ask|check|stop)"
+  - "I('ll| will|'m going to) stop and"
 
 patterns:
   # ==========================================================================
