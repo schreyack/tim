@@ -68,12 +68,33 @@ def _get_entry_role_and_content(entry: dict) -> tuple[str | None, str]:
     return entry.get("role") or entry.get("type"), entry.get("content", "")
 
 
+def is_human_turn(entry: dict) -> bool:
+    """Check if transcript entry is human user input (not a tool result).
+
+    Distinguishes actual user messages from tool_result entries which also
+    have role "user" in the API format.
+    """
+    role, content = _get_entry_role_and_content(entry)
+    if role != "user":
+        return False
+    if isinstance(content, str):
+        return bool(content.strip())
+    if isinstance(content, list):
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                if block.get("text", "").strip():
+                    return True
+    return False
+
+
 def extract_assistant_text(transcript: list[dict], max_messages: int = 0) -> str:
     """Extract assistant (Claude) text from transcript.
 
     Args:
         transcript: The conversation transcript
-        max_messages: If > 0, only extract from the last N assistant messages.
+        max_messages: If > 0, only extract from the last N assistant messages,
+                      stopping at the most recent human turn boundary so content
+                      from before the user's response is never re-scanned.
                       If 0, extract from all messages (default for backwards compat).
     """
     texts = []
@@ -83,6 +104,9 @@ def extract_assistant_text(transcript: list[dict], max_messages: int = 0) -> str
     entries = reversed(transcript) if max_messages > 0 else transcript
 
     for entry in entries:
+        # When scanning recent messages, stop at human turn boundary
+        if max_messages > 0 and is_human_turn(entry):
+            break
         role, content = _get_entry_role_and_content(entry)
         if role == "assistant":
             texts.extend(extract_text_from_content(content))

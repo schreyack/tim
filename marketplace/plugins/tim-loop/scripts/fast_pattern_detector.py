@@ -116,12 +116,33 @@ def _extract_text_from_content(content: str | list) -> list[str]:
     return texts
 
 
+def _is_human_turn(entry: dict) -> bool:
+    """Check if transcript entry is human user input (not a tool result)."""
+    role, content = _get_role_and_content(entry)
+    if role != "user":
+        return False
+    if isinstance(content, str):
+        return bool(content.strip())
+    if isinstance(content, list):
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                if block.get("text", "").strip():
+                    return True
+    return False
+
+
 def extract_recent_assistant_text(transcript: list[dict], max_messages: int = 10) -> str:
-    """Extract recent assistant text from transcript (last N messages)."""
+    """Extract recent assistant text from transcript since last human message.
+
+    Stops at the most recent human turn boundary so content from before
+    the user's response is never re-scanned.
+    """
     texts = []
     message_count = 0
 
     for entry in reversed(transcript):
+        if _is_human_turn(entry):
+            break
         role, content = _get_role_and_content(entry)
         if role != "assistant":
             continue
