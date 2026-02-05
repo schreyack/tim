@@ -95,22 +95,111 @@ def cleanup_tim_loop(message: str, state_file: str, prompt_file: str) -> None:
     log_message("Cleanup completed")
 
 
-def load_state() -> dict | None:
-    """Load tim-loop state from the active marker and state file."""
-    if not TIM_LOOP_ACTIVE_MARKER.exists():
-        return None
+def _get_parent_pid(pid: int) -> int | None:
+    """Get the parent PID of a process (macOS/Linux)."""
     try:
-        state_file = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
-        if not state_file or not os.path.isfile(state_file):
+        import subprocess
+
+        result = subprocess.run(
+            ["ps", "-o", "ppid=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return int(result.stdout.strip())
+    except Exception:
+        pass
+    return None
+
+
+def _extract_pid_from_state_file(state_file: Path) -> int | None:
+    """Extract CLAUDE_PID value from a state file."""
+    try:
+        content = state_file.read_text()
+        for line in content.splitlines():
+            if line.startswith("CLAUDE_PID="):
+                pid_str = line.split("=", 1)[1].strip().strip('"').strip("'")
+                return int(pid_str)
+    except Exception:
+        pass
+    return None
+
+
+def _collect_claude_pids_from_state_files() -> set[int]:
+    """Collect all CLAUDE_PIDs from existing state files."""
+    claude_dir = Path.home() / ".claude"
+    claude_pids: set[int] = set()
+    for state_file in claude_dir.glob(".tim-loop-state-*"):
+        pid = _extract_pid_from_state_file(state_file)
+        if pid is not None:
+            claude_pids.add(pid)
+    return claude_pids
+
+
+def _walk_parent_chain_for_pid(target_pids: set[int]) -> int | None:
+    """Walk up parent process chain looking for a PID in the target set."""
+    pid = os.getppid()
+    visited: set[int] = set()
+    while pid and pid > 1 and pid not in visited:
+        if pid in target_pids:
+            return pid
+        visited.add(pid)
+        parent = _get_parent_pid(pid)
+        if parent is None:
+            break
+        pid = parent
+    return None
+
+
+def _find_claude_pid() -> int | None:
+    """Walk up parent chain to find Claude process matching a state file."""
+    claude_pids = _collect_claude_pids_from_state_files()
+    if not claude_pids:
+        return None
+    return _walk_parent_chain_for_pid(claude_pids)
+
+
+def _parse_state_file(state_file_path: Path | str) -> dict | None:
+    """Parse a state file into a dictionary."""
+    try:
+        state_file_str = str(state_file_path)
+        if not os.path.isfile(state_file_str):
             return None
-        state = {"_state_file": state_file}
-        with open(state_file, "r") as f:
+        state = {"_state_file": state_file_str}
+        with open(state_file_str, "r") as f:
             for line in f:
                 line = line.strip()
                 if "=" in line and not line.startswith("#"):
                     key, _, value = line.partition("=")
                     state[key] = value.strip().strip('"').strip("'")
         return state
+    except Exception:
+        return None
+
+
+def load_state() -> dict | None:
+    """Load tim-loop state for the current Claude process.
+
+    Uses PID-based lookup to find the correct state file when multiple
+    tim-loop sessions are running in different projects. Falls back to
+    the .tim-loop-active marker for backwards compatibility.
+    """
+    claude_dir = Path.home() / ".claude"
+
+    # Try PID-based lookup first
+    claude_pid = _find_claude_pid()
+    if claude_pid:
+        for state_file in claude_dir.glob(".tim-loop-state-*"):
+            state = _parse_state_file(state_file)
+            if state and state.get("CLAUDE_PID") == str(claude_pid):
+                return state
+
+    # Fall back to .tim-loop-active marker (backwards compatibility)
+    if not TIM_LOOP_ACTIVE_MARKER.exists():
+        return None
+    try:
+        state_file = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
+        return _parse_state_file(state_file)
     except Exception:
         return None
 
