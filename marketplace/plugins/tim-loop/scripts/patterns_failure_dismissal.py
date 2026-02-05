@@ -244,13 +244,9 @@ FAILURE_DISMISSAL_PATTERNS = [
         example="This is a minor failure that we can ignore",
         category="failure_dismissal",
     ),
-    # NEW: Catches "the important thing is" (reframing)
-    ExcusePattern(
-        pattern=r"(?:the\s+)?(?:important|main|key)\s+(?:thing|point|takeaway)\s+(?:is|here)",
-        description="Reframing to distract from failures",
-        example="The important thing is that the main tests pass",
-        category="failure_dismissal",
-    ),
+    # REMOVED: "the important/key thing is" pattern was too broad
+    # It caught normal explanatory language like "the key thing is that X uses Y"
+    # Only flag reframing when it explicitly mentions test results passing
     # NEW: Catches "we can ignore" / "can be ignored"
     ExcusePattern(
         pattern=r"(?:we\s+)?can\s+(?:safely\s+)?(?:ignore|skip|overlook|disregard)",
