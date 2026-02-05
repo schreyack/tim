@@ -21,7 +21,7 @@ import ast
 from pathlib import Path
 from typing import NamedTuple
 
-from tim_loop_halt import system_halt, build_halt_details_from_violations
+from tim_loop_halt import system_warning, build_halt_details_from_violations
 
 
 class Limits(NamedTuple):
@@ -243,12 +243,12 @@ def build_guidance_text(violations: list[Violation]) -> str:
     return "\n\n".join(sections)
 
 
-def issue_code_quality_halt(file_name: str, violations: list[Violation]) -> None:
-    """Issue a full system halt for code quality violations. Never returns."""
+def issue_code_quality_warning(file_name: str, violations: list[Violation]) -> None:
+    """Issue a warning for code quality violations. Claude continues to fix them."""
     details = build_halt_details_from_violations(violations)
     guidance = build_guidance_text(violations)
     recovery = f"{guidance}\n\nFix these violations before continuing."
-    system_halt("CODE QUALITY", f"File: {file_name}\n\n{details}", recovery_instructions=recovery)
+    system_warning("CODE QUALITY", f"File: {file_name}\n\n{details}", recovery_instructions=recovery)
 
 
 def parse_hook_input() -> tuple[str, dict] | None:
@@ -286,8 +286,8 @@ def main():
     error_violations = [v for v in violations if v.severity == "error"]
 
     if error_violations:
-        # FULL SYSTEM HALT - this call never returns
-        issue_code_quality_halt(file_path.name, error_violations)
+        # Warning - Claude continues and fixes the violations
+        issue_code_quality_warning(file_path.name, error_violations)
 
     sys.exit(0)
 

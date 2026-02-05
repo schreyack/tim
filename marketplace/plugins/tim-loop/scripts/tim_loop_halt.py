@@ -78,6 +78,42 @@ def system_halt(
     sys.exit(0)
 
 
+def system_warning(
+    category: str,
+    details: str,
+    *,
+    recovery_instructions: str = "",
+) -> None:
+    """
+    Issue a warning that Claude sees but can continue from.
+
+    Unlike system_halt(), this does NOT stop Claude. It provides feedback
+    about violations and tells Claude to fix them before moving on.
+    Used for fixable issues like code quality violations where stopping
+    is counterproductive — Claude should just fix the problem.
+    """
+    version = get_plugin_version()
+    header = f"⚠️ CODE QUALITY WARNING (v{version})\n\n"
+    recovery = ""
+    if recovery_instructions:
+        recovery = f"ACTION REQUIRED:\n{recovery_instructions}\n\n"
+
+    message = (
+        f"{header}"
+        f"DETAILS:\n{details}\n\n"
+        f"{recovery}"
+        f"Fix these issues now before continuing with your current task."
+    )
+
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "additionalContext": message,
+        }
+    }))
+    sys.exit(0)
+
+
 def build_halt_details_from_patterns(
     patterns: list[tuple],
     intro: str = "The following patterns were detected:",
