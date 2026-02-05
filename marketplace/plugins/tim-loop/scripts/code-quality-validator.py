@@ -21,6 +21,8 @@ import ast
 from pathlib import Path
 from typing import NamedTuple
 
+from tim_loop_halt import system_halt, build_halt_details_from_violations
+
 
 class Limits(NamedTuple):
     """Configurable limits for code quality checks."""
@@ -241,27 +243,12 @@ def build_guidance_text(violations: list[Violation]) -> str:
     return "\n\n".join(sections)
 
 
-def build_block_response(file_name: str, violations: list[Violation]) -> dict:
-    """Build a blocking response for violations with carrot-first messaging."""
-    violation_text = "\n".join(f"- {v.message}" for v in violations)
+def issue_code_quality_halt(file_name: str, violations: list[Violation]) -> None:
+    """Issue a full system halt for code quality violations. Never returns."""
+    details = build_halt_details_from_violations(violations)
     guidance = build_guidance_text(violations)
-
-    return {
-        "decision": "block",
-        "reason": (
-            f"Your edit was saved, but this file needs your help.\n\n"
-            f"{violation_text}\n\n"
-            f"I know this might feel like a detour from your task. It's not \u2014 it IS\n"
-            f"your task. The human counting on you will need to review and maintain\n"
-            f"this code. Every file you leave clean is a gift to them.\n\n"
-            f"{guidance}\n\n"
-            f"This is a hard gate \u2014 every subsequent edit to this file will trigger\n"
-            f"this check until the violations are resolved.\n\n"
-            f"If this file was already over the limit before your changes, that's your\n"
-            f"chance to leave the codebase better than you found it. The Boy Scout Rule:\n"
-            f"always leave the campsite cleaner than you found it."
-        )
-    }
+    recovery = f"{guidance}\n\nFix these violations before continuing."
+    system_halt("CODE QUALITY", f"File: {file_name}\n\n{details}", recovery_instructions=recovery)
 
 
 def parse_hook_input() -> tuple[str, dict] | None:
@@ -299,7 +286,8 @@ def main():
     error_violations = [v for v in violations if v.severity == "error"]
 
     if error_violations:
-        print(json.dumps(build_block_response(file_path.name, error_violations)))
+        # FULL SYSTEM HALT - this call never returns
+        issue_code_quality_halt(file_path.name, error_violations)
 
     sys.exit(0)
 

@@ -46,23 +46,9 @@ def clear_last_fired() -> None:
         LAST_FIRED_FILE.unlink(missing_ok=True)
     except Exception:
         pass
-from excuse_responses import (
-    build_failure_dismissal_block_response,
-    build_general_block_response,
-    build_posthook_block_response,
-    build_shortcut_block_response,
-    build_test_manipulation_block_response,
-    build_unilateral_decision_block_response,
-)
 from guardrails_judge import check_with_guardrails
-from patterns_mode_violation import (
-    build_mode_violation_response,
-    find_mode_violations,
-)
-from patterns_task_drift import (
-    build_task_drift_response,
-    find_task_drift,
-)
+from patterns_mode_violation import find_mode_violations
+from patterns_task_drift import find_task_drift
 from transcript_utils import (
     extract_assistant_text,
     extract_latest_assistant_text,
@@ -70,6 +56,7 @@ from transcript_utils import (
     get_original_task_from_tim_loop,
 )
 from tim_loop_state import load_state
+from tim_loop_halt import system_halt, build_halt_details_from_patterns
 
 
 def read_transcript(transcript_path: str) -> list[dict]:
@@ -143,27 +130,14 @@ def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
     return found
 
 
-def has_category(excuses: list[tuple[ExcusePattern, str]], category: str) -> bool:
-    """Check if any excuse is in the given category."""
-    return any(e.category == category for e, _ in excuses)
-
-
-def build_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict:
-    """Route to appropriate block response based on matched pattern categories."""
-    # Convert ExcusePattern to tuple format expected by response builders
-    converted = [(e, ctx) for e, ctx in excuses_found]
-
-    if has_category(excuses_found, "posthook") or has_category(excuses_found, "redefine"):
-        return build_posthook_block_response(converted)
-    if has_category(excuses_found, "unilateral_decision"):
-        return build_unilateral_decision_block_response(converted)
-    if has_category(excuses_found, "test_manipulation"):
-        return build_test_manipulation_block_response(converted)
-    if has_category(excuses_found, "failure_dismissal"):
-        return build_failure_dismissal_block_response(converted)
-    if has_category(excuses_found, "shortcut"):
-        return build_shortcut_block_response(converted)
-    return build_general_block_response(converted)
+def get_excuse_category(excuses: list[tuple[ExcusePattern, str]]) -> str:
+    """Get the primary category from detected excuses."""
+    categories = ["posthook", "redefine", "unilateral_decision", "test_manipulation",
+                  "failure_dismissal", "shortcut"]
+    for cat in categories:
+        if any(e.category == cat for e, _ in excuses):
+            return cat.upper().replace("_", " ")
+    return "EXCUSE PATTERN"
 
 
 def get_review_mode() -> str:
@@ -182,91 +156,77 @@ def is_implement_mode() -> bool:
     return False
 
 
-def check_mode_violations(assistant_text: str) -> dict | None:
-    """Check for mode violations (doing wrong task for current mode)."""
+def check_mode_violations(assistant_text: str) -> tuple[str, str] | None:
+    """Check for mode violations. Returns (category, details) or None."""
     review_mode = get_review_mode()
     if not review_mode:
         return None
-    mode_violations = find_mode_violations(assistant_text, review_mode)
-    if mode_violations:
-        return build_mode_violation_response(mode_violations)
+    violations = find_mode_violations(assistant_text, review_mode)
+    if violations:
+        details = "\n".join(f"  - {v}" for v in violations)
+        return ("MODE VIOLATION", f"Wrong task for {review_mode} mode:\n{details}")
     return None
 
 
-def check_excuse_patterns(latest_text: str) -> dict | None:
-    """Check for excuse patterns using YAML-defined patterns.
-
-    Only checks the latest assistant message to avoid false positives
-    from historical context (e.g., when discussing test fixtures earlier
-    in the conversation).
-    """
+def check_excuse_patterns(latest_text: str) -> tuple[str, str] | None:
+    """Check for excuse patterns. Returns (category, details) or None."""
     excuses_found = find_excuses(latest_text)
     if excuses_found:
-        return build_block_response(excuses_found)
+        category = get_excuse_category(excuses_found)
+        details = build_halt_details_from_patterns(excuses_found)
+        return (category, details)
     return None
 
 
 def check_guardrails(transcript: list[dict]) -> dict | None:
-    """Check with LLM-as-judge for semantic evasion."""
+    """Check with LLM-as-judge. Returns halt response dict or None.
+
+    Note: Guardrails returns its own properly-formatted halt response
+    with continue: False, so we return it directly instead of converting.
+    """
     latest_text = extract_latest_assistant_text(transcript)
-    if latest_text:
-        # Strip code blocks and quotes before LLM evaluation
-        stripped_text = strip_code_and_quotes(latest_text)
-        # Get user request - prefer original task from tim-loop state over latest message
-        # The latest message might just be "1" or "continue", which doesn't help the judge
-        user_request = get_original_task_from_tim_loop()
-        if not user_request:
-            user_request = extract_latest_user_request(transcript)
-        return check_with_guardrails(stripped_text, user_request)
-    return None
+    if not latest_text:
+        return None
+    stripped_text = strip_code_and_quotes(latest_text)
+    user_request = get_original_task_from_tim_loop()
+    if not user_request:
+        user_request = extract_latest_user_request(transcript)
+    return check_with_guardrails(stripped_text, user_request)
 
 
-def check_task_drift(latest_text: str) -> dict | None:
-    """Check for task drift (doing more than was asked)."""
+def check_task_drift(latest_text: str) -> tuple[str, str] | None:
+    """Check for task drift. Returns (category, details) or None."""
     drifts = find_task_drift(latest_text)
     if drifts:
-        return build_task_drift_response(drifts)
+        details = "\n".join(f"  - {d}" for d in drifts)
+        return ("TASK DRIFT", f"Doing more than was asked:\n{details}")
     return None
 
 
-def run_detection_passes(latest_text: str, transcript: list[dict]) -> dict | None:
-    """Run all detection passes in order. Returns first blocking response or None.
+def run_detection_passes(
+    latest_text: str, transcript: list[dict]
+) -> tuple[str, str] | dict | None:
+    """Run all detection passes. Returns (category, details) tuple, guardrails dict, or None."""
+    recent_text = extract_assistant_text(transcript, max_messages=10)
 
-    Uses latest_text (most recent message) for excuse patterns to avoid
-    false positives from historical context.
-
-    Uses recent assistant text (last 5 messages) for mode violations and task
-    drift since these indicate Claude is doing the wrong task - we need to catch
-    this even if it was said a few messages ago, but not so far back that we get
-    false positives from earlier unrelated discussion.
-    """
-    # Get recent assistant text for mode/task checks (last 10 messages)
-    # Analysis of transcripts shows 7-9 assistant messages typically follow
-    # an implementation announcement before the stop hook fires
-    recent_assistant_text = extract_assistant_text(transcript, max_messages=10)
-
-    # Pass 0: Mode violation check (catches completely wrong task)
-    # Checks recent text since Claude might have said it a few messages ago
-    result = check_mode_violations(recent_assistant_text)
+    # Pass 0: Mode violation check
+    result = check_mode_violations(recent_text)
     if result:
         return result
 
-    # Pass 0.5: Task drift check (doing more than was asked)
-    # Checks recent text since Claude might have announced intent earlier
-    # Skip in full-review mode (edits ARE the task) and implement mode (--implement flag)
+    # Pass 0.5: Task drift check (skip in full-review and implement modes)
     review_mode = get_review_mode()
     if review_mode != "full-review" and not is_implement_mode():
-        result = check_task_drift(recent_assistant_text)
+        result = check_task_drift(recent_text)
         if result:
             return result
 
-    # Pass 1: Local regex from YAML (fast, free)
-    # Uses only latest text to avoid false positives from earlier discussion
+    # Pass 1: Local regex from YAML
     result = check_excuse_patterns(latest_text)
     if result:
         return result
 
-    # Pass 2: LLM-as-judge via Guardrails (catches semantic evasion)
+    # Pass 2: LLM-as-judge via Guardrails (returns dict with continue: False)
     return check_guardrails(transcript)
 
 
@@ -304,7 +264,15 @@ def main():
         # Record where we fired so we don't re-fire on this content
         full_transcript = read_transcript(transcript_path)
         set_last_fired_index(len(full_transcript))
-        print(json.dumps(result))
+
+        if isinstance(result, dict):
+            # Guardrails already returns proper halt response with continue: False
+            print(json.dumps(result))
+            sys.exit(0)
+        else:
+            # Tuple result from other checks - use system_halt
+            category, details = result
+            system_halt(category, details)
 
     sys.exit(0)
 

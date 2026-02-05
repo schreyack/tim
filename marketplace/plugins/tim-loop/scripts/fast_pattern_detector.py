@@ -21,18 +21,11 @@ import json
 import sys
 from pathlib import Path
 
-from patterns_mode_violation import build_mode_violation_response, find_mode_violations
-from patterns_task_drift import build_task_drift_response, find_task_drift
+from patterns_mode_violation import find_mode_violations
+from patterns_task_drift import find_task_drift
 from excuse_pattern_loader import ExcusePattern, get_pattern_config
-from excuse_responses import (
-    build_failure_dismissal_block_response,
-    build_general_block_response,
-    build_posthook_block_response,
-    build_shortcut_block_response,
-    build_test_manipulation_block_response,
-    build_unilateral_decision_block_response,
-)
 from tim_loop_state import is_tim_loop_active, load_state, log_stderr
+from tim_loop_halt import system_halt, build_halt_details_from_patterns
 import re
 
 # Escalation configuration
@@ -70,48 +63,15 @@ def reset_block_count() -> None:
         pass
 
 
-def build_escalated_response(base_response: dict, block_count: int) -> dict:
-    """Wrap a block response with escalation warnings based on count."""
-    if block_count < ESCALATION_THRESHOLD:
-        return base_response
-
-    reason = base_response.get("reason", base_response.get("message", ""))
-
-    if block_count >= HARD_STOP_THRESHOLD:
-        # HARD STOP - this is non-negotiable
-        log_stderr(f"Tim Loop: HARD STOP after {block_count} consecutive blocks")
-        escalated = (
-            f"## 🛑 HARD STOP - {block_count} CONSECUTIVE BLOCKS 🛑\n\n"
-            f"**This hook has fired {block_count} times. You have ignored it every time.**\n\n"
-            f"This is NOT a negotiation. This is NOT a false positive.\n"
-            f"The human placed this hook here for a reason.\n\n"
-            f"**YOU MUST STOP AND ASK THE HUMAN FOR HELP.**\n\n"
-            f"Do NOT:\n"
-            f"- Continue what you were doing\n"
-            f"- Argue this is a false positive\n"
-            f"- Try a different approach to the same action\n"
-            f"- Output any code or tool calls\n\n"
-            f"Do THIS:\n"
-            f"1. Acknowledge you've been blocked {block_count} times\n"
-            f"2. Explain what you're trying to do and why\n"
-            f"3. Ask the human how to proceed\n\n"
-            f"---\n\n"
-            f"Original block reason:\n{reason}"
-        )
-        return {"decision": "block", "reason": escalated}
-
-    # Escalated warning (but not hard stop yet)
-    log_stderr(f"Tim Loop: Escalated block ({block_count} consecutive)")
-    escalated = (
-        f"## ⚠️ ESCALATION: {block_count} CONSECUTIVE BLOCKS ⚠️\n\n"
-        f"**This is the {block_count}th time this hook has blocked you.**\n\n"
-        f"If you keep ignoring this, the next block will be a HARD STOP.\n\n"
-        f"The hook is NOT wrong. YOU need to change your approach.\n"
-        f"Stop arguing with the hook and actually do what it's asking.\n\n"
-        f"---\n\n"
-        f"{reason}"
+def issue_halt_for_violation(category: str, details: str, block_count: int) -> None:
+    """Issue a full system halt. This function never returns."""
+    log_stderr(f"Tim Loop: FULL SYSTEM HALT after {block_count} consecutive blocks")
+    system_halt(
+        category,
+        details,
+        is_escalation=block_count >= ESCALATION_THRESHOLD,
+        escalation_count=block_count,
     )
-    return {"decision": "block", "reason": escalated}
 
 
 def read_transcript(transcript_path: str) -> list[dict]:
@@ -224,51 +184,40 @@ def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
     return found
 
 
-def has_category(excuses: list[tuple[ExcusePattern, str]], category: str) -> bool:
-    """Check if any excuse is in the given category."""
-    return any(e.category == category for e, _ in excuses)
+def get_excuse_category(excuses: list[tuple[ExcusePattern, str]]) -> str:
+    """Get the primary category from detected excuses."""
+    categories = ["posthook", "redefine", "unilateral_decision", "test_manipulation",
+                  "failure_dismissal", "shortcut"]
+    for cat in categories:
+        if any(e.category == cat for e, _ in excuses):
+            return cat.upper().replace("_", " ")
+    return "EXCUSE PATTERN"
 
 
-def build_excuse_block_response(excuses_found: list[tuple[ExcusePattern, str]]) -> dict:
-    """Route to appropriate block response based on matched pattern categories."""
-    converted = [(e, ctx) for e, ctx in excuses_found]
-
-    if has_category(excuses_found, "posthook") or has_category(excuses_found, "redefine"):
-        return build_posthook_block_response(converted)
-    if has_category(excuses_found, "unilateral_decision"):
-        return build_unilateral_decision_block_response(converted)
-    if has_category(excuses_found, "test_manipulation"):
-        return build_test_manipulation_block_response(converted)
-    if has_category(excuses_found, "failure_dismissal"):
-        return build_failure_dismissal_block_response(converted)
-    if has_category(excuses_found, "shortcut"):
-        return build_shortcut_block_response(converted)
-    return build_general_block_response(converted)
-
-
-def run_fast_checks(recent_text: str) -> dict | None:
-    """Run fast regex-only checks. Returns blocking response or None."""
+def run_fast_checks(recent_text: str) -> tuple[str, str] | None:
+    """Run fast regex-only checks. Returns (category, details) or None."""
     review_mode = get_review_mode()
 
     # Pass 1: Mode violation check (only in review modes)
     if review_mode:
         mode_violations = find_mode_violations(recent_text, review_mode)
         if mode_violations:
-            return build_mode_violation_response(mode_violations)
+            details = "\n".join(f"  - {v}" for v in mode_violations)
+            return ("MODE VIOLATION", f"Wrong task for {review_mode} mode:\n{details}")
 
     # Pass 2: Task drift check (skip in full-review and implement modes)
-    # In full-review mode, the agent is explicitly instructed to make improvements
-    # to the plan, so "let me fix this" is legitimate work, not drift.
-    # In implement mode (--implement flag), implementation is explicitly requested.
     if review_mode != "full-review" and not is_implement_mode():
         task_drifts = find_task_drift(recent_text)
         if task_drifts:
-            return build_task_drift_response(task_drifts)
+            details = "\n".join(f"  - {d}" for d in task_drifts)
+            return ("TASK DRIFT", f"Doing more than was asked:\n{details}")
 
     # Pass 3: Excuse patterns from YAML
     excuses = find_excuses(recent_text)
     if excuses:
-        return build_excuse_block_response(excuses)
+        category = get_excuse_category(excuses)
+        details = build_halt_details_from_patterns(excuses)
+        return (category, details)
 
     return None
 
@@ -303,15 +252,13 @@ def main() -> None:
 
     result = run_fast_checks(recent_text)
     if result:
-        # Block detected - increment counter and potentially escalate
+        category, details = result
         block_count = increment_block_count()
-        escalated_result = build_escalated_response(result, block_count)
-        print(json.dumps(escalated_result))
+        # FULL SYSTEM HALT - this call never returns
+        issue_halt_for_violation(category, details, block_count)
     else:
-        # No violation - reset the consecutive block counter
         reset_block_count()
-
-    sys.exit(0)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
