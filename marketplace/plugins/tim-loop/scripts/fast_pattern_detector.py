@@ -171,10 +171,12 @@ def is_implement_mode() -> bool:
 
 
 def strip_code_and_quotes(text: str) -> str:
-    """Remove code blocks and quoted content to avoid false positives."""
+    """Remove code blocks, quoted content, and quoted strings to avoid false positives."""
     text = re.sub(r"```[\s\S]*?```", "", text)
     text = re.sub(r"`[^`]+`", "", text)
     text = re.sub(r"^>.*$", "", text, flags=re.MULTILINE)
+    # Remove double-quoted strings (agent quoting previous text)
+    text = re.sub(r'"[^"\n]{10,}"', "", text)
     return text
 
 

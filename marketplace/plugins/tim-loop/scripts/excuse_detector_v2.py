@@ -81,12 +81,13 @@ def read_transcript(transcript_path: str) -> list[dict]:
 
 
 def strip_code_and_quotes(text: str) -> str:
-    """Remove code blocks and quoted content to avoid false positives.
+    """Remove code blocks, quoted content, and quoted strings to avoid false positives.
 
     Strips:
     - Fenced code blocks (```...```)
     - Inline code (`...`)
     - Blockquotes (lines starting with >)
+    - Double-quoted strings (agent quoting previous text)
     """
     # Remove fenced code blocks (multiline)
     text = re.sub(r"```[\s\S]*?```", "", text)
@@ -96,6 +97,9 @@ def strip_code_and_quotes(text: str) -> str:
 
     # Remove blockquote lines
     text = re.sub(r"^>.*$", "", text, flags=re.MULTILINE)
+
+    # Remove double-quoted strings (agent quoting previous text)
+    text = re.sub(r'"[^"\n]{10,}"', "", text)
 
     return text
 
