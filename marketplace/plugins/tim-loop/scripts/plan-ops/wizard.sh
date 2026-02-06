@@ -54,6 +54,9 @@ reset_plan_for_full_review() {
     # Reset status fields for full review
     reset_for_full_review "$WIZARD_PLAN_FILE"
 
+    # Ensure all required Status Header fields exist (fixes plans with missing fields)
+    ensure_status_header_fields "$WIZARD_PLAN_FILE"
+
     # Add progress log entry
     update_status "$WIZARD_PLAN_FILE" "draft" "Reset for full review by ${WIZARD_USER_NAME}"
 

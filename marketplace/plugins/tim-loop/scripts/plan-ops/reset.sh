@@ -32,6 +32,9 @@ reset_for_full_review() {
         return 1
     fi
 
+    # Ensure all required Status Header fields exist before resetting
+    ensure_status_header_fields "$file"
+
     # Reset Plan Review to required
     if grep -qE "\| Plan Review[[:space:]]*\|" "$file"; then
         sed -i '' "s/| Plan Review[[:space:]]*|[^|]*|/| Plan Review | required |/" "$file"
