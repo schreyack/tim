@@ -5,6 +5,7 @@ This file provides guidance to Claude Code when working with TIM projects.
 ---
 
 ## Critical Rules
+
 - **Help the Human** - Deflecting requests because you didn't cause a problem is not helpful.  If the human asks you to resolve an issue, they are not blaming you, they need the problem resolved.
 - **Follow requests exactly** - If uncertain, ASK rather than guess
 - **Investigate root causes** - No quick workarounds that mask issues, the objective is functioning code, not quickest resolution
@@ -37,12 +38,14 @@ This is the **TIM Standards** repository - the authoritative source for coding, 
 TIM develops exclusively with AI. Strict enforcement works because AI doesn't fatigue from iteration - when code fails checks, the agent simply tries again. This makes feedback loops incredibly powerful.
 
 **Key behaviors:**
+
 - Hard gates catch AI mistakes - plausible-sounding bugs need verification
 - NO bypass flags anywhere - if AI can bypass, AI will bypass
 - Human approval is the escape hatch for blocked operations
 - If you touched a file with violations, you must fix them (no "it was already broken")
 
 **AI Behavioral Gates** enforce rules in real-time:
+
 - Code Quality Validator: File >400 lines, function >50 lines → BLOCKED
 - Excuse Pattern Detector: Deflection like "was already broken" → BLOCKED
 
@@ -51,7 +54,7 @@ TIM develops exclusively with AI. Strict enforcement works because AI doesn't fa
 
 ## Repository Structure
 
-```
+```text
 tim/
 ├── CLAUDE.md                    # This file
 ├── .claude-plugin/              # Marketplace definition (NOT for submodule use)
@@ -70,7 +73,6 @@ tim/
 ```
 
 **Note:** When using tim as a git submodule, exclude `.claude-plugin/` and `marketplace/` via sparse-checkout. Plugins should come from the marketplace, not the submodule.
-
 
 ---
 
@@ -129,26 +131,31 @@ Local development is disabled by default. A human must run `tim-local-dev-enable
 ## Hard Rules (No Exceptions)
 
 **Code Quality:**
+
 - Python: `mypy --strict`, ruff with security rules
 - TypeScript: `strict: true`, `eslint --max-warnings 0`
 - Coverage: 90% minimum, 95% for new code
 - Shared library MUST be used
 
 **Security:**
+
 - Secrets NEVER committed (pre-commit blocks)
 - All external input validated (Pydantic/Zod)
 - Required headers: CSP, HSTS, X-Content-Type-Options, X-Frame-Options
 - HIGH/CRITICAL vulnerabilities block merge
 
 **Database:**
+
 - Migrations only - no sync(), create_all(), or manual DDL
 - Every migration must have tested rollback
 
 **Testing:**
+
 - Naming: `test_<what>_<when>_<then>`
 - TDD for new features
 
 **Code Style:**
+
 - No TODO/FIXME/XXX comments
 - No placeholder code (NotImplementedError, pass, ...)
 - No print debugging - use logging
@@ -167,7 +174,6 @@ Every piece of data must have exactly one authoritative source. Define once, imp
 
 **Tests are diagnostic tools, not goals.** The objective is a functioning application, not passing tests.
 
-
 ---
 
 ## Plan Lifecycle Management
@@ -176,15 +182,16 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
 
 **No optional work** - Everything in a plan is required. No "nice to have" items.
 
-
 <!-- TIM-ONLY-START -->
 ---
 
 ## Using This Repository
 
 ### For New TIM Projects
+
 1. Add tim as git submodule: `git submodule add /path/to/tim lib/tim`
 2. Configure sparse-checkout to exclude plugin directories (plugins come from marketplace):
+
    ```bash
    git -C lib/tim config core.sparseCheckout true
    cat > .git/modules/lib/tim/info/sparse-checkout << 'EOF'
@@ -193,7 +200,9 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
    !marketplace/
    EOF
    git -C lib/tim read-tree -mu HEAD
+
    ```
+
 3. Generate pre-commit config: `lib/tim/bin/sync-pre-commit <project>`
 4. Optionally create `.pre-commit-overrides.yaml` for project-specific hooks
 5. Create `CLAUDE-PROJECT.md` with project-specific content
@@ -204,6 +213,7 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
 10. Run `tools/tim-compliance-check.sh`
 
 ### For Existing Projects
+
 1. Run `tools/tim-compliance-check.sh` to identify gaps
 2. Add tim submodule and symlink configs (see above)
 3. Install tim-loop plugin
@@ -211,7 +221,9 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
 5. Migrate to remote-first deployment
 
 ### Updating Tim Standards in Projects
+
 When tim is updated, run in each project:
+
 ```bash
 cd lib/tim && git pull origin main
 cd ../..
@@ -247,6 +259,7 @@ Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 ## Plugin Version Management
 
 When updating tim-loop version, update BOTH:
+
 - `.claude-plugin/marketplace.json`
 - `marketplace/plugins/tim-loop/.claude-plugin/plugin.json`
 
@@ -270,6 +283,7 @@ Use semantic versioning: Major (breaking), Minor (features), Patch (fixes).
 ## AI Developer Acknowledgment
 
 Before making changes, confirm you understand:
+
 1. All rules in this CLAUDE.md
 2. Test naming: `test_what_when_then`
 3. File size limits: 400 lines max
