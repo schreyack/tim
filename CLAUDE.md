@@ -194,10 +194,10 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
    EOF
    git -C lib/tim read-tree -mu HEAD
    ```
-3. Symlink enforcement configs: `ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml`
-4. Make symlinks immutable: `sudo chflags -h schg .pre-commit-config.yaml`
+3. Generate pre-commit config: `lib/tim/bin/sync-pre-commit <project>`
+4. Optionally create `.pre-commit-overrides.yaml` for project-specific hooks
 5. Create `CLAUDE-PROJECT.md` with project-specific content
-6. Run `tim/bin/sync-claude-md` to generate CLAUDE.md
+6. Run `lib/tim/bin/sync-claude-md` to generate CLAUDE.md
 7. Create `.tim-patterns.yaml` from template
 8. Install tim-loop plugin from marketplace (not from submodule)
 9. Run `pre-commit install`
@@ -214,7 +214,10 @@ Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `comp
 When tim is updated, run in each project:
 ```bash
 cd lib/tim && git pull origin main
-cd ../.. && git add lib/tim && git commit -m "chore: update tim submodule"
+cd ../..
+lib/tim/bin/sync-pre-commit   # Regenerate pre-commit configs
+lib/tim/bin/sync-claude-md     # Regenerate CLAUDE.md
+git add lib/tim .pre-commit-config.yaml CLAUDE.md && git commit -m "chore: update tim submodule"
 ```
 <!-- TIM-ONLY-END -->
 

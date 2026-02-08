@@ -56,9 +56,9 @@ See [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) for d
 
 ## Usage
 
-### Recommended: Submodule + Symlinks
+### Recommended: Submodule + Generated Configs
 
-The recommended approach uses git submodules and symlinks for consistent, immutable enforcement:
+The recommended approach uses git submodules with generated configs (like `sync-claude-md`):
 
 ```bash
 cd my-project
@@ -66,14 +66,11 @@ cd my-project
 # Add tim as submodule
 git submodule add /path/to/tim lib/tim
 
-# Symlink enforcement configs (Python)
-ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml
+# Generate pre-commit config (auto-detects python or node)
+lib/tim/bin/sync-pre-commit my-project
 
-# OR for Node.js
-ln -s lib/tim/templates/node/.pre-commit-config.yaml .pre-commit-config.yaml
-
-# Make symlinks immutable (prevents AI from bypassing)
-sudo chflags -h schg .pre-commit-config.yaml
+# Optionally add project-specific overrides
+# Create .pre-commit-overrides.yaml to disable hooks or add repos
 
 # Copy pattern registry template
 cp lib/tim/templates/tim-patterns.yaml.template .tim-patterns.yaml
@@ -92,14 +89,31 @@ pre-commit install
 # /plugin install tim-loop@tim
 ```
 
-**Why symlinks?**
-- All projects use identical configs from single source
-- Updates to tim automatically apply when submodule is updated
-- `chflags -h schg` makes symlinks immutable - AI cannot bypass
+**Why generated configs?**
+- Single source of truth - base templates in tim, generated files in projects
+- Override capability - `.pre-commit-overrides.yaml` can disable hooks or add project-specific ones
+- Immutable output - generated files are locked with `chflags uchg` (no sudo needed)
+- Clean submodule - no dirty submodule state from symlinks
+- Same pattern as `sync-claude-md` - consistent tooling
+
+**Override file format** (`.pre-commit-overrides.yaml`, optional):
+```yaml
+disable:
+  - bandit         # hook IDs to remove from base
+  - no-print
+
+repos:              # additional repos to append
+  - repo: local
+    hooks:
+      - id: custom-check
+        name: Project-specific check
+        entry: ./scripts/check.sh
+        language: system
+```
 
 ### Alternative: Copy Templates
 
-If you prefer copying (e.g., need customization):
+If you prefer copying (e.g., one-off setup without submodule):
 
 ```bash
 # Python project
@@ -116,7 +130,7 @@ cp templates/node/eslint.config.js my-project/
 cd my-project && pre-commit install
 ```
 
-**Note:** Copying templates means manual updates when tim standards change.
+**Note:** Copying templates means manual updates when tim standards change. Prefer `sync-pre-commit` for ongoing projects.
 
 ## Template-to-Gate Mapping
 

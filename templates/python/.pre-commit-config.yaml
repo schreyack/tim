@@ -1,5 +1,5 @@
 # TIM Standards - Python Pre-commit Configuration
-# Symlink from lib/tim/templates/python/.pre-commit-config.yaml
+# Base template - used by bin/sync-pre-commit
 # Run: pre-commit install
 
 repos:
