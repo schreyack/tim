@@ -61,25 +61,25 @@ declare -a BLOCKING_ISSUES=()
 
 log_pass() {
     echo -e "  ${GREEN}✓${NC} $1"
-    ((PASSED++))
+    PASSED=$((PASSED + 1))
 }
 
 log_warn() {
     echo -e "  ${YELLOW}⚠${NC} $1"
     WARNINGS+=("$1")
-    ((WARNED++))
+    WARNED=$((WARNED + 1))
 }
 
 log_fail() {
     echo -e "  ${RED}✗${NC} $1"
     FAILURES+=("$1")
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
 }
 
 log_block() {
     echo -e "  ${RED}✗${NC} ${BOLD}BLOCKING:${NC} $1"
     BLOCKING_ISSUES+=("$1")
-    ((BLOCKING++))
+    BLOCKING=$((BLOCKING + 1))
 }
 
 log_section() {
@@ -162,8 +162,8 @@ check_dependencies() {
         fi
 
         # No vanilla .py without types
-        local untyped=$(find . -name "*.py" -not -path "./.*" -not -path "*/venv/*" \
-            -exec grep -L "from __future__ import\|: \w" {} \; 2>/dev/null | head -5)
+        local untyped=$(find . -name "*.py" -not -path "./.*" -not -path "*/venv/*" -not -path "*/lib/*" \
+            -exec grep -L "from __future__ import\|-> \|: [a-zA-Z]" {} \; 2>/dev/null | head -5)
         if [[ -z "$untyped" ]]; then
             log_pass "Python files have type hints"
         else
@@ -208,16 +208,16 @@ check_configuration() {
         fi
 
         # Coverage threshold
-        if grep -q "fail_under = 90" pyproject.toml; then
-            log_pass "Coverage threshold: 90%"
+        if grep -qE "fail_under[[:space:]]*=[[:space:]]*(9[0-9]|100)" pyproject.toml; then
+            log_pass "Coverage threshold: >= 90%"
         else
-            log_fail "Coverage threshold not set to 90% in pyproject.toml"
+            log_fail "Coverage threshold not set to >= 90% in pyproject.toml"
         fi
     fi
 
     # TypeScript strict mode
     if [[ -f "tsconfig.json" ]]; then
-        if grep -q '"strict": true' tsconfig.json; then
+        if grep -qE '"strict"[[:space:]]*:[[:space:]]*true' tsconfig.json; then
             log_pass "TypeScript strict mode enabled"
         else
             log_fail "TypeScript strict mode not enabled in tsconfig.json"
@@ -249,10 +249,12 @@ check_security() {
     fi
 
     # Secrets in code (basic check)
-    local secret_patterns='(api_key|api_secret|password|secret_key|private_key)\s*=\s*["\x27][^"\x27]+'
+    local secret_patterns="(api_key|api_secret|password|secret_key|private_key)[[:space:]]*=[[:space:]]*[\"'][^\"']+"
     local secrets_found=$(grep -riE "$secret_patterns" --include="*.py" --include="*.ts" \
-        --include="*.js" --include="*.json" . 2>/dev/null | \
-        grep -v ".env" | grep -v "node_modules" | grep -v "example" | head -3)
+        --include="*.js" --include="*.json" --include="*.yaml" --include="*.toml" \
+        --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.venv \
+        . 2>/dev/null | \
+        grep -v ".env" | grep -v "example" | head -3)
 
     if [[ -z "$secrets_found" ]]; then
         log_pass "No obvious secrets in code"
@@ -321,24 +323,24 @@ check_unregistered_patterns() {
     # This is a simplified check - a real implementation would be more thorough
 
     # Check for Redis usage
-    if grep -rq "redis\|Redis\|REDIS" --include="*.py" --include="*.ts" . 2>/dev/null | \
-       grep -v ".tim-patterns.yaml" | grep -v "node_modules" > /dev/null; then
+    if grep -r "redis\|Redis\|REDIS" --include="*.py" --include="*.ts" --exclude-dir=node_modules . 2>/dev/null | \
+       grep -v ".tim-patterns.yaml" | grep -q .; then
         if ! grep -q "caching:\|redis:" .tim-patterns.yaml 2>/dev/null; then
             log_warn "Redis usage detected but no caching pattern registered"
         fi
     fi
 
     # Check for message queue usage
-    if grep -rq "celery\|bull\|rabbitmq\|kafka" --include="*.py" --include="*.ts" . 2>/dev/null | \
-       grep -v ".tim-patterns.yaml" | grep -v "node_modules" > /dev/null; then
+    if grep -r "celery\|bull\|rabbitmq\|kafka" --include="*.py" --include="*.ts" --exclude-dir=node_modules . 2>/dev/null | \
+       grep -v ".tim-patterns.yaml" | grep -q .; then
         if ! grep -q "message_queue:\|queue:" .tim-patterns.yaml 2>/dev/null; then
             log_warn "Message queue usage detected but not registered"
         fi
     fi
 
     # Check for WebSocket usage
-    if grep -rq "websocket\|socket\.io\|ws://" --include="*.py" --include="*.ts" . 2>/dev/null | \
-       grep -v ".tim-patterns.yaml" | grep -v "node_modules" > /dev/null; then
+    if grep -r "websocket\|socket\.io\|ws://" --include="*.py" --include="*.ts" --exclude-dir=node_modules . 2>/dev/null | \
+       grep -v ".tim-patterns.yaml" | grep -q .; then
         if ! grep -q "websocket:\|realtime:" .tim-patterns.yaml 2>/dev/null; then
             log_warn "WebSocket usage detected but not registered"
         fi
@@ -412,8 +414,8 @@ main() {
     check_security
     check_patterns
 
-    print_results
-    local result=$?
+    local result=0
+    print_results || result=$?
 
     # In CI mode, exit with proper code for GitHub Actions
     if $CI_MODE && [[ $result -ne 0 ]]; then

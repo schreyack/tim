@@ -21,8 +21,8 @@ MAX_FILE_LINES = 400
 MAX_FUNCTION_LINES = 50
 MAX_COMPLEXITY = 10
 
-PYTHON_SKIP_DIRS = {"__pycache__", ".venv", "venv", ".git"}
-TS_SKIP_DIRS = {"node_modules", "dist", ".git"}
+PYTHON_SKIP_DIRS = {"__pycache__", ".venv", "venv", ".git", "lib", "node_modules"}
+TS_SKIP_DIRS = {"node_modules", "dist", ".git", "lib"}
 
 
 class PythonAnalyzer(ast.NodeVisitor):
@@ -159,9 +159,10 @@ def collect_python_violations(directory: Path) -> list[str]:
 def collect_typescript_violations(directory: Path) -> list[str]:
     """Collect violations from all TypeScript files in directory."""
     violations: list[str] = []
-    for filepath in directory.rglob("*.ts"):
-        if not should_skip_path(filepath, TS_SKIP_DIRS):
-            violations.extend(check_typescript_file(filepath))
+    for ext in ("*.ts", "*.tsx"):
+        for filepath in directory.rglob(ext):
+            if not should_skip_path(filepath, TS_SKIP_DIRS):
+                violations.extend(check_typescript_file(filepath))
     return violations
 
 
