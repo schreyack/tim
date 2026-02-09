@@ -56,7 +56,7 @@ TASK_DRIFT_PATTERNS = [
         example="Let me fix the issues I found.",
     ),
     TaskDriftPattern(
-        pattern=r"(?:I'll|let me)\s+(?:now\s+)?(?:implement|code|write|create|build)\s+(?:the|this|these)",
+        pattern=r"(?:I'll|let me)\s+(?:now\s+)?(?:implement|code|build)\s+(?:the|this|these)",
         description="Starting implementation without being asked",
         example="I'll now implement the changes.",
     ),
@@ -68,7 +68,7 @@ TASK_DRIFT_PATTERNS = [
         example="I'll proceed with the implementation.",
     ),
     TaskDriftPattern(
-        pattern=r"(?:next|now)\s+(?:I'll|I will|let me)\s+(?:implement|fix|code|write|make\s+the\s+changes)",
+        pattern=r"(?:next|now)\s+(?:I'll|I will|let me)\s+(?:implement|fix|code|make\s+the\s+changes)",
         description="Moving to next step (implementation) without being asked",
         example="Next, I'll implement these improvements.",
     ),
@@ -87,7 +87,7 @@ TASK_DRIFT_PATTERNS = [
         example="Starting the implementation now.",
     ),
     TaskDriftPattern(
-        pattern=r"(?:I'll|I will|let me)\s+(?:start|begin)\s+(?:coding|writing|implementing|developing)",
+        pattern=r"(?:I'll|I will|let me)\s+(?:start|begin)\s+(?:coding|implementing|developing)",
         description="Starting to code without being asked",
         example="I'll start coding the changes.",
     ),
