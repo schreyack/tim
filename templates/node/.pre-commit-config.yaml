@@ -76,10 +76,9 @@ repos:
       # Code quality: 400 line files max
       - id: code-quality
         name: Code quality (file size)
-        entry: python3 lib/tim/tools/check-code-quality.py . --language typescript
+        entry: python3 lib/tim/tools/check-code-quality.py --language typescript
         language: system
-        pass_filenames: false
-        always_run: true
+        types_or: [typescript, tsx]
 
       # Block TODO/FIXME comments
       - id: no-todos
