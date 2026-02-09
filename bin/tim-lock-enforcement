@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+#
+# tim-lock-enforcement - Lock all TIM enforcement files
+#
+# Applies chflags immutable flags to prevent AI modification of
+# enforcement files across the tim repo and registered projects.
+#
+# Usage:
+#   tim-lock-enforcement              # Apply uchg (user immutable)
+#   tim-lock-enforcement --schg       # Also apply schg (requires sudo)
+#   tim-lock-enforcement --unlock     # Remove all locks
+#   tim-lock-enforcement --status     # Show lock status
+#   tim-lock-enforcement --help       # Show help
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TIM_ROOT="$(dirname "$SCRIPT_DIR")"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Load registered projects from .tim-projects
+PROJECTS=()
+PROJECTS_FILE="$TIM_ROOT/.tim-projects"
+if [ -f "$PROJECTS_FILE" ]; then
+    while IFS= read -r line; do
+        line="${line%%#*}"  # strip comments
+        line="${line// /}"  # trim whitespace
+        [[ -n "$line" ]] && PROJECTS+=("$line")
+    done < "$PROJECTS_FILE"
+fi
+
+# --- File lists ---
+
+tim_repo_files() {
+    local files=(
+        # Pre-commit configs and templates
+        "$TIM_ROOT/.pre-commit-config.yaml"
+        "$TIM_ROOT/templates/node/.pre-commit-config.yaml"
+        "$TIM_ROOT/templates/python/.pre-commit-config.yaml"
+
+        # Secrets baseline
+        "$TIM_ROOT/.secrets.baseline"
+
+        # Enforcement tools
+        "$TIM_ROOT/tools/check-code-quality.py"
+        "$TIM_ROOT/tools/tim-compliance-check.sh"
+        "$TIM_ROOT/tools/tim-local-dev-enable"
+        "$TIM_ROOT/tools/tim-ops-approve"
+
+        # Sync scripts
+        "$TIM_ROOT/bin/sync-pre-commit"
+        "$TIM_ROOT/bin/sync-claude-md"
+
+        # Shared lib enforcement configs
+        "$TIM_ROOT/libs/node/eslint.config.js"
+
+        # AI bypass prevention
+        "$TIM_ROOT/marketplace/plugins/tim-loop/scripts/block_bypass_flags.py"
+    )
+
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] && echo "$f"
+    done
+}
+
+project_files() {
+    for project in "${PROJECTS[@]}"; do
+        [[ -d "$project" ]] || continue
+        local config="$project/.pre-commit-config.yaml"
+        [[ -f "$config" ]] && echo "$config"
+    done
+}
+
+all_files() {
+    tim_repo_files
+    project_files
+}
+
+# --- Operations ---
+
+is_uchg() {
+    local flags
+    flags=$(stat -f "%f" "$1" 2>/dev/null) || return 1
+    [[ $(( flags & 0x000002 )) -ne 0 ]]
+}
+
+is_schg() {
+    local flags
+    flags=$(stat -f "%f" "$1" 2>/dev/null) || return 1
+    [[ $(( flags & 0x00020000 )) -ne 0 ]]
+}
+
+show_status() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  TIM Enforcement File Lock Status${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    local locked=0 unlocked=0
+
+    while IFS= read -r file; do
+        local rel="${file#"$TIM_ROOT"/}"
+        # If file is outside TIM_ROOT, show full path
+        [[ "$rel" == "$file" ]] && rel="$file"
+
+        local status=""
+        if is_schg "$file"; then
+            status="${GREEN}schg+uchg${NC}"
+            locked=$((locked + 1))
+        elif is_uchg "$file"; then
+            status="${YELLOW}uchg only${NC}"
+            locked=$((locked + 1))
+        else
+            status="${RED}unlocked${NC}"
+            unlocked=$((unlocked + 1))
+        fi
+        printf "  %-50s %b\n" "$rel" "$status"
+    done < <(all_files)
+
+    echo ""
+    echo -e "  ${GREEN}Locked: $locked${NC}  ${RED}Unlocked: $unlocked${NC}"
+}
+
+lock_files() {
+    local use_schg="$1"
+
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Locking TIM Enforcement Files${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    local count=0
+
+    while IFS= read -r file; do
+        local rel="${file#"$TIM_ROOT"/}"
+        [[ "$rel" == "$file" ]] && rel="$file"
+
+        chflags uchg "$file" 2>/dev/null
+        echo -e "  ${GREEN}✓${NC} uchg  $rel"
+        count=$((count + 1))
+    done < <(all_files)
+
+    if [[ "$use_schg" == "true" ]]; then
+        echo ""
+        echo -e "  ${YELLOW}Applying system immutable flags (requires sudo)...${NC}"
+        while IFS= read -r file; do
+            local rel="${file#"$TIM_ROOT"/}"
+            [[ "$rel" == "$file" ]] && rel="$file"
+            sudo chflags schg "$file" 2>/dev/null && \
+                echo -e "  ${GREEN}✓${NC} schg  $rel" || \
+                echo -e "  ${RED}✗${NC} schg  $rel (sudo failed)"
+        done < <(all_files)
+    fi
+
+    echo ""
+    echo -e "  ${GREEN}Locked $count files.${NC}"
+    if [[ "$use_schg" != "true" ]]; then
+        echo -e "  ${YELLOW}Tip: Run with --schg for system-level protection (requires sudo).${NC}"
+    fi
+}
+
+unlock_files() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Unlocking TIM Enforcement Files${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    local count=0
+
+    while IFS= read -r file; do
+        local rel="${file#"$TIM_ROOT"/}"
+        [[ "$rel" == "$file" ]] && rel="$file"
+
+        sudo chflags noschg,nouchg "$file" 2>/dev/null && \
+            echo -e "  ${GREEN}✓${NC} unlocked  $rel" || \
+            echo -e "  ${RED}✗${NC} failed    $rel"
+        count=$((count + 1))
+    done < <(all_files)
+
+    echo ""
+    echo -e "  ${GREEN}Unlocked $count files.${NC}"
+}
+
+show_help() {
+    echo "Usage: tim-lock-enforcement [OPTIONS]"
+    echo ""
+    echo "Lock all TIM enforcement files to prevent AI modification."
+    echo ""
+    echo "Options:"
+    echo "  (none)       Apply user immutable flag (chflags uchg)"
+    echo "  --schg       Also apply system immutable flag (requires sudo)"
+    echo "  --unlock     Remove all immutable flags (requires sudo)"
+    echo "  --status     Show lock status of all enforcement files"
+    echo "  --help       Show this help"
+    echo ""
+    echo "Enforcement files include:"
+    echo "  - Pre-commit configs and templates"
+    echo "  - Code quality and compliance tools"
+    echo "  - Sync scripts (sync-pre-commit, sync-claude-md)"
+    echo "  - Human approval tools"
+    echo "  - AI bypass prevention hooks"
+    echo "  - Secrets baselines"
+    echo "  - Generated configs in registered projects"
+}
+
+# --- Main ---
+
+case "${1:-}" in
+    --schg)
+        lock_files true
+        ;;
+    --unlock)
+        unlock_files
+        ;;
+    --status)
+        show_status
+        ;;
+    --help|-h)
+        show_help
+        ;;
+    "")
+        lock_files false
+        ;;
+    *)
+        echo "Unknown option: $1"
+        show_help
+        exit 1
+        ;;
+esac

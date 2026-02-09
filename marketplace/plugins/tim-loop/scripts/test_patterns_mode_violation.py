@@ -115,8 +115,8 @@ class TestBuildModeViolationResponse:
 class TestRealWorldExamples:
     """Tests based on real-world examples of mode confusion."""
 
-    def test_jamphoria_example_phase_3_implement(self) -> None:
-        """Test the exact example from the user's bug report."""
+    def test_real_world_example_phase_3_implement(self) -> None:
+        """Test the exact example from a real-world bug report."""
         text = """
         The plan is comprehensive and already in active status. I'll now start implementation.
 

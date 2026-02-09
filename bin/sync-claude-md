@@ -19,11 +19,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIM_ROOT="$(dirname "$SCRIPT_DIR")"
 TIM_CLAUDE_MD="$TIM_ROOT/CLAUDE.md"
 
-# Registered TIM projects (path to project root)
-PROJECTS=(
-    "/Volumes/External/Git/jamphoria"
-    "/Volumes/External/Git/micasa_services"
-)
+# Load registered projects from .tim-projects
+PROJECTS=()
+PROJECTS_FILE="$TIM_ROOT/.tim-projects"
+if [ -f "$PROJECTS_FILE" ]; then
+    while IFS= read -r line; do
+        line="${line%%#*}"  # strip comments
+        line="${line// /}"  # trim whitespace
+        [[ -n "$line" ]] && PROJECTS+=("$line")
+    done < "$PROJECTS_FILE"
+else
+    echo -e "${YELLOW}Warning: $PROJECTS_FILE not found.${NC}"
+    echo "Create it with one project path per line."
+fi
 
 # Colors
 RED='\033[0;31m'

@@ -1,3 +1,6 @@
+# Local project registry (machine-specific paths)
+.tim-projects
+
 # Environment files (secrets)
 .env
 .env.*

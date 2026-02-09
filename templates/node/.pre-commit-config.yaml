@@ -30,7 +30,7 @@ repos:
       # ESLint with zero warnings tolerance
       - id: eslint
         name: ESLint
-        entry: ./node_modules/.bin/eslint --max-warnings 0 --fix
+        entry: ./node_modules/.bin/eslint --max-warnings 0 --no-warn-ignored --fix
         language: system
         types: [ts]
         pass_filenames: true

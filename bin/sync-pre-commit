@@ -32,10 +32,23 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 TIM_ROOT = SCRIPT_DIR.parent
 TEMPLATES_DIR = TIM_ROOT / "templates"
 
-PROJECTS = [
-    Path("/Volumes/External/Git/jamphoria"),
-    Path("/Volumes/External/Git/micasa_services"),
-]
+def load_projects() -> list[Path]:
+    """Load registered projects from .tim-projects file."""
+    projects_file = TIM_ROOT / ".tim-projects"
+    if not projects_file.exists():
+        print(f"{YELLOW}Warning: {projects_file} not found.{NC}")
+        print(f"Create it with one project path per line.")
+        return []
+    projects: list[Path] = []
+    with open(projects_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                projects.append(Path(line))
+    return projects
+
+
+PROJECTS = load_projects()
 
 # ANSI colors
 RED = "\033[0;31m"
@@ -158,10 +171,15 @@ def generate_header(template_type: str, project_name: str) -> str:
 
 
 def unlock_file(path: Path) -> None:
-    """Remove user immutable flag if present."""
+    """Remove immutable flags if present (both system and user)."""
     if not path.exists():
         return
     try:
+        subprocess.run(
+            ["sudo", "-n", "chflags", "noschg", str(path)],
+            check=False,
+            capture_output=True,
+        )
         subprocess.run(
             ["chflags", "nouchg", str(path)],
             check=False,
