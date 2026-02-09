@@ -246,8 +246,16 @@ wizard_step_tim_loop() {
         "$prompt_manager" save "implement $WIZARD_PLAN_FILE with full TIM compliance" 2>/dev/null || true
     fi
 
+    # Ask about team mode (default: yes)
+    echo -n "Enable team mode for parallel implementation? [Y/n] "
+    read -r use_team </dev/tty
+    local team_flag=""
+    if [[ ! "$use_team" =~ ^[Nn] ]]; then
+        team_flag=" --team"
+    fi
+
     echo "Run /clear first, then paste this command in Claude Code:"
-    local cmd="/tim-loop:tim-loop --implement $WIZARD_PLAN_FILE"
+    local cmd="/tim-loop:tim-loop --implement $WIZARD_PLAN_FILE${team_flag}"
     show_command "$cmd"
 
     echo "Did Tim Loop complete successfully? (y/n)"
