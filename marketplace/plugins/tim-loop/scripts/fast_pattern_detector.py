@@ -25,7 +25,7 @@ from pathlib import Path
 from patterns_mode_violation import find_mode_violations
 from patterns_task_drift import find_task_drift
 from excuse_pattern_loader import ExcusePattern, get_pattern_config
-from tim_loop_state import load_state, log_stderr, reset_detection_state
+from tim_loop_state import load_state, log_stderr, reset_detection_state, TIM_LOOP_ACTIVE_MARKER
 from tim_loop_halt import system_halt, build_halt_details_from_patterns
 import re
 
@@ -218,32 +218,64 @@ def get_excuse_category(excuses: list[tuple[ExcusePattern, str]]) -> str:
     return "EXCUSE PATTERN"
 
 
-def run_fast_checks(recent_text: str) -> tuple[str, str] | None:
-    """Run fast regex-only checks. Returns (category, details) or None."""
-    review_mode = get_review_mode()
+def _check_mode_violations(recent_text: str, review_mode: str) -> tuple[str, str] | None:
+    """Pass 1: Mode violation check (only in active review modes)."""
+    mode_violations = find_mode_violations(recent_text, review_mode)
+    if mode_violations:
+        details = "\n".join(f"  - {v}" for v in mode_violations)
+        return ("MODE VIOLATION", f"Wrong task for {review_mode} mode:\n{details}")
+    return None
 
-    # Pass 1: Mode violation check (only in review modes, skip in implement mode)
-    if review_mode and not is_implement_mode():
-        mode_violations = find_mode_violations(recent_text, review_mode)
-        if mode_violations:
-            details = "\n".join(f"  - {v}" for v in mode_violations)
-            return ("MODE VIOLATION", f"Wrong task for {review_mode} mode:\n{details}")
 
-    # Pass 2: Task drift check (skip in full-review and implement modes)
-    if review_mode != "full-review" and not is_implement_mode():
-        task_drifts = find_task_drift(recent_text)
-        if task_drifts:
-            details = "\n".join(f"  - {d}" for d in task_drifts)
-            return ("TASK DRIFT", f"Doing more than was asked:\n{details}")
+def _check_task_drift(recent_text: str) -> tuple[str, str] | None:
+    """Pass 2: Task drift check."""
+    task_drifts = find_task_drift(recent_text)
+    if task_drifts:
+        details = "\n".join(f"  - {d}" for d in task_drifts)
+        return ("TASK DRIFT", f"Doing more than was asked:\n{details}")
+    return None
 
-    # Pass 3: Excuse patterns from YAML
+
+def _check_excuse_patterns(recent_text: str) -> tuple[str, str] | None:
+    """Pass 3: Excuse patterns from YAML."""
     excuses = find_excuses(recent_text)
     if excuses:
         category = get_excuse_category(excuses)
         details = build_halt_details_from_patterns(excuses)
         return (category, details)
-
     return None
+
+
+def _should_skip_behavioral_checks() -> tuple[str, bool]:
+    """Determine review mode and whether to skip behavioral checks (Pass 1 & 2).
+
+    Fails closed: if a session marker exists but state can't be loaded,
+    skips behavioral checks to avoid false positives during implementation.
+    """
+    state = load_state()
+    if not state:
+        # No state loaded — skip if a session marker exists (fail closed)
+        return "", TIM_LOOP_ACTIVE_MARKER.exists()
+    review_mode = state.get("REVIEW_MODE", "")
+    implement_mode = state.get("IMPLEMENT_MODE", "false") == "true"
+    return review_mode, implement_mode
+
+
+def run_fast_checks(recent_text: str) -> tuple[str, str] | None:
+    """Run fast regex-only checks. Returns (category, details) or None."""
+    review_mode, skip_behavioral = _should_skip_behavioral_checks()
+
+    if review_mode and not skip_behavioral:
+        result = _check_mode_violations(recent_text, review_mode)
+        if result:
+            return result
+
+    if review_mode != "full-review" and not skip_behavioral:
+        result = _check_task_drift(recent_text)
+        if result:
+            return result
+
+    return _check_excuse_patterns(recent_text)
 
 
 def check_and_clear_user_initiated_marker() -> bool:
