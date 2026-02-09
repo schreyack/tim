@@ -52,6 +52,7 @@ MODES (mutually exclusive):
 
 MODIFIER OPTIONS:
   --force, -f               Override existing active session detection
+  --team                    Use agent teams for parallel implementation (experimental)
   --auto-approve            Auto-approve all tool permissions
   --max-iterations <n>      Safety limit (default: 30)
   --min-review-iterations <n> Minimum review passes before allowing completion (default: 5)
@@ -80,7 +81,7 @@ HELP_EOF
 # Defaults
 MAX_ITERATIONS=30 COMPLETION_PROMISE="COMPLETE" TASK_PARTS=() DRY_RUN=false
 PLAN_ONLY=false IMPLEMENT_FILE="" REVIEW_FILE="" REVIEW_MODE="" VERIFY_FILE=""
-NO_REVIEW=false
+NO_REVIEW=false USE_TEAM=false
 MAX_VERIFY_CYCLES=999999 REVIEW_ITERATIONS=10 MIN_REVIEW_ITERATIONS=5 AUTO_APPROVE=false
 FORCE_NEW_SESSION=false
 
@@ -131,6 +132,7 @@ while [[ $# -gt 0 ]]; do
         --no-review) NO_REVIEW=true; shift ;;
         --auto-approve) AUTO_APPROVE=true; shift ;;
         --force|-f) FORCE_NEW_SESSION=true; shift ;;
+        --team) USE_TEAM=true; shift ;;
         --max-verify-cycles) MAX_VERIFY_CYCLES="$2"; shift 2 ;;
         --review-iterations) REVIEW_ITERATIONS="$2"; shift 2 ;;
         --min-review-iterations) MIN_REVIEW_ITERATIONS="$2"; shift 2 ;;
@@ -179,6 +181,9 @@ fi
 [[ -n "$VERIFY_FILE" && -n "$REVIEW_FILE" ]] && echo "Error: --verify and --tech-review/--ai-ready cannot be used together" >&2 && exit 1
 [[ -n "$VERIFY_FILE" && "$PLAN_ONLY" == true ]] && echo "Error: --verify and --plan cannot be used together" >&2 && exit 1
 [[ -n "$VERIFY_FILE" && "$NO_REVIEW" == true ]] && echo "Error: --verify and --no-review cannot be used together" >&2 && exit 1
+[[ "$USE_TEAM" == true && "$PLAN_ONLY" == true ]] && echo "Error: --team and --plan cannot be used together (teams are for implementation)" >&2 && exit 1
+[[ "$USE_TEAM" == true && -n "$REVIEW_FILE" ]] && echo "Error: --team and review modes cannot be used together (teams are for implementation)" >&2 && exit 1
+[[ "$USE_TEAM" == true && -n "$VERIFY_FILE" ]] && echo "Error: --team and --verify cannot be used together (teams are for implementation)" >&2 && exit 1
 
 # Override default completion promise based on mode
 if [[ -n "$REVIEW_FILE" && "$COMPLETION_PROMISE" == "COMPLETE" ]]; then
@@ -608,6 +613,24 @@ build_prompt() {
         prompt+="**Do NOT proceed to new implementation work until all 'already done' items are verified.**\n\n"
         prompt+="### Plan File Management\n"
         prompt+="**DO NOT move plans between folders** (drafts/, active/, completed/, abandoned/). Plan lifecycle management - including promoting, completing, and archiving plans - is a human responsibility, not an AI responsibility. The human uses plan-ops to manage these transitions with proper approvals and audit trails. Your role is to implement the plan's contents, not manage the plan file's location.\n\n"
+        if [[ "$USE_TEAM" == true ]]; then
+        prompt+="### Team-Based Implementation\n\n"
+        prompt+="The \`--team\` flag is active. You MUST use agent teams to parallelize implementation.\n\n"
+        prompt+="**How to use teams:**\n"
+        prompt+="1. **Create a team** using \`TeamCreate\` with a descriptive name based on the task\n"
+        prompt+="2. **Create tasks** from the plan's implementation steps using \`TaskCreate\` — one task per independent step or group of related steps\n"
+        prompt+="3. **Spawn teammates** using the \`Task\` tool with \`subagent_type: \"general-purpose\"\` and the \`team_name\` parameter — spawn one teammate per independent task\n"
+        prompt+="4. **Assign tasks** to teammates using \`TaskUpdate\` with the \`owner\` parameter\n"
+        prompt+="5. **Coordinate** via the task list (\`TaskList\`) and \`SendMessage\` — monitor progress and unblock teammates as needed\n"
+        prompt+="6. **Shut down teammates** when all tasks are complete using \`SendMessage\` with \`type: \"shutdown_request\"\`\n"
+        prompt+="7. **Clean up** using \`TeamDelete\` after all teammates have shut down\n\n"
+        prompt+="**Team rules:**\n"
+        prompt+="- Only parallelize tasks that are truly independent (no shared file edits)\n"
+        prompt+="- Tasks that modify the same files MUST be sequential — assign them to the same teammate or use \`addBlockedBy\`\n"
+        prompt+="- You (the lead) handle verification (Phase 4) yourself — do not delegate verification to teammates\n"
+        prompt+="- If a teammate gets stuck, help them via \`SendMessage\` or reassign the task\n"
+        prompt+="- All TIM standards still apply to teammate work (type safety, tests, no TODOs, etc.)\n\n"
+        fi
         prompt+="### When You Encounter Blockers\n"
         prompt+="- Technical blockers: Try to solve them. If truly stuck after genuine effort, ask the human - don't skip the item\n"
         prompt+="- Ambiguity: Ask for clarification - don't interpret in a way that reduces work\n"
@@ -734,6 +757,23 @@ build_prompt() {
         prompt+="4. Check for gaps — edge cases, error handling, skipped functionality\n"
         prompt+="5. Run tests to confirm it works\n\n"
         prompt+="**This is NOT a quick high-level review.** Read the code. Trace the logic. Run the tests. If verification reveals gaps, fix them — the item isn't done until it's actually done.\n\n"
+        if [[ "$USE_TEAM" == true ]]; then
+        prompt+="**Team-Based Implementation:**\n"
+        prompt+="The \`--team\` flag is active. You MUST use agent teams to parallelize implementation.\n\n"
+        prompt+="1. **Create a team** using \`TeamCreate\` with a descriptive name based on the task\n"
+        prompt+="2. **Create tasks** from the plan's implementation steps using \`TaskCreate\` — one task per independent step or group of related steps\n"
+        prompt+="3. **Spawn teammates** using the \`Task\` tool with \`subagent_type: \"general-purpose\"\` and the \`team_name\` parameter — spawn one teammate per independent task\n"
+        prompt+="4. **Assign tasks** to teammates using \`TaskUpdate\` with the \`owner\` parameter\n"
+        prompt+="5. **Coordinate** via the task list (\`TaskList\`) and \`SendMessage\` — monitor progress and unblock teammates as needed\n"
+        prompt+="6. **Shut down teammates** when all tasks are complete using \`SendMessage\` with \`type: \"shutdown_request\"\`\n"
+        prompt+="7. **Clean up** using \`TeamDelete\` after all teammates have shut down\n\n"
+        prompt+="**Team rules:**\n"
+        prompt+="- Only parallelize tasks that are truly independent (no shared file edits)\n"
+        prompt+="- Tasks that modify the same files MUST be sequential — assign them to the same teammate or use \`addBlockedBy\`\n"
+        prompt+="- You (the lead) handle verification (Phase 4) yourself — do not delegate verification to teammates\n"
+        prompt+="- If a teammate gets stuck, help them via \`SendMessage\` or reassign the task\n"
+        prompt+="- All TIM standards still apply to teammate work (type safety, tests, no TODOs, etc.)\n\n"
+        fi
         prompt+="**Plan file management:**\n"
         prompt+="DO NOT move plans between folders (drafts/, active/, completed/, abandoned/). Plan lifecycle is a human responsibility - the human uses plan-ops with proper approvals. Your role is to implement the plan's contents, not manage the plan file's location.\n\n"
         prompt+="**Before each step:** Briefly state what you're about to do and which plan item it addresses.\n\n"
@@ -839,6 +879,7 @@ CLAUDE_PID="$TIM_LOOP_CLAUDE_PID"
 REVIEW_MODE="$REVIEW_MODE"
 MIN_REVIEW_ITERATIONS="$MIN_REVIEW_ITERATIONS"
 IMPLEMENT_MODE="$( [[ -n "$IMPLEMENT_FILE" ]] && echo "true" || echo "false" )"
+USE_TEAM="$USE_TEAM"
 EOF
 
 # For full-review mode, add phase tracking to state file
