@@ -179,7 +179,7 @@ def report_violations(violations: list[str]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check code quality standards")
-    parser.add_argument("directory", help="Directory to check")
+    parser.add_argument("paths", nargs="+", help="Files or directories to check")
     parser.add_argument(
         "--language",
         choices=["python", "typescript", "both"],
@@ -188,18 +188,24 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    directory = Path(args.directory)
-    if not directory.exists():
-        print(f"Error: Directory '{directory}' does not exist", file=sys.stderr)
-        return 1
-
     violations: list[str] = []
 
-    if args.language in ("python", "both"):
-        violations.extend(collect_python_violations(directory))
+    for path_str in args.paths:
+        path = Path(path_str)
+        if not path.exists():
+            print(f"Error: '{path}' does not exist", file=sys.stderr)
+            return 1
 
-    if args.language in ("typescript", "both"):
-        violations.extend(collect_typescript_violations(directory))
+        if path.is_file():
+            if path.suffix == ".py" and args.language in ("python", "both"):
+                violations.extend(check_python_file(path))
+            elif path.suffix in (".ts", ".tsx") and args.language in ("typescript", "both"):
+                violations.extend(check_typescript_file(path))
+        else:
+            if args.language in ("python", "both"):
+                violations.extend(collect_python_violations(path))
+            if args.language in ("typescript", "both"):
+                violations.extend(collect_typescript_violations(path))
 
     return report_violations(violations)
 

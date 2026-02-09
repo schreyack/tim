@@ -68,11 +68,10 @@ repos:
 
   # Security - Bandit
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.10
+    rev: 1.9.3
     hooks:
       - id: bandit
-        args: ["-r", ".", "-ll", "--exclude", ".venv,node_modules,.git,lib"]
-        pass_filenames: false
+        args: [-ll]
 
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
@@ -80,10 +79,9 @@ repos:
       # Code quality: 400 line files, 50 line functions, complexity 10
       - id: code-quality
         name: Code quality (file size, function size, complexity)
-        entry: python3 lib/tim/tools/check-code-quality.py . --language python
+        entry: python3 lib/tim/tools/check-code-quality.py --language python
         language: system
-        pass_filenames: false
-        always_run: true
+        types: [python]
 
       # Block TODO/FIXME comments
       - id: no-todos
