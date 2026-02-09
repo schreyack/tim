@@ -3,6 +3,19 @@
 # Run: pre-commit install
 
 repos:
+  # LOCKED - Prevent AI from modifying enforcement files
+  - repo: local
+    hooks:
+      - id: protect-enforcement-files
+        name: LOCKED - enforcement files require human approval to modify
+        entry: "bash -c 'echo ERROR - This file is LOCKED. To modify, get human approval and use --no-verify && exit 1'"
+        language: system
+        files: >-
+          (?x)^(
+            \.pre-commit-config\.yaml|
+            \.secrets\.baseline
+          )$
+
   # Ruff - Fast linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.0

@@ -330,19 +330,19 @@ def check_projects() -> int:
     return needs_update
 
 
-def sync_project(project: Path) -> bool:
-    """Sync a single project. Returns True on success."""
+def sync_project(project: Path) -> Path | None:
+    """Sync a single project. Returns output path on success, None on failure."""
     name = project.name
 
     if not project.is_dir():
         print(f"  {RED}✗{NC} {name} - directory not found: {project}")
-        return False
+        return None
 
     ttype = detect_template_type(project)
     if not ttype:
         print(f"  {RED}✗{NC} {name} - unable to detect project type")
         print(f"      Add package.json (node) or pyproject.toml (python)")
-        return False
+        return None
 
     base = load_template(ttype)
     overrides = load_yaml_file(project / ".pre-commit-overrides.yaml")
@@ -361,22 +361,37 @@ def sync_project(project: Path) -> bool:
     write_config(project, ttype, name, config)
 
     print(f"  {GREEN}✓{NC} {name} ({ttype}) - synced successfully")
-    return True
+    return project / ".pre-commit-config.yaml"
+
+
+def print_schg_commands(synced_paths: list[Path]) -> None:
+    """Print sudo chflags schg commands for the user to run."""
+    if not synced_paths:
+        return
+    print(f"\n{YELLOW}To apply system-level lock (requires sudo):{NC}")
+    for path in synced_paths:
+        print(f"  sudo chflags schg {path}")
 
 
 def sync_all() -> bool:
     """Sync all registered projects. Returns True if all succeed."""
     print_header("Syncing Pre-commit Configs")
     all_ok = True
+    synced_paths: list[Path] = []
     for project in PROJECTS:
-        if not sync_project(project):
+        result = sync_project(project)
+        if result is None:
             all_ok = False
+        else:
+            synced_paths.append(result)
 
     print()
     if all_ok:
         print(f"{GREEN}All projects synced successfully.{NC}")
     else:
         print(f"{YELLOW}Some projects failed to sync. See errors above.{NC}")
+
+    print_schg_commands(synced_paths)
     return all_ok
 
 
@@ -385,7 +400,11 @@ def sync_one(target: str) -> bool:
     for project in PROJECTS:
         if project.name == target or str(project) == target:
             print_header(f"Syncing {project.name}")
-            return sync_project(project)
+            result = sync_project(project)
+            if result is not None:
+                print_schg_commands([result])
+                return True
+            return False
 
     print(f"{RED}Error: Project '{target}' not found in registered projects.{NC}")
     print("Run 'sync-pre-commit --list' to see registered projects.")
