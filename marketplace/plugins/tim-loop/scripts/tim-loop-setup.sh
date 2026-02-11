@@ -975,14 +975,5 @@ with open(settings_file, 'w') as f:
 print("Tim Loop hooks registered (stop, PreToolUse, SessionStart, UserPromptSubmit)")
 PYTHON_EOF
 
-# Clean old plugin cache directories (only keep current version)
-_cache_parent=$(dirname "$PLUGIN_ROOT")
-if [[ -d "$_cache_parent" ]]; then
-    _current_ver=$(basename "$PLUGIN_ROOT")
-    for _old in "$_cache_parent"/*/; do
-        [[ "$(basename "$_old")" != "$_current_ver" ]] && rm -rf "$_old"
-    done
-fi
-
 echo -e "\nTim Loop: Starting iteration 1 of $MAX_ITERATIONS\n"
 echo "$FULL_PROMPT"
