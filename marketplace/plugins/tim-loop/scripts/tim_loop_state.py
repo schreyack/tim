@@ -129,17 +129,19 @@ def _get_parent_pid(pid: int) -> int | None:
     return None
 
 
-def _extract_pid_from_state_file(state_file: Path) -> int | None:
-    """Extract CLAUDE_PID value from a state file."""
+def _extract_pid_from_state_file(state_file: Path | str) -> int | None:
+    """Extract CLAUDE_PID from a state file, with filename fallback."""
+    import re as _re
+    path = Path(state_file) if not isinstance(state_file, Path) else state_file
     try:
-        content = state_file.read_text()
-        for line in content.splitlines():
-            if line.startswith("CLAUDE_PID="):
-                pid_str = line.split("=", 1)[1].strip().strip('"').strip("'")
-                return int(pid_str)
+        if path.exists():
+            for line in path.read_text().splitlines():
+                if line.startswith("CLAUDE_PID="):
+                    return int(line.split("=", 1)[1].strip().strip('"').strip("'"))
     except Exception:
         pass
-    return None
+    match = _re.search(r"\.tim-loop-state-(\d+)$", str(state_file))
+    return int(match.group(1)) if match else None
 
 
 def _collect_claude_pids_from_state_files() -> set[int]:
@@ -165,6 +167,7 @@ def _walk_parent_chain_for_pid(target_pids: set[int]) -> int | None:
         if parent is None:
             break
         pid = parent
+    log_stderr(f"Tim Loop: PID walk failed (start={os.getppid()}, targets={target_pids})")
     return None
 
 
@@ -210,15 +213,60 @@ def load_state() -> dict | None:
             state = _parse_state_file(state_file)
             if state and state.get("CLAUDE_PID") == str(claude_pid):
                 return state
+        log_stderr(f"Tim Loop: PID {claude_pid} found but no matching state file")
 
     # Fall back to .tim-loop-active marker (backwards compatibility)
     if not TIM_LOOP_ACTIVE_MARKER.exists():
+        log_stderr("Tim Loop: No active marker found - state lookup failed")
         return None
     try:
         state_file = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
         return _parse_state_file(state_file)
-    except Exception:
+    except Exception as e:
+        log_stderr(f"Tim Loop: Active marker read failed: {e}")
         return None
+
+
+def get_review_mode() -> str:
+    """Get the current review mode from tim-loop state."""
+    state = load_state()
+    if state:
+        return state.get("REVIEW_MODE", "")
+    return ""
+
+
+def is_implement_mode() -> bool:
+    """Check if tim-loop is in implement mode (--implement flag)."""
+    state = load_state()
+    if state:
+        return state.get("IMPLEMENT_MODE", "false") == "true"
+    return False
+
+
+def check_and_clear_user_initiated_marker() -> bool:
+    """Check if user initiated this turn, and clear the marker.
+
+    Returns True if the marker existed (user is interacting).
+    When user intervenes, we reset detection state so previously-flagged
+    content doesn't cause repeated halts.
+    """
+    marker = Path.home() / ".claude" / ".tim-loop-user-initiated"
+    try:
+        if marker.exists():
+            marker.unlink()
+            reset_detection_state()
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def is_excuse_detector_enabled() -> bool:
+    """Check if excuse detector is enabled via environment variable.
+
+    Default: enabled (True). Set TIM_EXCUSE_DETECTOR_ENABLED=false to disable.
+    """
+    return os.environ.get("TIM_EXCUSE_DETECTOR_ENABLED", "true").lower() != "false"
 
 
 def save_state(state: dict) -> None:
@@ -238,32 +286,6 @@ def save_state(state: dict) -> None:
 # Staleness detection thresholds
 HEARTBEAT_THRESHOLD_SECONDS = 300  # 5 minutes
 STATE_FILE_THRESHOLD_SECONDS = 30  # 30 seconds if no heartbeat
-
-
-def _extract_claude_pid(state_file_path: str) -> int | None:
-    """Extract the Claude process PID from the state file content.
-
-    Looks for CLAUDE_PID in the state file. Falls back to extracting
-    from filename for backwards compatibility.
-    """
-    # Try to read CLAUDE_PID from state file content
-    try:
-        if state_file_path and Path(state_file_path).exists():
-            content = Path(state_file_path).read_text()
-            for line in content.split("\n"):
-                if line.startswith("CLAUDE_PID="):
-                    pid_str = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    return int(pid_str)
-    except Exception:
-        pass
-
-    # Fallback: extract from filename (backwards compatibility)
-    import re
-
-    match = re.search(r"\.tim-loop-state-(\d+)$", state_file_path or "")
-    if match:
-        return int(match.group(1))
-    return None
 
 
 def _is_process_running(pid: int) -> bool:
@@ -322,7 +344,7 @@ def _is_state_file_fresh(state_file_path: str) -> bool:
 def _check_session_staleness(state_file_path: str) -> bool:
     """Check if session is stale (dead process + stale files). Returns True if active."""
     # Extract Claude PID - if process is running, session is active
-    claude_pid = _extract_claude_pid(state_file_path)
+    claude_pid = _extract_pid_from_state_file(state_file_path)
     if claude_pid and _is_process_running(claude_pid):
         return True
 
@@ -364,7 +386,7 @@ def is_tim_loop_active() -> bool:
 
         # Session is alive - now verify THIS process belongs to it
         # by walking up the parent chain to find the CLAUDE_PID
-        state_claude_pid = _extract_claude_pid(state_file_path)
+        state_claude_pid = _extract_pid_from_state_file(state_file_path)
         if not state_claude_pid:
             # No PID in state file - fall back to assuming active (legacy)
             return True

@@ -957,19 +957,32 @@ except:
 if 'hooks' not in settings:
     settings['hooks'] = {}
 
-# SessionStart hook for prompt reinjection after context compaction
-# UserPromptSubmit hook for option expansion (type "1" instead of full response)
+# Clean existing tim-loop hooks before registering (prevents version accumulation)
+for ht in ['stop', 'PreToolUse', 'SessionStart', 'UserPromptSubmit']:
+    if ht in settings['hooks']:
+        settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
+        if not settings['hooks'][ht]:
+            del settings['hooks'][ht]
+
+# Register current version's hooks
 for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook), ('SessionStart', prompt_manager_hook), ('UserPromptSubmit', option_expander_hook)]:
     if hook_type not in settings['hooks']:
         settings['hooks'][hook_type] = []
-    entry = {"command": hook_cmd}
-    if entry not in settings['hooks'][hook_type]:
-        settings['hooks'][hook_type].append(entry)
+    settings['hooks'][hook_type].append({"command": hook_cmd})
 
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)
 print("Tim Loop hooks registered (stop, PreToolUse, SessionStart, UserPromptSubmit)")
 PYTHON_EOF
+
+# Clean old plugin cache directories (only keep current version)
+_cache_parent=$(dirname "$PLUGIN_ROOT")
+if [[ -d "$_cache_parent" ]]; then
+    _current_ver=$(basename "$PLUGIN_ROOT")
+    for _old in "$_cache_parent"/*/; do
+        [[ "$(basename "$_old")" != "$_current_ver" ]] && rm -rf "$_old"
+    done
+fi
 
 echo -e "\nTim Loop: Starting iteration 1 of $MAX_ITERATIONS\n"
 echo "$FULL_PROMPT"

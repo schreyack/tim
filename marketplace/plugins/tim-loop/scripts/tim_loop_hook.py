@@ -31,43 +31,7 @@ from tim_loop_state import (
     log_stderr,
     save_state,
 )
-
-
-def read_transcript(transcript_path: str) -> list[dict]:
-    """Read and parse the JSONL transcript file."""
-    entries = []
-    try:
-        path = Path(transcript_path).expanduser()
-        if not path.exists():
-            return entries
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        entries.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
-    except Exception:
-        pass
-    return entries
-
-
-def extract_assistant_text(transcript: list[dict]) -> str:
-    """Extract all assistant (Claude) text from transcript."""
-    texts = []
-    for entry in transcript:
-        role = entry.get("role") or entry.get("type")
-        if role != "assistant":
-            continue
-        content = entry.get("content", "")
-        if isinstance(content, str):
-            texts.append(content)
-        elif isinstance(content, list):
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "text":
-                    texts.append(block.get("text", ""))
-    return "\n".join(texts)
+from transcript_utils import extract_assistant_text, read_transcript
 
 
 def get_plan_file(state: dict, prompt: str) -> str:
@@ -327,11 +291,13 @@ def main() -> None:
     """Main hook entry point."""
     state = load_state()
     if not state:
+        log_stderr("Tim Loop: Stop hook could not load session state - allowing exit")
         print("{}")
         sys.exit(0)
 
     prompt = load_prompt_from_state(state)
     if prompt is None:
+        log_stderr(f"Tim Loop: Prompt file missing (session {state.get('SESSION_ID', '?')})")
         print("{}")
         sys.exit(0)
 
