@@ -18,6 +18,45 @@ PHASE_NAMES = {
 }
 
 
+def _full_review_guidance(
+    current_phase: int, phase_iterations: int, iteration: int, max_iter: int
+) -> str:
+    """Build guidance for full-review phase continuation."""
+    phase_name = PHASE_NAMES.get(current_phase, f"Phase {current_phase}")
+    return (
+        f"PHASE {current_phase} ({phase_name}) - REVIEW PASS (iteration {phase_iterations})\n"
+        f"(Global iteration {iteration} of {max_iter})\n\n"
+        f"DO A COMPLETE {phase_name} review NOW - as if this is your only chance.\n"
+        f"Do NOT pace yourself or save issues for later passes.\n\n"
+        f"1. Re-read the ENTIRE plan from the top\n"
+        f"2. Evaluate EVERY section thoroughly for this phase's concerns\n"
+        f"3. Fix everything you find. Do not leave known issues for a future pass\n"
+        f"4. Verify file references, API calls, and assumptions against the actual codebase\n\n"
+        f"When Phase {current_phase} is genuinely complete, output the phase completion signal."
+    )
+
+
+def _standalone_review_guidance(iteration: int) -> str:
+    """Build guidance for standalone tech-review or ai-ready continuation."""
+    return (
+        f"REVIEW PASS (iteration {iteration})\n\n"
+        f"DO A COMPLETE REVIEW NOW - as if this is your only chance to review "
+        f"this plan. Do NOT pace yourself or save issues for later passes.\n\n"
+        f"The loop re-runs you because even thorough reviews miss things on "
+        f"each pass - NOT to give you multiple passes to divide the work across. "
+        f"Every pass should be a full, exhaustive review.\n\n"
+        f"Your task:\n"
+        f"1. Re-read the ENTIRE plan from the top\n"
+        f"2. Evaluate EVERY section thoroughly - technical accuracy, edge cases, "
+        f"feasibility, testability, completeness\n"
+        f"3. Fix everything you find. Do not leave known issues for a future pass\n"
+        f"4. Verify file references, API calls, and assumptions against the actual codebase\n\n"
+        f"If you find nothing to improve after an exhaustive re-read, output the "
+        f"completion promise. But 'I already reviewed this' is not the same as "
+        f"'I re-read every section and found nothing new.'"
+    )
+
+
 def build_continue_response(
     prompt: str,
     iteration: int,
@@ -28,34 +67,10 @@ def build_continue_response(
 ) -> dict:
     """Build a block response that re-injects the prompt."""
     if review_mode == "full-review" and current_phase > 0:
-        # For full-review: show phase context
-        phase_name = PHASE_NAMES.get(current_phase, f"Phase {current_phase}")
-        guidance = (
-            f"PHASE {current_phase} ({phase_name}) - ITERATION {phase_iterations}\n"
-            f"(Global iteration {iteration} of {max_iter})\n\n"
-            f"Continue your {phase_name} review. Take a fresh pass:\n"
-            f"1. Re-read the plan AS IT CURRENTLY EXISTS\n"
-            f"2. Evaluate with FRESH EYES - pretend you haven't seen it before\n"
-            f"3. Look for issues the previous iteration(s) missed\n"
-            f"4. Make improvements if you find any\n\n"
-            f"When Phase {current_phase} is complete, output the phase completion signal."
-        )
+        guidance = _full_review_guidance(current_phase, phase_iterations, iteration, max_iter)
     elif review_mode in ("tech-review", "ai-ready"):
-        # For reviews: emphasize fresh pass, finding NEW issues
-        guidance = (
-            f"ITERATION {iteration} OF {max_iter} - TAKE A FRESH PASS\n\n"
-            f"Previous iterations may have improved the plan, but likely missed issues. "
-            f"Do NOT assume prior reviews were thorough.\n\n"
-            f"Your task for this iteration:\n"
-            f"1. Re-read the plan AS IT CURRENTLY EXISTS (it may have changed)\n"
-            f"2. Evaluate with FRESH EYES - pretend you haven't seen it before\n"
-            f"3. Look for issues the previous iteration(s) missed\n"
-            f"4. Make improvements if you find any\n\n"
-            f"Output the completion promise ONLY when you genuinely cannot find "
-            f"any more ways to improve the plan - not because it was already reviewed."
-        )
+        guidance = _standalone_review_guidance(iteration)
     else:
-        # For implementation: continue working
         guidance = "The task is not yet complete. Continue working on it."
 
     return {
@@ -89,13 +104,14 @@ def build_early_completion_challenge(
         "decision": "block",
         "reason": (
             f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
-            f"The human has found that it usually takes ~{min_iter} iterations to discover "
-            f"all the ways to improve a plan. You're only on iteration {iteration}.\n\n"
-            f"Are you sure you can't find anything else to improve? "
-            f"Take another fresh look at the plan - read it from the beginning, "
-            f"check each section with fresh eyes. Previous iterations often miss things.\n\n"
-            f"If you genuinely cannot find any more improvements after a thorough re-read, "
-            f"you may output the completion promise again.\n\n"
+            f"Your review was not thorough enough. Plans consistently have issues "
+            f"that aren't caught until pass {min_iter}+. You're on pass {iteration}.\n\n"
+            f"This is not about reaching a pass count - it's about doing a genuinely "
+            f"exhaustive review. Go back and re-read EVERY section of the plan from "
+            f"the top. Check every file reference against the codebase. Verify every "
+            f"API assumption. Tighten every vague criterion.\n\n"
+            f"If after that exhaustive re-read you truly find nothing, output the "
+            f"completion promise again.\n\n"
             f"---\n\n{prompt}"
         ),
     }
@@ -141,15 +157,14 @@ def build_early_phase_completion_challenge(
     return {
         "decision": "block",
         "reason": (
-            f"Tim Loop: Early Phase {phase} completion attempt\n\n"
-            f"You've completed {current_iter} iteration(s) of {phase_name}, "
-            f"but the minimum is {min_iter}.\n\n"
-            f"Experience shows that {phase_name} typically finds new issues "
-            f"on subsequent passes. Take another fresh look:\n\n"
-            f"1. Re-read the plan from the beginning with fresh eyes\n"
-            f"2. Focus on aspects you might have missed in previous passes\n"
-            f"3. If you genuinely find no more improvements, output the "
-            f"completion signal again\n\n"
+            f"Tim Loop: Phase {phase} ({phase_name}) - review not thorough enough\n\n"
+            f"You've done {current_iter} pass(es) but plans consistently have "
+            f"{phase_name} issues that aren't caught until pass {min_iter}+.\n\n"
+            f"This is not about reaching a pass count. Do a COMPLETE {phase_name} "
+            f"review right now as if it's your only chance:\n\n"
+            f"1. Re-read the ENTIRE plan from the top\n"
+            f"2. Evaluate EVERY section for {phase_name} concerns\n"
+            f"3. Fix everything you find - do not save issues for later\n\n"
             f"---\n\n{prompt}"
         ),
     }
