@@ -12,18 +12,6 @@ from pathlib import Path
 PENDING_OPTIONS_FILE = Path.home() / ".claude" / ".tim-loop-pending-options"
 
 
-def write_pending_options(category: str, excerpt: str) -> None:
-    """Write pending options state for the option expander."""
-    state = {
-        "category": category,
-        "excerpt": excerpt,
-    }
-    try:
-        PENDING_OPTIONS_FILE.write_text(json.dumps(state))
-    except Exception:
-        pass
-
-
 def get_options_text() -> str:
     """Get the standard options text to append to block responses.
 

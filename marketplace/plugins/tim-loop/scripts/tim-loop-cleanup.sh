@@ -47,7 +47,7 @@ except (FileNotFoundError, json.JSONDecodeError):
 
 modified = False
 if 'hooks' in settings:
-    for hook_type in ['stop', 'PreToolUse', 'SessionStart']:
+    for hook_type in ['stop', 'PreToolUse', 'SessionStart', 'UserPromptSubmit']:
         if hook_type in settings['hooks']:
             original = len(settings['hooks'][hook_type])
             settings['hooks'][hook_type] = [h for h in settings['hooks'][hook_type] if 'tim-loop' not in h.get('command', '')]

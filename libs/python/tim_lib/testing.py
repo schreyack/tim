@@ -3,17 +3,12 @@
 Provides test fixtures and utilities for all TIM Python projects.
 
 Example:
-    from tim_lib.testing import AsyncTestClient, create_test_db_session
+    from tim_lib.testing import create_test_db_session
 
     @pytest.fixture
     async def db():
         async for session in create_test_db_session(engine):
             yield session
-
-    @pytest.fixture
-    async def client(db):
-        async for c in AsyncTestClient(app, db_override=db):
-            yield c
 """
 
 from collections.abc import AsyncGenerator
@@ -59,65 +54,6 @@ async def create_test_db_session(
                 await session.rollback()
             else:
                 await session.commit()
-
-
-class AsyncTestClient:
-    """Test client wrapper for FastAPI applications.
-
-    Provides async context manager that sets up app with test dependencies.
-
-    Example:
-        @pytest.fixture
-        async def client(db_session):
-            async for c in AsyncTestClient(app, db_override=db_session):
-                yield c
-
-        async def test_get_users(client):
-            response = await client.get("/users")
-            assert response.status_code == 200
-    """
-
-    def __init__(
-        self,
-        app: Any,
-        db_override: AsyncSession | None = None,
-        base_url: str = "http://test",
-    ) -> None:
-        self.app = app
-        self.db_override = db_override
-        self.base_url = base_url
-        self._client: Any = None
-
-    async def __aiter__(self) -> AsyncGenerator[Any, None]:
-        from httpx import AsyncClient
-
-        # Store original overrides
-        original_overrides = self.app.dependency_overrides.copy()
-
-        # Set db override if provided
-        if self.db_override:
-            # Find the get_db dependency and override it
-
-            async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-                yield self.db_override  # type: ignore
-
-            # This assumes the app uses a function named get_db
-            # You may need to adjust based on your app structure
-            for key in list(self.app.dependency_overrides.keys()):
-                if "get_db" in str(key):
-                    self.app.dependency_overrides[key] = override_get_db
-
-        try:
-            from httpx import ASGITransport
-
-            transport = ASGITransport(app=self.app)
-            async with AsyncClient(
-                transport=transport, base_url=self.base_url, timeout=30.0
-            ) as client:
-                yield client
-        finally:
-            # Restore original overrides
-            self.app.dependency_overrides = original_overrides
 
 
 def create_mock_settings(**overrides: Any) -> Any:

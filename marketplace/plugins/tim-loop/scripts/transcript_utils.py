@@ -6,9 +6,39 @@ Functions for extracting and processing text from Claude Code transcripts.
 """
 
 import json
+import re
 from pathlib import Path
 
 from tim_loop_state import load_state
+
+
+def read_transcript(transcript_path: str) -> list[dict]:
+    """Read and parse the JSONL transcript file."""
+    entries = []
+    try:
+        path = Path(transcript_path).expanduser()
+        if not path.exists():
+            return entries
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+    except Exception:
+        pass
+    return entries
+
+
+def strip_code_and_quotes(text: str) -> str:
+    """Remove code blocks, quoted content, and quoted strings to avoid false positives."""
+    text = re.sub(r"```[\s\S]*?```", "", text)
+    text = re.sub(r"`[^`]+`", "", text)
+    text = re.sub(r"^>.*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r'"[^"\n]{10,}"', "", text)
+    return text
 
 
 def is_detector_test_file(file_path: str) -> bool:

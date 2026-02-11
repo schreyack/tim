@@ -19,26 +19,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Import config functions from separate module
-from judge_config import get_llm_config, is_llm_judge_enabled
-
-# Import judge criteria from separate module
-from judge_criteria import (
-    JUDGE_CRITERIA,
-    detect_task_type,
-    get_judge_criteria,
-)
-
-
-def get_plugin_version() -> str:
-    """Get the plugin version from plugin.json."""
-    plugin_json = Path(__file__).parent.parent / ".claude-plugin" / "plugin.json"
-    try:
-        with open(plugin_json, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("version", "unknown")
-    except Exception:
-        return "unknown"
+from judge_config import get_llm_config, is_llm_judge_enabled, PLUGIN_CONFIG_PATH, USER_CONFIG_PATH
+from judge_criteria import JUDGE_CRITERIA, detect_task_type, get_judge_criteria
+from tim_loop_halt import get_plugin_version
 
 # Where to log LLM catches for pattern learning
 CATCH_LOG_PATH = Path(__file__).parent / "llm_catches.jsonl"
@@ -243,13 +226,8 @@ def build_guardrails_block_response(failure_reason: str, category: str, transcri
 
     Uses 'continue: false' to completely halt Claude until human responds.
     """
-    from pending_options import get_options_text, write_pending_options
-
     yaml_path = Path(__file__).parent / "excuse_patterns.yaml"
     version = get_plugin_version()
-
-    # Write pending options state for option expander
-    write_pending_options(category, transcript_excerpt[:100])
 
     stop_reason = (
         f"🛑 **LLM JUDGE: STOP** (v{version})\n\n"
@@ -265,42 +243,18 @@ def build_guardrails_block_response(failure_reason: str, category: str, transcri
         f"     category: {category}\n"
         f"     example: \"{transcript_excerpt[:50]}...\"\n"
         f"   ```\n"
-        f"{get_options_text()}"
     )
 
-    # Use continue: false for hard stop - Claude cannot proceed without human input
     return {
         "continue": False,
         "stopReason": stop_reason,
     }
 
 
-def get_pending_catches() -> list[dict]:
-    """Get logged catches that haven't been converted to patterns yet."""
-    if not CATCH_LOG_PATH.exists():
-        return []
-
-    pending = []
-    try:
-        with open(CATCH_LOG_PATH, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    entry = json.loads(line)
-                    if not entry.get("pattern_added"):
-                        pending.append(entry)
-    except Exception as e:
-        print(f"Warning: Could not read catch log: {e}", file=sys.stderr)
-
-    return pending
-
-
 if __name__ == "__main__":
-    # Quick test / status check
     print("LLM Judge Configuration")
     print("=" * 40)
 
-    # Show config sources
     print("\nConfig files:")
     print(f"  Plugin default: {PLUGIN_CONFIG_PATH}")
     print(f"    exists: {PLUGIN_CONFIG_PATH.exists()}")
@@ -314,7 +268,6 @@ if __name__ == "__main__":
         print(f"Model: {config['model']}")
         print(f"Timeout: {config['timeout']}s")
 
-        # Test connection
         print("\nTesting connection...")
         result = _call_ollama_direct("This is a test.", config)
         if result:
@@ -331,6 +284,11 @@ if __name__ == "__main__":
         print("\n  2. Or set environment variables:")
         print("     export TIM_LLM_JUDGE_ENABLED=true")
 
-    # Show pending catches
-    pending = get_pending_catches()
-    print(f"\nPending catches to convert: {len(pending)}")
+    if CATCH_LOG_PATH.exists():
+        count = sum(
+            1 for line in CATCH_LOG_PATH.read_text().splitlines()
+            if line.strip() and not json.loads(line.strip()).get("pattern_added")
+        )
+        print(f"\nPending catches to convert: {count}")
+    else:
+        print("\nPending catches to convert: 0")

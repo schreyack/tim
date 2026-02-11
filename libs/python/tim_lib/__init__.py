@@ -34,6 +34,7 @@ from tim_lib.db import (
 )
 from tim_lib.logging import configure_logging, get_logger
 from tim_lib.security import (
+    TokenValidationError,
     create_access_token,
     hash_password,
     verify_password,
@@ -52,6 +53,7 @@ __all__ = [
     "ForbiddenError",
     "NotFoundError",
     "RateLimitMiddleware",
+    "TokenValidationError",
     "UnauthorizedError",
     "ValidationError",
     # Logging

@@ -1,5 +1,6 @@
 """Tests for tim_lib.security module."""
 
+import sys
 import time
 
 import pytest
@@ -25,7 +26,7 @@ class TestPasswordHashing:
     """
 
     @pytest.mark.skipif(
-        True,  # Skip until passlib/bcrypt compatibility is resolved
+        sys.version_info >= (3, 14),
         reason="passlib/bcrypt compatibility issue with Python 3.14",
     )
     def test_hash_password_returns_bcrypt_hash(self) -> None:

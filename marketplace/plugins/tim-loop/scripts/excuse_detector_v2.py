@@ -12,12 +12,29 @@ Over time, local regex catches more, reducing LLM API calls.
 """
 
 import json
-import os
-import re
 import sys
 from pathlib import Path
 
-from excuse_pattern_loader import ExcusePattern, get_pattern_config
+from excuse_pattern_loader import find_excuses, get_excuse_category
+from guardrails_judge import check_with_guardrails
+from patterns_mode_violation import find_mode_violations
+from patterns_task_drift import find_task_drift
+from transcript_utils import (
+    extract_assistant_text,
+    extract_latest_assistant_text,
+    extract_latest_user_request,
+    get_original_task_from_tim_loop,
+    read_transcript,
+    strip_code_and_quotes,
+)
+from tim_loop_state import (
+    check_and_clear_user_initiated_marker,
+    get_review_mode,
+    is_excuse_detector_enabled,
+    is_implement_mode,
+    reset_detection_state,
+)
+from tim_loop_halt import system_halt, build_halt_details_from_patterns
 
 # State file to track last fired position (prevents re-firing on same content)
 LAST_FIRED_FILE = Path.home() / ".claude" / ".tim-loop-last-fired"
@@ -47,118 +64,6 @@ def clear_last_fired() -> None:
         LAST_FIRED_FILE.unlink(missing_ok=True)
     except Exception:
         pass
-from guardrails_judge import check_with_guardrails
-from patterns_mode_violation import find_mode_violations
-from patterns_task_drift import find_task_drift
-from transcript_utils import (
-    extract_assistant_text,
-    extract_latest_assistant_text,
-    extract_latest_user_request,
-    get_original_task_from_tim_loop,
-)
-from tim_loop_state import load_state, reset_detection_state
-from tim_loop_halt import system_halt, build_halt_details_from_patterns
-
-
-def read_transcript(transcript_path: str) -> list[dict]:
-    """Read and parse the JSONL transcript file."""
-    entries = []
-    try:
-        path = Path(transcript_path).expanduser()
-        if not path.exists():
-            return entries
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        entries.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
-    except Exception:
-        pass
-    return entries
-
-
-def strip_code_and_quotes(text: str) -> str:
-    """Remove code blocks, quoted content, and quoted strings to avoid false positives.
-
-    Strips:
-    - Fenced code blocks (```...```)
-    - Inline code (`...`)
-    - Blockquotes (lines starting with >)
-    - Double-quoted strings (agent quoting previous text)
-    """
-    # Remove fenced code blocks (multiline)
-    text = re.sub(r"```[\s\S]*?```", "", text)
-
-    # Remove inline code
-    text = re.sub(r"`[^`]+`", "", text)
-
-    # Remove blockquote lines
-    text = re.sub(r"^>.*$", "", text, flags=re.MULTILINE)
-
-    # Remove double-quoted strings (agent quoting previous text)
-    text = re.sub(r'"[^"\n]{10,}"', "", text)
-
-    return text
-
-
-def has_mitigation_nearby(text: str, match_end: int, config, window: int = 150) -> bool:
-    """Check if mitigation phrase appears within window after the match."""
-    context = text[match_end:match_end + window]
-    return any(p.search(context) for p in config.mitigation_patterns)
-
-
-def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
-    """Find excuse patterns using YAML-defined patterns."""
-    config = get_pattern_config()
-    found = []
-
-    # Strip code blocks and quotes to avoid false positives when discussing rules
-    text = strip_code_and_quotes(text)
-
-    for pattern in config.patterns:
-        for match in pattern.compiled.finditer(text):
-            if has_mitigation_nearby(text, match.end(), config):
-                continue
-            start = max(0, match.start() - 50)
-            end = min(len(text), match.end() + 50)
-            context = text[start:end].replace("\n", " ").strip()
-            if start > 0:
-                context = "..." + context
-            if end < len(text):
-                context = context + "..."
-            found.append((pattern, context))
-            break  # One example per pattern
-
-    return found
-
-
-def get_excuse_category(excuses: list[tuple[ExcusePattern, str]]) -> str:
-    """Get the primary category from detected excuses."""
-    categories = ["posthook", "redefine", "unilateral_decision", "test_manipulation",
-                  "failure_dismissal", "shortcut"]
-    for cat in categories:
-        if any(e.category == cat for e, _ in excuses):
-            return cat.upper().replace("_", " ")
-    return "EXCUSE PATTERN"
-
-
-def get_review_mode() -> str:
-    """Get the current review mode from tim-loop state."""
-    state = load_state()
-    if state:
-        return state.get("REVIEW_MODE", "")
-    return ""
-
-
-def is_implement_mode() -> bool:
-    """Check if tim-loop is in implement mode (--implement flag)."""
-    state = load_state()
-    if state:
-        return state.get("IMPLEMENT_MODE", "false") == "true"
-    return False
 
 
 def check_mode_violations(assistant_text: str) -> tuple[str, str] | None:
@@ -184,11 +89,7 @@ def check_excuse_patterns(latest_text: str) -> tuple[str, str] | None:
 
 
 def check_guardrails(transcript: list[dict]) -> dict | None:
-    """Check with LLM-as-judge. Returns halt response dict or None.
-
-    Note: Guardrails returns its own properly-formatted halt response
-    with continue: False, so we return it directly instead of converting.
-    """
+    """Check with LLM-as-judge. Returns halt response dict or None."""
     latest_text = extract_latest_assistant_text(transcript)
     if not latest_text:
         return None
@@ -233,35 +134,6 @@ def run_detection_passes(
 
     # Pass 2: LLM-as-judge via Guardrails (returns dict with continue: False)
     return check_guardrails(transcript)
-
-
-def check_and_clear_user_initiated_marker() -> bool:
-    """Check if user initiated this turn, and clear the marker.
-
-    Returns True if the marker existed (user is interacting).
-    The marker is set by the UserPromptSubmit hook when user types input.
-    Tim-loop auto-continuations don't trigger UserPromptSubmit, so no marker.
-
-    When user intervenes, we also reset detection state so previously-flagged
-    content doesn't cause repeated halts.
-    """
-    marker = Path.home() / ".claude" / ".tim-loop-user-initiated"
-    try:
-        if marker.exists():
-            marker.unlink()
-            reset_detection_state()
-            return True
-    except Exception:
-        pass
-    return False
-
-
-def is_excuse_detector_enabled() -> bool:
-    """Check if excuse detector is enabled via environment variable.
-
-    Default: enabled (True). Set TIM_EXCUSE_DETECTOR_ENABLED=false to disable.
-    """
-    return os.environ.get("TIM_EXCUSE_DETECTOR_ENABLED", "true").lower() != "false"
 
 
 def should_skip_detection() -> bool:

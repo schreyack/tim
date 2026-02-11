@@ -123,16 +123,6 @@ def load_patterns_from_yaml(yaml_path: Path | None = None) -> PatternConfig:
     )
 
 
-def get_patterns_by_category(config: PatternConfig, category: str) -> list[ExcusePattern]:
-    """Get all patterns for a specific category."""
-    return [p for p in config.patterns if p.category == category]
-
-
-def get_all_categories(config: PatternConfig) -> set[str]:
-    """Get all unique categories in the pattern config."""
-    return {p.category for p in config.patterns}
-
-
 # Module-level cache
 _cached_config: PatternConfig | None = None
 
@@ -145,21 +135,53 @@ def get_pattern_config() -> PatternConfig:
     return _cached_config
 
 
-def reload_patterns() -> PatternConfig:
-    """Force reload patterns from YAML."""
-    global _cached_config
-    _cached_config = load_patterns_from_yaml()
-    return _cached_config
+def has_mitigation_nearby(text: str, match_end: int, config: PatternConfig, window: int = 150) -> bool:
+    """Check if mitigation phrase appears within window after the match."""
+    context = text[match_end:match_end + window]
+    return any(p.search(context) for p in config.mitigation_patterns)
+
+
+def find_excuses(text: str) -> list[tuple[ExcusePattern, str]]:
+    """Find excuse patterns using YAML-defined patterns."""
+    from transcript_utils import strip_code_and_quotes
+
+    config = get_pattern_config()
+    found = []
+    text = strip_code_and_quotes(text)
+
+    for pattern in config.patterns:
+        for match in pattern.compiled.finditer(text):
+            if has_mitigation_nearby(text, match.end(), config):
+                continue
+            start = max(0, match.start() - 50)
+            end = min(len(text), match.end() + 50)
+            context = text[start:end].replace("\n", " ").strip()
+            if start > 0:
+                context = "..." + context
+            if end < len(text):
+                context = context + "..."
+            found.append((pattern, context))
+            break  # One example per pattern
+
+    return found
+
+
+def get_excuse_category(excuses: list[tuple[ExcusePattern, str]]) -> str:
+    """Get the primary category from detected excuses."""
+    categories = ["posthook", "redefine", "unilateral_decision", "test_manipulation",
+                  "failure_dismissal", "shortcut"]
+    for cat in categories:
+        if any(e.category == cat for e, _ in excuses):
+            return cat.upper().replace("_", " ")
+    return "EXCUSE PATTERN"
 
 
 if __name__ == "__main__":
-    # Test loading
     config = load_patterns_from_yaml()
     print(f"Loaded {len(config.patterns)} patterns (version {config.version})")
-    print(f"Categories: {get_all_categories(config)}")
+    cats = {p.category for p in config.patterns}
+    print(f"Categories: {cats}")
     print(f"Mitigation patterns: {len(config.mitigation_patterns)}")
-
-    # Show counts by category
-    for cat in sorted(get_all_categories(config)):
-        count = len(get_patterns_by_category(config, cat))
+    for cat in sorted(cats):
+        count = len([p for p in config.patterns if p.category == cat])
         print(f"  {cat}: {count} patterns")
