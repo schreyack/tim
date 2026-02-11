@@ -215,7 +215,7 @@ def is_file_locked(path: Path) -> bool:
         )
         if result.returncode == 0:
             flags = int(result.stdout.strip())
-            return bool(flags & 0x000001)  # UF_IMMUTABLE
+            return bool(flags & 0x000002)  # UF_IMMUTABLE
     except (FileNotFoundError, ValueError):
         pass
     return False
