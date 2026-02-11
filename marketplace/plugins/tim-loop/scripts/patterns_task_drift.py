@@ -92,7 +92,7 @@ TASK_DRIFT_PATTERNS = [
         example="I'll start coding the changes.",
     ),
     TaskDriftPattern(
-        pattern=r"Phase\s+\d+:\s*(?:Implement|Implementation|Code|Coding|Build)",
+        pattern=r"Phase\s+\d+:\s*(?:Implement|Implementation|Code|Coding|Build)\b(?!\s+(?:Audit|Verification|Check|Review|Verify))",
         description="Entering implementation phase without being asked",
         example="Phase 3: Implementation",
     ),
@@ -143,5 +143,3 @@ def find_task_drift(text: str) -> list[TaskDrift]:
             ))
 
     return drifts
-
-

@@ -115,6 +115,42 @@ Let me fix this:"""
         result = run_fast_checks(text)
         self.assertIsNotNone(result, "Should catch task drift outside review modes")
 
+    @patch("fast_pattern_detector.load_state")
+    def test_allows_implementation_audit_heading(self, mock_state: unittest.mock.MagicMock) -> None:
+        """Should NOT catch 'Phase N: Implementation Audit' as task drift.
+
+        This is a verification section heading, not an implementation announcement.
+        False positive was causing system halts during --verify mode.
+        """
+        mock_state.return_value = _mock_state(review_mode="")
+        text = """Starting verification audit. Let me read the plan file first.
+
+Phase 1: Intent Review
+
+I've read the full plan. Let me now systematically verify every deliverable.
+
+Phase 2: Implementation Audit
+
+Starting parallel verification of all phases.
+"""
+        result = run_fast_checks(text)
+        # Should not trigger on "Phase 2: Implementation Audit"
+        if result:
+            category, details = result
+            self.assertNotIn(
+                "Phase 2: Implement",
+                details,
+                "Should not flag 'Implementation Audit' as task drift",
+            )
+
+    @patch("fast_pattern_detector.load_state")
+    def test_still_catches_bare_implementation_phase(self, mock_state: unittest.mock.MagicMock) -> None:
+        """Should still catch 'Phase 3: Implementation' without audit/review qualifier."""
+        mock_state.return_value = _mock_state(review_mode="")
+        text = "The review is done. Phase 3: Implementation begins now."
+        result = run_fast_checks(text)
+        self.assertIsNotNone(result, "Should catch bare 'Phase 3: Implementation'")
+
 
 if __name__ == "__main__":
     unittest.main()
