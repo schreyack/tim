@@ -1,0 +1,30 @@
+# TIM Enforcement Files
+# Files listed here are locked by tim-lock-enforcement to prevent AI modification.
+# One relative path per line (relative to TIM_ROOT). Comments start with #.
+
+# This config file itself
+.tim-enforcement-files
+
+# Pre-commit configs and templates
+.pre-commit-config.yaml
+templates/node/.pre-commit-config.yaml
+templates/python/.pre-commit-config.yaml
+
+# Secrets baseline
+.secrets.baseline
+
+# Enforcement tools
+tools/check-code-quality.py
+tools/tim-compliance-check.sh
+tools/tim-local-dev-enable
+tools/tim-ops-approve
+
+# Sync scripts
+bin/sync-pre-commit
+bin/sync-claude-md
+
+# Shared lib enforcement configs
+libs/node/eslint.config.js
+
+# AI bypass prevention
+marketplace/plugins/tim-loop/scripts/block_bypass_flags.py

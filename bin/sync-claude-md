@@ -19,26 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIM_ROOT="$(dirname "$SCRIPT_DIR")"
 TIM_CLAUDE_MD="$TIM_ROOT/CLAUDE.md"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Load registered projects from .tim-projects
-PROJECTS=()
-PROJECTS_FILE="$TIM_ROOT/.tim-projects"
-if [ -f "$PROJECTS_FILE" ]; then
-    while IFS= read -r line; do
-        line="${line%%#*}"  # strip comments
-        line="${line// /}"  # trim whitespace
-        [[ -n "$line" ]] && PROJECTS+=("$line")
-    done < "$PROJECTS_FILE"
-else
-    echo -e "${YELLOW}Warning: $PROJECTS_FILE not found.${NC}"
-    echo "Create it with one project path per line."
-fi
+source "$TIM_ROOT/libs/bash/tim-common.sh"
+load_projects
 
 print_header() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

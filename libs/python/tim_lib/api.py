@@ -17,7 +17,7 @@ Example:
 
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -78,17 +78,21 @@ class ForbiddenError(AppError):
     message = "Forbidden"
 
 
-async def _handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+async def _handle_app_error(request: Request, exc: Exception) -> JSONResponse:
     """Handle AppError exceptions."""
+    app_exc = cast(AppError, exc)
     return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": exc.message, "detail": exc.detail},
+        status_code=app_exc.status_code,
+        content={"error": app_exc.message, "detail": app_exc.detail},
     )
 
 
-async def _handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+async def _handle_http_exception(request: Request, exc: Exception) -> JSONResponse:
     """Handle HTTPException exceptions."""
-    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+    http_exc = cast(HTTPException, exc)
+    return JSONResponse(
+        status_code=http_exc.status_code, content={"error": http_exc.detail}
+    )
 
 
 def setup_exception_handlers(app: FastAPI) -> None:

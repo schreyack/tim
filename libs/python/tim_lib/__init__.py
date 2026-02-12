@@ -35,10 +35,13 @@ from tim_lib.db import (
 from tim_lib.logging import configure_logging, get_logger
 from tim_lib.security import (
     TokenValidationError,
+    constant_time_compare,
     create_access_token,
+    generate_secure_token,
     hash_password,
     verify_password,
     verify_token,
+    verify_token_with_fallback,
 )
 
 __all__ = [
@@ -58,10 +61,12 @@ __all__ = [
     "ValidationError",
     # Logging
     "configure_logging",
+    "constant_time_compare",
     "create_access_token",
     "create_async_engine_with_pool",
     "create_health_router",
     "dependency_get_db",
+    "generate_secure_token",
     "get_db_session",
     "get_logger",
     "get_session_factory",
@@ -71,4 +76,5 @@ __all__ = [
     "setup_exception_handlers",
     "verify_password",
     "verify_token",
+    "verify_token_with_fallback",
 ]

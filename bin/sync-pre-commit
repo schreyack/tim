@@ -116,17 +116,6 @@ def load_template(template_type: str) -> dict[str, Any]:
     return load_yaml_file(template_path)
 
 
-def collect_all_hook_ids(repos: list[dict[str, Any]]) -> set[str]:
-    """Collect all hook IDs from a list of repos."""
-    ids: set[str] = set()
-    for repo in repos:
-        for hook in repo.get("hooks", []):
-            hook_id = hook.get("id")
-            if hook_id:
-                ids.add(hook_id)
-    return ids
-
-
 def merge_config(
     base: dict[str, Any],
     overrides: dict[str, Any],

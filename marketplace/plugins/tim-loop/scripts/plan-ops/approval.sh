@@ -66,28 +66,11 @@ update_ai_ready_status() {
         return 1
     fi
 
-    # Helper to add or update a field
-    # Usage: add_or_update_field "field_name" "value" "anchor_field"
-    add_or_update_field() {
-        local field="$1"
-        local value="$2"
-        local anchor_field="$3"
-        # Use regex to handle variable whitespace in markdown tables
-        if grep -qE "\| ${field}[[:space:]]*\|" "$file"; then
-            # Pattern handles variable whitespace in markdown tables
-            sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$file"
-        else
-            # Add after anchor field
-            insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$file"
-            log_warn "Added missing ${field} field to Status Header"
-        fi
-    }
-
     # Add/update fields in order (each anchors to the previous, starting from found anchor)
-    add_or_update_field "AI Developer Ready" "yes" "$anchor"
-    add_or_update_field "AI Developer Ready By" "${reviewer}" "AI Developer Ready"
-    add_or_update_field "AI Developer Ready Date" "${date}" "AI Developer Ready By"
-    add_or_update_field "AI Developer Ready Iteration" "${iteration}" "AI Developer Ready Date"
+    _add_or_update_status_field "AI Developer Ready" "yes" "$anchor" "$file"
+    _add_or_update_status_field "AI Developer Ready By" "${reviewer}" "AI Developer Ready" "$file"
+    _add_or_update_status_field "AI Developer Ready Date" "${date}" "AI Developer Ready By" "$file"
+    _add_or_update_status_field "AI Developer Ready Iteration" "${iteration}" "AI Developer Ready Date" "$file"
 
     # Update Last Updated
     sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
@@ -130,25 +113,10 @@ update_verification_status() {
         return 1
     fi
 
-    # Helper to add or update a field (use regex to handle variable whitespace)
-    _add_or_update_field() {
-        local field="$1"
-        local value="$2"
-        local anchor_field="$3"
-        local target_file="$4"
-        if grep -qE "\| ${field}[[:space:]]*\|" "$target_file"; then
-            # Pattern handles variable whitespace in markdown tables
-            sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$target_file"
-        else
-            insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$target_file"
-            log_warn "Added missing ${field} field to Status Header"
-        fi
-    }
-
     # Add/update fields in order
-    _add_or_update_field "Implementation Verified" "yes" "$anchor" "$file"
-    _add_or_update_field "Implementation Verified By" "${reviewer}" "Implementation Verified" "$file"
-    _add_or_update_field "Implementation Verified Date" "${date}" "Implementation Verified By" "$file"
+    _add_or_update_status_field "Implementation Verified" "yes" "$anchor" "$file"
+    _add_or_update_status_field "Implementation Verified By" "${reviewer}" "Implementation Verified" "$file"
+    _add_or_update_status_field "Implementation Verified Date" "${date}" "Implementation Verified By" "$file"
 
     # Update Last Updated
     sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
@@ -324,25 +292,10 @@ update_execution_status() {
         return 1
     fi
 
-    # Helper to add or update a field (use regex to handle variable whitespace)
-    _add_or_update_exec_field() {
-        local field="$1"
-        local value="$2"
-        local anchor_field="$3"
-        local target_file="$4"
-        if grep -qE "\| ${field}[[:space:]]*\|" "$target_file"; then
-            # Pattern handles variable whitespace in markdown tables
-            sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$target_file"
-        else
-            insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$target_file"
-            log_warn "Added missing ${field} field to Status Header"
-        fi
-    }
-
     # Add/update fields in order
-    _add_or_update_exec_field "Execution Approved" "yes" "$anchor" "$plan_file"
-    _add_or_update_exec_field "Execution Approved By" "${approver}" "Execution Approved" "$plan_file"
-    _add_or_update_exec_field "Execution Started" "${ts}" "Execution Approved By" "$plan_file"
+    _add_or_update_status_field "Execution Approved" "yes" "$anchor" "$plan_file"
+    _add_or_update_status_field "Execution Approved By" "${approver}" "Execution Approved" "$plan_file"
+    _add_or_update_status_field "Execution Started" "${ts}" "Execution Approved By" "$plan_file"
 
     # Update Last Updated (pattern handles variable whitespace)
     sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$plan_file"

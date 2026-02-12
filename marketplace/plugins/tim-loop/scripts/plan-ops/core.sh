@@ -4,7 +4,8 @@
 #
 # Dependencies: none
 # Exports: log_info, log_warn, log_error, to_absolute, get_plans_dir_from_path,
-#          timestamp, datestamp, strip_ansi, insert_line_after
+#          timestamp, datestamp, strip_ansi, insert_line_after,
+#          _add_or_update_status_field
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 
@@ -112,6 +113,26 @@ insert_line_after() {
         { print }
         /\|[[:space:]]*'"$field_name"'[[:space:]]*\|/ && !done { print line; done=1 }
     ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+}
+
+# =============================================================================
+# STATUS HEADER FIELD HELPERS
+# =============================================================================
+
+# Add or update a field in a plan's Status Header markdown table
+# Usage: _add_or_update_status_field "field_name" "value" "anchor_field" "file_path"
+_add_or_update_status_field() {
+    local field="$1"
+    local value="$2"
+    local anchor_field="$3"
+    local target_file="$4"
+    if grep -qE "\| ${field}[[:space:]]*\|" "$target_file"; then
+        # Pattern handles variable whitespace in markdown tables
+        sed -i '' "s/| ${field}[[:space:]]*|[^|]*|/| ${field} | ${value} |/" "$target_file"
+    else
+        insert_line_after "| ${anchor_field} |" "| ${field} | ${value} |" "$target_file"
+        log_warn "Added missing ${field} field to Status Header"
+    fi
 }
 
 # =============================================================================

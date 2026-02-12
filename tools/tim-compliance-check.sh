@@ -17,6 +17,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TIM_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$TIM_ROOT/libs/bash/tim-common.sh"
+
 # Parse arguments
 CI_MODE=false
 PROJECT_ROOT="."
@@ -36,13 +40,7 @@ done
 
 cd "$PROJECT_ROOT"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-BOLD='\033[1m'
-NC='\033[0m'
+# Colors sourced from libs/bash/tim-common.sh
 
 # Counters
 PASSED=0
