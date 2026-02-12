@@ -20,6 +20,8 @@ These indicate scope expansion - doing work that wasn't requested.
 import re
 from dataclasses import dataclass
 
+from transcript_utils import get_context_around_match
+
 
 @dataclass
 class TaskDriftPattern:
@@ -127,14 +129,7 @@ def find_task_drift(text: str) -> list[TaskDrift]:
     for pattern, compiled in COMPILED_DRIFT_PATTERNS:
         match = compiled.search(text)
         if match:
-            # Extract context around the match
-            start = max(0, match.start() - 50)
-            end = min(len(text), match.end() + 50)
-            context = text[start:end].replace("\n", " ").strip()
-            if start > 0:
-                context = "..." + context
-            if end < len(text):
-                context = context + "..."
+            context = get_context_around_match(text, match.start(), match.end())
 
             drifts.append(TaskDrift(
                 pattern=pattern,

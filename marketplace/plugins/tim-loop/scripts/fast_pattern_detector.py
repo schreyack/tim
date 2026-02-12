@@ -32,7 +32,7 @@ from tim_loop_state import (
     TIM_LOOP_ACTIVE_MARKER,
 )
 from tim_loop_halt import system_halt, build_halt_details_from_patterns
-from transcript_utils import read_transcript
+from transcript_utils import read_transcript, get_entry_role_and_content, is_human_turn
 
 # Escalation configuration
 BLOCK_COUNT_FILE = Path.home() / ".claude" / ".tim-loop-block-count"
@@ -80,15 +80,7 @@ def issue_halt_for_violation(category: str, details: str, block_count: int) -> N
     )
 
 
-def _get_role_and_content(entry: dict) -> tuple[str | None, str | list]:
-    """Extract role and content from a transcript entry."""
-    message = entry.get("message", {})
-    if isinstance(message, dict):
-        return message.get("role"), message.get("content", "")
-    return entry.get("role") or entry.get("type"), entry.get("content", "")
-
-
-def _extract_text_from_content(content: str | list) -> list[str]:
+def _extract_text_blocks_only(content: str | list) -> list[str]:
     """Extract text strings from content (handles both string and list formats).
 
     Unlike transcript_utils.extract_text_from_content, this only extracts
@@ -105,21 +97,6 @@ def _extract_text_from_content(content: str | list) -> list[str]:
     return texts
 
 
-def _is_human_turn(entry: dict) -> bool:
-    """Check if transcript entry is human user input (not a tool result)."""
-    role, content = _get_role_and_content(entry)
-    if role != "user":
-        return False
-    if isinstance(content, str):
-        return bool(content.strip())
-    if isinstance(content, list):
-        for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                if block.get("text", "").strip():
-                    return True
-    return False
-
-
 def extract_recent_assistant_text(transcript: list[dict], max_messages: int = 10) -> str:
     """Extract recent assistant text from transcript since last human message.
 
@@ -130,12 +107,12 @@ def extract_recent_assistant_text(transcript: list[dict], max_messages: int = 10
     message_count = 0
 
     for entry in reversed(transcript):
-        if _is_human_turn(entry):
+        if is_human_turn(entry):
             break
-        role, content = _get_role_and_content(entry)
+        role, content = get_entry_role_and_content(entry)
         if role != "assistant":
             continue
-        texts.extend(_extract_text_from_content(content))
+        texts.extend(_extract_text_blocks_only(content))
         message_count += 1
         if message_count >= max_messages:
             break

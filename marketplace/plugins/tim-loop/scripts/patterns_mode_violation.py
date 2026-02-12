@@ -20,6 +20,8 @@ Implementation modes (CAN implement):
 import re
 from dataclasses import dataclass
 
+from transcript_utils import get_context_around_match
+
 # Patterns that indicate Claude is trying to implement
 # These should BLOCK during review modes
 IMPLEMENTATION_PHRASES = [
@@ -75,14 +77,7 @@ def find_mode_violations(text: str, review_mode: str) -> list[ModeViolation]:
     for pattern in IMPLEMENTATION_PATTERNS:
         match = pattern.search(text)
         if match:
-            # Extract context around the match
-            start = max(0, match.start() - 50)
-            end = min(len(text), match.end() + 50)
-            context = text[start:end].replace("\n", " ").strip()
-            if start > 0:
-                context = "..." + context
-            if end < len(text):
-                context = context + "..."
+            context = get_context_around_match(text, match.start(), match.end())
 
             violations.append(
                 ModeViolation(
@@ -94,5 +89,3 @@ def find_mode_violations(text: str, review_mode: str) -> list[ModeViolation]:
             )
 
     return violations
-
-

@@ -7,6 +7,7 @@ Functions for extracting and processing text from Claude Code transcripts.
 
 import json
 import re
+import sys
 from pathlib import Path
 
 from tim_loop_state import load_state
@@ -27,8 +28,8 @@ def read_transcript(transcript_path: str) -> list[dict]:
                         entries.append(json.loads(line))
                     except json.JSONDecodeError:
                         continue
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Warning: Failed to read transcript: {e}", file=sys.stderr)
     return entries
 
 
@@ -90,7 +91,7 @@ def extract_text_from_content(content) -> list[str]:
     return []
 
 
-def _get_entry_role_and_content(entry: dict) -> tuple[str | None, str]:
+def get_entry_role_and_content(entry: dict) -> tuple[str | None, str | list]:
     """Extract role and content from a transcript entry."""
     message = entry.get("message", {})
     if isinstance(message, dict):
@@ -104,7 +105,7 @@ def is_human_turn(entry: dict) -> bool:
     Distinguishes actual user messages from tool_result entries which also
     have role "user" in the API format.
     """
-    role, content = _get_entry_role_and_content(entry)
+    role, content = get_entry_role_and_content(entry)
     if role != "user":
         return False
     if isinstance(content, str):
@@ -115,6 +116,15 @@ def is_human_turn(entry: dict) -> bool:
                 if block.get("text", "").strip():
                     return True
     return False
+
+
+def get_context_around_match(text: str, start: int, end: int, window: int = 50) -> str:
+    """Return context around a regex match with ellipsis when truncated."""
+    ctx_start = max(0, start - window)
+    ctx_end = min(len(text), end + window)
+    prefix = "..." if ctx_start > 0 else ""
+    suffix = "..." if ctx_end < len(text) else ""
+    return f"{prefix}{text[ctx_start:ctx_end]}{suffix}"
 
 
 def extract_assistant_text(transcript: list[dict], max_messages: int = 0) -> str:
@@ -137,7 +147,7 @@ def extract_assistant_text(transcript: list[dict], max_messages: int = 0) -> str
         # When scanning recent messages, stop at human turn boundary
         if max_messages > 0 and is_human_turn(entry):
             break
-        role, content = _get_entry_role_and_content(entry)
+        role, content = get_entry_role_and_content(entry)
         if role == "assistant":
             texts.extend(extract_text_from_content(content))
             message_count += 1
@@ -150,7 +160,7 @@ def extract_assistant_text(transcript: list[dict], max_messages: int = 0) -> str
 def extract_latest_assistant_text(transcript: list[dict]) -> str:
     """Extract only the most recent assistant message from transcript."""
     for entry in reversed(transcript):
-        role, content = _get_entry_role_and_content(entry)
+        role, content = get_entry_role_and_content(entry)
         if role == "assistant":
             texts = extract_text_from_content(content)
             return "\n".join(texts)
@@ -160,7 +170,7 @@ def extract_latest_assistant_text(transcript: list[dict]) -> str:
 def extract_latest_user_request(transcript: list[dict]) -> str:
     """Extract the most recent user message from transcript for task type detection."""
     for entry in reversed(transcript):
-        role, content = _get_entry_role_and_content(entry)
+        role, content = get_entry_role_and_content(entry)
         if role == "user":
             texts = extract_text_from_content(content)
             return "\n".join(texts)
