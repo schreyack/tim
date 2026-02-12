@@ -74,11 +74,18 @@ show_status() {
         # If file is outside TIM_ROOT, show full path
         [[ "$rel" == "$file" ]] && rel="$file"
 
+        local has_uchg=false has_schg=false
+        is_uchg "$file" && has_uchg=true
+        is_schg "$file" && has_schg=true
+
         local status=""
-        if is_schg "$file"; then
+        if $has_schg && $has_uchg; then
             status="${GREEN}schg+uchg${NC}"
             locked=$((locked + 1))
-        elif is_uchg "$file"; then
+        elif $has_schg; then
+            status="${YELLOW}schg only${NC}"
+            locked=$((locked + 1))
+        elif $has_uchg; then
             status="${YELLOW}uchg only${NC}"
             locked=$((locked + 1))
         else

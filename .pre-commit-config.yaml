@@ -16,19 +16,21 @@ repos:
         language: system
         files: >-
           (?x)^(
+            \.github/workflows/ci\.yml|
             \.pre-commit-config\.yaml|
-            tools/check-code-quality\.py|
-            libs/node/eslint\.config\.js|
             \.secrets\.baseline|
-            templates/python/\.pre-commit-config\.yaml|
-            templates/node/\.pre-commit-config\.yaml
+            \.tim-enforcement-files|
+            bin/(sync-claude-md|sync-pre-commit)|
+            libs/node/(eslint\.config\.js|tsconfig\.json)|
+            libs/python/pyproject\.toml|
+            marketplace/plugins/tim-loop/scripts/block_bypass_flags\.py|
+            standards/enforcement/(ai-behavioral-gates|gates|strict-compliance)\.md|
+            templates/(node|python)/\.pre-commit-config\.yaml|
+            templates/node/(eslint\.config\.js|tsconfig\.json)|
+            templates/python/pyproject\.toml|
+            tools/(check-code-quality\.py|tim-compliance-check\.sh|tim-local-dev-enable|tim-ops-approve)
           )$
 
-      - id: protect-tool-config-sections
-        name: LOCKED - tool config changes require human approval
-        entry: "bash -c 'echo ERROR - Tool config sections are LOCKED. To modify ruff/mypy/eslint settings, get human approval and use --no-verify && exit 1'"
-        language: system
-        files: ^libs/python/pyproject\.toml$
 
   # =============================================================================
   # PYTHON HOOKS (libs/python/)
@@ -179,7 +181,39 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: >-
+          (?x)^(
+            \.github/workflows/ci\.yml|
+            \.pre-commit-config\.yaml|
+            \.secrets\.baseline|
+            \.tim-enforcement-files|
+            bin/(sync-claude-md|sync-pre-commit)|
+            libs/node/(eslint\.config\.js|tsconfig\.json)|
+            libs/python/pyproject\.toml|
+            marketplace/plugins/tim-loop/scripts/block_bypass_flags\.py|
+            standards/enforcement/(ai-behavioral-gates|gates|strict-compliance)\.md|
+            templates/(node|python)/\.pre-commit-config\.yaml|
+            templates/node/(eslint\.config\.js|tsconfig\.json)|
+            templates/python/pyproject\.toml|
+            tools/(check-code-quality\.py|tim-compliance-check\.sh|tim-local-dev-enable|tim-ops-approve)
+          )$
       - id: end-of-file-fixer
+        exclude: >-
+          (?x)^(
+            \.github/workflows/ci\.yml|
+            \.pre-commit-config\.yaml|
+            \.secrets\.baseline|
+            \.tim-enforcement-files|
+            bin/(sync-claude-md|sync-pre-commit)|
+            libs/node/(eslint\.config\.js|tsconfig\.json)|
+            libs/python/pyproject\.toml|
+            marketplace/plugins/tim-loop/scripts/block_bypass_flags\.py|
+            standards/enforcement/(ai-behavioral-gates|gates|strict-compliance)\.md|
+            templates/(node|python)/\.pre-commit-config\.yaml|
+            templates/node/(eslint\.config\.js|tsconfig\.json)|
+            templates/python/pyproject\.toml|
+            tools/(check-code-quality\.py|tim-compliance-check\.sh|tim-local-dev-enable|tim-ops-approve)
+          )$
       - id: check-yaml
         args: [--unsafe]
         exclude: ^templates/|^examples/

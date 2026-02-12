@@ -25,6 +25,21 @@ bin/sync-claude-md
 
 # Shared lib enforcement configs
 libs/node/eslint.config.js
+libs/node/tsconfig.json
+libs/python/pyproject.toml
 
 # AI bypass prevention
 marketplace/plugins/tim-loop/scripts/block_bypass_flags.py
+
+# CI/CD pipeline
+.github/workflows/ci.yml
+
+# Enforcement standards (locked to prevent rules weakening)
+standards/enforcement/ai-behavioral-gates.md
+standards/enforcement/gates.md
+standards/enforcement/strict-compliance.md
+
+# Template configs (locked to prevent standards drift)
+templates/node/eslint.config.js
+templates/node/tsconfig.json
+templates/python/pyproject.toml
