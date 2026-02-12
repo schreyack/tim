@@ -178,6 +178,7 @@ For auth, payments, PII handling:
 When leaving comments for AI revision:
 
 **Be specific:**
+
 ```markdown
 # Good
 ❌ Line 45: This method `stripe.customers.createPaymentMethod` doesn't exist.
@@ -189,12 +190,14 @@ When leaving comments for AI revision:
 ```
 
 **Reference documentation:**
+
 ```markdown
 ❌ Line 72: Password hashing should use bcrypt, not sha256.
    See: standards/security/owasp-checklist.md#password-storage
 ```
 
 **Explain the issue:**
+
 ```markdown
 ❌ Line 23-25: This loop will fail on empty arrays.
    When `items.length === 0`, `items[0]` returns undefined, causing

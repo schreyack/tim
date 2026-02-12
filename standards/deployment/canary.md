@@ -5,6 +5,7 @@ Canary deployments route a small percentage of traffic to new code before full r
 ## Why Canary for AI Development
 
 AI-written code can:
+
 - Pass all tests but fail in production edge cases
 - Have subtle logic errors that look correct
 - Make assumptions that don't hold at scale
@@ -13,7 +14,7 @@ Canary deployments provide a production safety net that catches what testing mis
 
 ## Deployment Flow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         CANARY DEPLOYMENT FLOW                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -187,7 +188,7 @@ jobs:
 
 ### Required Dashboards
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    CANARY MONITORING DASHBOARD                   │
 ├─────────────────────────────────────────────────────────────────┤
@@ -310,11 +311,13 @@ async function monitorCanary(): Promise<void> {
 ## Exceptions
 
 Canary may be skipped ONLY for:
+
 - Emergency security patches (with documented approval)
 - Database migrations (handled separately)
 - Configuration-only changes
 
 All exceptions require:
+
 - Written justification
 - Security team approval for security patches
 - Post-deploy verification

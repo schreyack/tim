@@ -60,7 +60,7 @@ Most solutions to AI context loss focus on **retrieval** - archiving context and
 
 When context compaction occurs, Tim Loop's SessionStart hook reinjects the *exact* original task prompt - not a summary, not a retrieval query, but the precise instructions. The AI continues with full fidelity to the original goal.
 
-```
+```text
 === ORIGINAL TASK (reinjected after context compaction) ===
 [exact prompt preserved, character-for-character]
 === END ORIGINAL TASK ===
@@ -69,6 +69,7 @@ When context compaction occurs, Tim Loop's SessionStart hook reinjects the *exac
 **2. Verification Loop That Cannot Be Bypassed**
 
 Tim Loop intercepts Claude's attempt to exit and checks for two things:
+
 - Did Claude output the completion promise? (`<promise>COMPLETE</promise>`)
 - Does the plan have `<!-- VERIFIED: YES -->`?
 
@@ -77,6 +78,7 @@ If either is missing, the prompt is re-injected and Claude continues. **There is
 **3. Excuse Detection as a Hard Gate**
 
 The Stop hook scans Claude's output for deflection patterns:
+
 - "The file was already over the limit"
 - "This isn't part of my scope"
 - "I didn't cause this violation"
@@ -86,6 +88,7 @@ When detected, completion is **blocked**. Claude cannot finish until issues are 
 **4. Human-Gated Plan Approval**
 
 Through integration with plan-ops.sh, Tim Loop enforces:
+
 - **AI Developer Ready approval** - Human verifies plan is unambiguous before AI implements
 - **No bypass flags** - AI cannot auto-approve itself; approval requires interactive terminal
 
@@ -100,6 +103,7 @@ From Anthropic's own research and industry consensus:
 > "Most agent failures are not model failures anymore, they are **context failures**."
 
 Tim Loop addresses context failures at three levels:
+
 1. **Preservation** - Original task survives context compaction
 2. **Accountability** - AI cannot deflect or make excuses
 3. **Verification** - Loop continues until 100% complete
@@ -138,7 +142,7 @@ Tim Loop works as a system of two tools that handle different concerns:
 
 ### How They Work Together
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                      PLAN LIFECYCLE                              │
 ├─────────────────────────────────────────────────────────────────┤
@@ -219,7 +223,8 @@ Tim Loop is part of the `tim` marketplace hosted on GitHub.
 The easiest way to install is through the interactive plugin manager:
 
 1. **Open the plugin manager:**
-   ```
+
+   ```text
    /plugin
    ```
 
@@ -287,16 +292,19 @@ Add to `~/.claude/settings.json` (or `.claude/settings.json` for project scope):
 ### Updating
 
 **Interactive:**
+
 1. Run `/plugin`
 2. Go to the **Installed** tab
 3. Select `tim-loop` and choose "Update"
 
 **Command-line:**
+
 ```bash
 /plugin update tim-loop@tim
 ```
 
 **Manual:**
+
 ```bash
 cd ~/.claude/plugins/marketplaces/tim && git pull
 ```
@@ -314,6 +322,7 @@ You should see the help text with available options.
 ### Project Initialization
 
 The first time you run `/tim-loop` in a project, it automatically creates the `./plans/` folder structure:
+
 - `drafts/` - Plans being designed
 - `active/` - Approved plans under implementation
 - `completed/` - Successfully executed plans
@@ -352,7 +361,7 @@ From within Claude Code:
 
 **Run `/clear` before starting any loop command.** This prevents leftover context and hooks from previous sessions from interfering.
 
-```
+```text
 /clear
 ```
 
@@ -429,7 +438,7 @@ Runs after every `Edit` or `Write` operation:
 
 When a violation is detected, Claude receives a blocking response:
 
-```
+```text
 CODE QUALITY VIOLATION in page.tsx:
 
 - File has 542 lines (max: 400). Must be refactored into smaller modules.
@@ -454,7 +463,7 @@ Runs when Claude tries to complete a task. Scans the conversation for deflection
 
 When excuses are detected:
 
-```
+```text
 DEFLECTION DETECTED - You attempted to avoid responsibility.
 
 Found 3 excuse pattern(s):
@@ -471,6 +480,7 @@ Claude cannot complete until issues are addressed.
 ### Why This Matters
 
 AI assistants often exhibit problematic behaviors:
+
 - Making excuses instead of fixing issues
 - Claiming problems are "out of scope"
 - Minimizing their responsibility
@@ -510,6 +520,7 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 **Phases:** Implement → Verify (skips plan creation and review)
 **End state:** Code deployed, plan verified
 **Requirements:**
+
 - Plan MUST be in `plans/active/` folder
 - Plan MUST have `| AI Developer Ready | yes |` in status table
 **Use for:** When plan was created separately and already approved
@@ -567,7 +578,7 @@ Each phase must output its completion signal before advancing.
 
 Tech Review requires an Evidence Log before completion:
 
-```
+```text
 **REVIEW EVIDENCE LOG**
 
 Files verified:
@@ -646,13 +657,14 @@ The loop looks for these markers in the plan file:
 
 When tim-loop exits without completing verification (max iterations reached, stuck session), it writes a failure marker to the plan file:
 
-```
+```text
 <!-- VERIFIED: FAILED -->
 <!-- FAILURE_REASON: Max iterations (30) reached without verification. Status: NOT_VERIFIED -->
 <!-- FAILURE_TIME: 2026-02-01 12:00:00 -->
 ```
 
 **To recover:**
+
 1. Review the plan file to understand what wasn't completed
 2. Run `/tim-loop --verify <plan-file>` to attempt verification again
 3. Or create a remediation plan addressing the gaps
@@ -663,7 +675,7 @@ Tim Loop integrates with `plan-ops.sh` for full plan lifecycle management:
 
 ### Plan Lifecycle Flow
 
-```
+```text
 1. Create plan → plans/drafts/
 2. (Multi-phase only) Plan Review
 3. Human approves → plans/active/
@@ -697,6 +709,7 @@ Tim Loop includes a SessionStart hook that preserves the original task prompt wh
 ### The Problem It Solves
 
 When Claude's context window fills up, older messages are summarized to make room. This can cause:
+
 - Loss of original task requirements
 - Forgetting architectural decisions made earlier
 - "Behavioral drift" where Claude deviates from the plan
@@ -710,7 +723,7 @@ Most solutions (archive + search, rolling summaries) lose fidelity. Tim Loop's a
 3. The hook returns JSON with `systemMessage` containing the original prompt
 4. Claude receives the exact prompt and continues with full awareness of the original task
 
-```
+```text
 === ORIGINAL TASK (reinjected after context compaction) ===
 
 The following is the original task prompt. Context was compacted but
@@ -731,13 +744,15 @@ cat ~/.claude/.tim-loop-reinject.log
 ```
 
 You'll see entries like:
-```
+
+```text
 [2026-01-25 08:00:00] REINJECT: session=31790 prompt_length=28698
 [2026-01-25 08:15:30] SKIP: no prompt for session 12345
 [2026-01-25 08:20:00] SKIP: fallback session ID (no valid session)
 ```
 
 **Log entry meanings:**
+
 | Entry | Meaning |
 |-------|---------|
 | `REINJECT` | Successfully reinjected prompt for session |
@@ -769,6 +784,7 @@ The SessionStart hook is defined in `hooks/hooks.json` and registered automatica
 ### Session Isolation
 
 Each tim-loop session has its own prompt file:
+
 - Session 31790 → `~/.claude/.tim-loop-prompt-31790`
 - Session 45123 → `~/.claude/.tim-loop-prompt-45123`
 
@@ -831,7 +847,7 @@ Tim Loop automatically cleans up:
 
 ## File Structure
 
-```
+```text
 plugins/tim-loop/
 ├── .claude-plugin/
 │   └── plugin.json           # Plugin metadata (name, description, author, version)
@@ -871,10 +887,13 @@ Tim Loop creates these files during execution:
 ### "Plan is not marked AI Developer Ready"
 
 For `--implement` mode, the plan must have:
+
 ```markdown
 | AI Developer Ready | yes |
 ```
+
 in its status table. Use plan-ops.sh to grant this approval:
+
 ```bash
 ./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Your Name"
 ```
@@ -882,6 +901,7 @@ in its status table. Use plan-ops.sh to grant this approval:
 ### "Can only implement plans from active/ folder"
 
 Move the plan to active first:
+
 ```bash
 ./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
 ```
@@ -889,11 +909,13 @@ Move the plan to active first:
 ### Hooks not being unregistered
 
 Check `~/.claude/settings.local.json` for stale hooks:
+
 ```bash
 cat ~/.claude/settings.local.json | grep tim-loop
 ```
 
 Clean them manually or run:
+
 ```bash
 /tim-loop --cleanup-all
 ```
@@ -917,11 +939,13 @@ The SessionStart hook should preserve the prompt. Check:
 ### Review stuck in early phase
 
 If full-review keeps looping in Phase 1:
+
 1. Check if Evidence Log is being output
 2. Verify the log contains specific file:line references
 3. Ensure at least 5 iterations have occurred
 
 Each phase has minimum iteration requirements:
+
 - Phase 1: 5 iterations minimum
 - Phases 2-4: 2 iterations minimum
 - Phases 5-6: 1 iteration minimum
@@ -931,6 +955,7 @@ Each phase has minimum iteration requirements:
 When max iterations is reached without verification, tim-loop marks the plan as FAILED and exits.
 
 **Recovery steps:**
+
 1. Check the plan file for `<!-- VERIFIED: FAILED -->` marker
 2. Review what wasn't completed (the failure reason is in the marker)
 3. Run `/tim-loop --verify <plan-file>` to attempt verification again
@@ -960,16 +985,19 @@ The detector looks for deflection language. Solution-focused language passes thr
 ### Behavioral gates not running
 
 Verify Python 3 is available:
+
 ```bash
 which python3
 ```
 
 Check the hooks are registered:
+
 ```bash
 cat ~/.claude/settings.local.json | grep -A5 PostToolUse
 ```
 
 Verify scripts are executable:
+
 ```bash
 ls -la ~/.claude/plugins/cache/tim/tim-loop/*/scripts/*.py
 ```

@@ -41,6 +41,7 @@ The TIM standards solve this through **automated enforcement at every layer**:
 ### What You Get
 
 A complete enforcement framework:
+
 - Standards documentation for coding, testing, security, and deployment
 - Ready-to-copy templates for CI pipelines, pre-commit hooks, and configuration
 - Shared libraries (tim-lib for Python, @tim/lib for Node.js)
@@ -68,22 +69,27 @@ Adopt the full framework for new projects, or install Tim Loop standalone for im
 ### Choosing Your Workflow
 
 **Simple task?** Run it directly:
-```
+
+```text
 /tim-loop "your task"
 ```
+
 Accept the edits, done. Tim Loop handles plan → implement → verify automatically.
 
 **Complex or multi-phase effort?** Use plan mode first:
-```
+
+```text
 # Step 1: Create and iterate on the plan
 /tim-loop --plan "describe your goals"
 ```
+
 Review the plan it creates. Not quite right? Run it again with refined goals. Iterate until the plan describes exactly what you want.
 
-```
+```text
 # Step 2: Execute with full lifecycle management
 plan-ops wizard plans/drafts/your-plan.md
 ```
+
 The wizard walks you through: review → approve → implement → verify → complete.
 
 **That's it.** Two paths: direct execution for simple tasks, plan-first for complex ones.
@@ -113,7 +119,7 @@ The result: Claude stays focused on your goal even through long sessions, can't 
 | **Test** | Tests must exist and pass with 90% coverage | Pre-commit hooks, CI pipeline (Gate 2) |
 | **Deploy** | Human approves production deployment | Deploy gates, canary rollout (Gate 3) |
 
-```
+```text
 ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
 │   PLAN   │───▶│  REVIEW  │───▶│   CODE   │───▶│  VERIFY  │───▶│   TEST   │───▶│  DEPLOY  │
 │          │    │          │    │          │    │          │    │          │    │          │
@@ -148,6 +154,7 @@ The TIM standards work best with a **2-terminal setup** that keeps human oversig
 5. **Repeat**: plan-ops always shows the next step and gives you the command to paste
 
 **Why this works:**
+
 - **plan-ops keeps you on track**—it always knows where you are in the lifecycle
 - **Commands are pre-formatted**—copy from Tab 2, paste into Tab 1
 - **`/clear` before every command**—starts Claude with fresh context
@@ -198,7 +205,8 @@ Or continue with the manual install below.
 ### Install
 
 In Claude Code:
-```
+
+```text
 /plugin marketplace add schreyack/tim
 /plugin install tim-loop@tim
 ```
@@ -216,6 +224,7 @@ Try this now:
 ```
 
 Watch what happens:
+
 1. Claude creates a plan with goals and completion criteria
 2. Claude reviews the plan for completeness
 3. Claude implements the code
@@ -336,6 +345,7 @@ cp lib/tim/templates/ci/python-ci.yml .github/workflows/ci.yml  # or node-ci.yml
 ```
 
 **Why submodule + symlinks?**
+
 - **Consistent**: All projects use identical enforcement configs
 - **Easy to maintain**: Update tim once, run `git submodule update --remote` in projects
 - **Immutable**: `chflags -h schg` prevents AI from modifying or removing symlinks
@@ -367,7 +377,7 @@ To migrate an existing project to TIM compliance:
 
 The TIM standards require four enforcement gates in all compliant projects:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  GATE 1: LOCAL (Pre-commit)                                 │
 │  Type check → Lint → Format → Secrets scan                  │
@@ -419,6 +429,7 @@ The TIM standards require:
 The TIM standards are **language-agnostic**, but we provide first-class support and shared libraries for the following stacks:
 
 ### Python Stack
+
 - FastAPI + SQLAlchemy 2.0 (async) + Alembic
 - Next.js (TypeScript) frontend
 - PostgreSQL + Celery/Redis
@@ -426,6 +437,7 @@ The TIM standards are **language-agnostic**, but we provide first-class support 
 - **tim-lib** shared library ([docs](libs/python/README.md))
 
 ### Node.js Stack
+
 - Express or NestJS (TypeScript strict)
 - React (TypeScript) frontend
 - PostgreSQL + Prisma
@@ -436,7 +448,7 @@ The TIM standards are **language-agnostic**, but we provide first-class support 
 
 ## Repository Structure
 
-```
+```text
 tim/
 ├── CLAUDE.md              # Copy to TIM-compliant projects
 ├── README.md              # This file
@@ -461,6 +473,7 @@ tim/
 ## Standards Index
 
 ### Enforcement
+
 | Document | Summary |
 |----------|---------|
 | [gates.md](standards/enforcement/gates.md) | Four-gate model - what blocks merges and deploys |
@@ -470,6 +483,7 @@ tim/
 | [ai-behavioral-gates.md](standards/enforcement/ai-behavioral-gates.md) | Real-time enforcement during Claude Code sessions |
 
 ### Operations
+
 | Document | Summary |
 |----------|---------|
 | [plan-management.md](standards/operations/plan-management.md) | Plan lifecycle, approval workflow, Tim Loop |
@@ -478,6 +492,7 @@ tim/
 | [afk-coding-patterns.md](standards/operations/afk-coding-patterns.md) | Extended autonomous development |
 
 ### Coding
+
 | Document | Summary |
 |----------|---------|
 | [python.md](standards/coding/python.md) | mypy strict, ruff, FastAPI patterns |
@@ -486,6 +501,7 @@ tim/
 | [api-versioning.md](standards/coding/api-versioning.md) | URL path versioning, deprecation |
 
 ### Testing
+
 | Document | Summary |
 |----------|---------|
 | [requirements.md](standards/testing/requirements.md) | 90% coverage, TDD workflow |
@@ -493,6 +509,7 @@ tim/
 | [test-migration.md](standards/testing/test-migration.md) | Convert tests to TIM standards |
 
 ### Security
+
 | Document | Summary |
 |----------|---------|
 | [owasp-checklist.md](standards/security/owasp-checklist.md) | OWASP Top 10 coverage |
@@ -500,11 +517,13 @@ tim/
 | [authentication.md](standards/security/authentication.md) | JWT, password hashing |
 
 ### Database
+
 | Document | Summary |
 |----------|---------|
 | [migrations.md](standards/database/migrations.md) | Migration requirements |
 
 ### Deployment
+
 | Document | Summary |
 |----------|---------|
 | [ci-integration.md](standards/deployment/ci-integration.md) | Pipeline + ops.sh integration |
@@ -515,6 +534,7 @@ tim/
 | [observability.md](standards/deployment/observability.md) | Logs, metrics, traces, alerts |
 
 ### Incident Response
+
 | Document | Summary |
 |----------|---------|
 | [response.md](standards/incident/response.md) | Incident handling, post-mortems |
@@ -542,6 +562,7 @@ AI agents respond to enforcement differently than humans:
 | May cut corners under pressure | Follows rules consistently |
 
 This is why the TIM standards enforce:
+
 - **Type checking on every commit** — Catches AI hallucinations about types
 - **Tests must pass before merge** — Catches plausible-sounding but broken logic
 - **90% coverage minimum** — Forces comprehensive testing, not just happy paths
@@ -557,6 +578,7 @@ When writing prompts, CLAUDE.md files, or plan instructions, the *style* of your
 **What doesn't work: threats and monitoring language**
 
 Phrases like "you are being monitored for noncompliance" or "you will be reported" have mixed results:
+
 - AI doesn't feel fear—threats aren't a deterrent in the human sense
 - Can make responses overly cautious or defensive
 - Increases "asking permission for everything" behavior
@@ -590,6 +612,7 @@ Run the compliance checker to verify a project meets TIM standards:
 ```
 
 This verifies:
+
 - Required files exist (CLAUDE.md, .tim-patterns.yaml, etc.)
 - Shared library is installed
 - Configuration is correct (strict mode, coverage threshold)

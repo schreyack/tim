@@ -12,7 +12,7 @@ All common testing functionality is centralized in a helpers library. No code du
 
 ## Directory Structure
 
-```
+```text
 tests/
 └── helpers/
     ├── index.ts                 # Main export
@@ -691,6 +691,7 @@ test.describe('Create Project', () => {
 ```
 
 Note how the test:
+
 - Imports everything from helpers
 - Uses test data from SOT
 - Creates its own data with testId

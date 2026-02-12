@@ -54,13 +54,13 @@ Provide examples of compliant and non-compliant code/configuration.
 
 ### Compliant
 
-```
+```text
 # Example of code/config that meets the standard
 ```
 
 ### Non-Compliant
 
-```
+```text
 # Example of code/config that violates the standard
 ```
 

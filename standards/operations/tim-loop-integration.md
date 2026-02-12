@@ -9,7 +9,9 @@ This document defines how Tim Loop execution and review is integrated into TIM p
 Tim Loop is a structured execution methodology with multiple modes:
 
 ### Implementation Mode (default)
+
 A 6-step workflow for plan execution:
+
 1. **Understand & Clarify** - State goal, rate confidence
 2. **Analyze** - Break into discrete testable tasks
 3. **Research** - Gather codebase context
@@ -18,14 +20,18 @@ A 6-step workflow for plan execution:
 6. **Execute** - Implement to 100% completion
 
 ### Review Modes (`--tech-review`, `--ai-ready`)
+
 Two distinct review modes for improving plans:
+
 - **Tech Review** (`--tech-review`): Skeptical senior engineer persona evaluating technical accuracy, feasibility, edge cases, and testability
 - **AI-Ready Review** (`--ai-ready`): Tech lead persona ensuring instructions are unambiguous for AI implementation
 - Each feeds the same prompt to Claude repeatedly while work persists in files
 - Continues until completion criteria are met
 
 ### Verify Mode (`--verify`)
+
 Post-implementation verification audit:
+
 - Four phases: intent review, implementation audit, TIM rules check, gap remediation
 - Creates remediation plans if gaps are found
 
@@ -42,6 +48,7 @@ Post-implementation verification audit:
 Plans with **2 or more phases** MUST complete Plan Review before promotion from `drafts/` to `active/`.
 
 **Detection:** Auto-detected by counting phase headers:
+
 - `## Phase`, `### Phase`
 - `Phase 1:`, `Phase 2:`, etc.
 
@@ -51,7 +58,7 @@ Plans with 0-1 phases can be promoted directly without Plan Review.
 
 ### Review Workflow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                   PLAN REVIEW GATE WORKFLOW                     │
 ├─────────────────────────────────────────────────────────────────┤
@@ -88,11 +95,13 @@ plan-ops.sh review plans/drafts/my-plan.md
 ```
 
 **Output for multi-phase plans:**
+
 - Shows phase count
 - Outputs the exact `/tim-loop --tech-review` command to run
 - Instructions for marking complete
 
 **Output for single-phase plans:**
+
 - Indicates Plan Review is not required
 - Shows promote command
 
@@ -103,6 +112,7 @@ plan-ops.sh review plans/drafts/my-plan.md --mark-complete
 ```
 
 Updates the plan's Status Header:
+
 - `Plan Review: completed`
 - `Review Date: [current date]`
 - Progress Log entry: "Plan Review completed"
@@ -139,7 +149,7 @@ The standard command for plan review:
 
 ### Execution Workflow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    PLAN EXECUTION WORKFLOW                        │
 ├─────────────────────────────────────────────────────────────────┤
@@ -206,7 +216,7 @@ When `execute` succeeds, it outputs:
 
 ## Integration with Plan Lifecycle
 
-```
+```text
 Draft → Plan Review → Active → AI Developer Ready → Execute → Tim Loop → Completed
               ↓
     (multi-phase only)
@@ -253,6 +263,7 @@ Draft → Plan Review → Active → AI Developer Ready → Execute → Tim Loop
 ### "BLOCKED: Multi-phase plan requires Plan Review"
 
 Run the Plan Review workflow:
+
 ```bash
 plan-ops.sh review plans/drafts/my-plan.md
 # Follow the displayed instructions
@@ -261,6 +272,7 @@ plan-ops.sh review plans/drafts/my-plan.md
 ### Review Not Detecting Phases
 
 Ensure phases are formatted correctly:
+
 - `## Phase 1: Name` ✓
 - `### Phase 2` ✓
 - `Phase 3: Description` ✓
@@ -269,6 +281,7 @@ Ensure phases are formatted correctly:
 ### Review Runs Forever
 
 The `--max-iterations 10` parameter prevents infinite loops. If hitting max iterations without completion:
+
 1. The task may be too complex
 2. Consider breaking into smaller plans
 3. Manually mark complete after reviewing iterations

@@ -39,7 +39,7 @@ class TestBaseAppSettings:
         self, valid_env: dict[str, str]
     ) -> None:
         """Test that JWT secret less than 32 chars raises ValidationError."""
-        valid_env["JWT_SECRET"] = "short"  # Less than 32 chars
+        valid_env["JWT_SECRET"] = "short"  # noqa: S105 - testing short secret validation
         os.environ.update(valid_env)
 
         with pytest.raises(ValidationError) as exc_info:

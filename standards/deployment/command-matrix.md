@@ -204,6 +204,7 @@ tim-ops-approve abc123
 ```
 
 **Approval Requirements:**
+
 - Approval tokens expire after 15 minutes
 - Cannot approve your own requests (in production)
 - Requires --ticket for prod deploys
@@ -215,7 +216,7 @@ tim-ops-approve abc123
 
 All operations are logged:
 
-```
+```text
 # Format: timestamp | user | env | command | ticket | approver | result | duration
 2026-01-17T10:30:00Z | tim | dev | deploy | - | - | SUCCESS | 45s
 2026-01-17T11:00:00Z | tim | uat | db:migrate | - | - | SUCCESS | 3s
@@ -242,10 +243,12 @@ prod:
 ```
 
 When `require_approval: true`:
+
 - All MODERATE operations become HUMAN_REQUIRED
 - Provides extra safety layer for production
 
 When `require_ticket: true`:
+
 - Commands fail without `--ticket PROJ-123`
 - Ensures traceability to issue tracker
 

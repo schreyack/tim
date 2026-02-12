@@ -312,7 +312,7 @@ async def test_user(db_session: AsyncSession) -> User:
 
 ## Project Structure
 
-```
+```text
 project/
 ├── src/
 │   └── app/

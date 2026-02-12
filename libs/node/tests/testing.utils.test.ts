@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { sleep, waitFor, createMock, createSequenceMock } from "../src/testing.js";
 
 describe("sleep", () => {
-  it("waits for specified duration", async () => {
+  it("should wait for specified duration", async () => {
     const start = Date.now();
 
     await sleep(50);
@@ -27,13 +27,13 @@ describe("waitFor", () => {
     expect(count).toBe(3);
   });
 
-  it("times out if condition never met", async () => {
+  it("should time out if condition never met", async () => {
     await expect(waitFor(() => false, { timeout: 50, interval: 10 })).rejects.toThrow(
       "Condition not met within 50ms"
     );
   });
 
-  it("handles async conditions", async () => {
+  it("should handle async conditions", async () => {
     let count = 0;
 
     await waitFor(
@@ -50,7 +50,7 @@ describe("waitFor", () => {
 });
 
 describe("createMock", () => {
-  it("tracks function calls", () => {
+  it("should track function calls", () => {
     const mock = createMock((x: number) => x * 2);
 
     const result = mock(5);
@@ -69,7 +69,7 @@ describe("createMock", () => {
     expect(mock.calls[0].args).toEqual([1, 2, 3]);
   });
 
-  it("reset clears calls", () => {
+  it("should clear calls on reset", () => {
     const mock = createMock();
     mock(1);
     mock(2);
@@ -89,7 +89,7 @@ describe("createSequenceMock", () => {
     expect(await mock()).toBe(3);
   });
 
-  it("cycles through responses", async () => {
+  it("should cycle through responses", async () => {
     const mock = createSequenceMock(["a", "b"]);
 
     expect(await mock()).toBe("a");

@@ -39,7 +39,7 @@ Ready-to-copy configuration files that implement the TIM standards. These templa
 
 AI behavioral gates (code quality validator, excuse detector) are bundled with the **Tim Loop plugin**. Install via the Claude Code marketplace:
 
-```
+```text
 /plugin marketplace add schreyack/tim
 /plugin install tim-loop@tim
 ```

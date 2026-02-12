@@ -4,7 +4,7 @@ Observability is the "shift right" complement to testing. While tests catch issu
 
 ## The Three Pillars
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    OBSERVABILITY PILLARS                                 │
 ├─────────────────────────────────────────────────────────────────────────┤
@@ -118,6 +118,7 @@ Every service must expose:
 #### Implementation
 
 **Python (FastAPI + Prometheus)**:
+
 ```python
 from prometheus_client import Counter, Histogram, Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -150,6 +151,7 @@ async def process_payment(payment: Payment):
 ```
 
 **Node.js (Express + Prometheus)**:
+
 ```typescript
 import promClient from 'prom-client';
 import promBundle from 'express-prom-bundle';
@@ -179,6 +181,7 @@ app.post('/payments', async (req, res) => {
 #### Required for All Services
 
 Every service must:
+
 1. Propagate trace context (W3C Trace Context headers)
 2. Create spans for significant operations
 3. Add relevant attributes to spans
@@ -269,7 +272,7 @@ groups:
 
 #### 1. Service Health Dashboard
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                      SERVICE HEALTH DASHBOARD                            │
 ├─────────────────────────────────────────────────────────────────────────┤
@@ -291,7 +294,7 @@ groups:
 
 #### 2. Business Metrics Dashboard
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    BUSINESS METRICS DASHBOARD                            │
 ├─────────────────────────────────────────────────────────────────────────┤
@@ -314,6 +317,7 @@ groups:
 #### 3. Error Investigation Dashboard
 
 Shows:
+
 - Error count by type
 - Error timeline
 - Sample error logs
@@ -355,18 +359,22 @@ if detect_anomaly(current_orders_per_hour, baseline_orders_per_hour):
 ## Stack Recommendations
 
 ### Logging
+
 - **Cloud**: CloudWatch Logs, GCP Cloud Logging, DataDog Logs
 - **Self-hosted**: Loki + Grafana
 
 ### Metrics
+
 - **Cloud**: CloudWatch Metrics, GCP Cloud Monitoring, DataDog
 - **Self-hosted**: Prometheus + Grafana
 
 ### Tracing
+
 - **Cloud**: AWS X-Ray, GCP Cloud Trace, DataDog APM
 - **Self-hosted**: Jaeger, Zipkin
 
 ### All-in-One
+
 - **Cloud**: DataDog, New Relic, Honeycomb
 - **Self-hosted**: Grafana Stack (Loki + Prometheus + Tempo)
 

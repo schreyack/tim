@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { withRollback, cleanTables } from "../src/testing.js";
 
 describe("withRollback", () => {
-  it("rolls back transaction after test", async () => {
+  it("should roll back transaction after test", async () => {
     const mockTx = { query: vi.fn() };
     const mockPrisma = {
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<void>) => {
@@ -31,7 +31,7 @@ describe("withRollback", () => {
 });
 
 describe("cleanTables", () => {
-  it("truncates specified tables", async () => {
+  it("should truncate specified tables", async () => {
     const mockPrisma = {
       $executeRawUnsafe: vi.fn().mockResolvedValue(0),
     };
@@ -47,7 +47,7 @@ describe("cleanTables", () => {
     );
   });
 
-  it("rejects invalid table names", async () => {
+  it("should reject invalid table names", async () => {
     const mockPrisma = {
       $executeRawUnsafe: vi.fn(),
     };

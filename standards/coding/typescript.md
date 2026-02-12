@@ -390,7 +390,7 @@ test("createUser throws ConflictError when email exists", async () => {});
 
 ## Project Structure
 
-```
+```text
 project/
 ├── src/
 │   ├── index.ts              # Entry point

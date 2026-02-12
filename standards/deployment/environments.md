@@ -12,7 +12,7 @@ All TIM projects must define environments using a standardized `environments.yam
 
 ## File Location and Security
 
-```
+```text
 project/
     ├── environments.yaml           # NEVER committed - in .gitignore
     ├── environments.yaml.example   # Committed - shows structure without real values
@@ -20,6 +20,7 @@ project/
 ```
 
 **Security Requirements:**
+
 - `environments.yaml` permissions: `600` (owner read/write only)
 - Never commit real hostnames, IPs, or credentials
 - Use `${ENV_VAR}` syntax for values that vary by operator
@@ -209,6 +210,7 @@ connection:
 ```
 
 **Requirements:**
+
 - AWS CLI v2 installed
 - Session Manager plugin installed
 - IAM permissions for `ssm:StartSession`
@@ -227,6 +229,7 @@ connection:
 ```
 
 **Requirements:**
+
 - gcloud CLI installed and authenticated
 - IAM permissions for compute instance access
 - OS Login enabled (recommended)
@@ -244,6 +247,7 @@ connection:
 ```
 
 **Requirements:**
+
 - Azure CLI installed and authenticated
 - Azure Bastion configured for the VNet
 - RBAC permissions for VM access
@@ -263,6 +267,7 @@ remote:
 ```
 
 **Generated Commands:**
+
 - `docker compose -f <compose_file> up -d`
 - `docker compose -f <compose_file> logs`
 - `docker compose -f <compose_file> ps`
@@ -281,6 +286,7 @@ remote:
 ```
 
 **Generated Commands:**
+
 - `kubectl apply -f <manifests_path>`
 - `kubectl rollout status deployment/<name>`
 - `kubectl logs -n <namespace>`
@@ -299,6 +305,7 @@ remote:
 ```
 
 **Generated Commands:**
+
 - `aws ecs update-service --force-new-deployment`
 - `aws ecs describe-services`
 - `aws logs tail`
@@ -316,6 +323,7 @@ remote:
 ```
 
 **Generated Commands:**
+
 - `gcloud run deploy`
 - `gcloud run services describe`
 - `gcloud logging read`
@@ -332,6 +340,7 @@ isolation:
 ```
 
 **How Isolation is Enforced:**
+
 1. Docker networks are environment-specific (no cross-network communication)
 2. Database names/tables use environment prefix
 3. SSH gateway validates source IP against allowed CIDRs
@@ -350,6 +359,7 @@ protections:
 ```
 
 **Enforcement:**
+
 - If `require_approval: true`, all MODERATE+ commands become HUMAN_REQUIRED
 - If `require_ticket: true`, commands fail without `--ticket PROJ-123`
 - If `backup_before_deploy: true`, `db:backup` runs automatically before deploy
@@ -369,6 +379,7 @@ remote:
 ```
 
 **Supported Variables:**
+
 - `${HOME}` - User's home directory
 - `${USER}` - Current username
 - `${PROJECT}` - Project name from config
@@ -380,6 +391,7 @@ remote:
 Since `environments.yaml` is not in git, new operators follow this process:
 
 1. **Copy the example file:**
+
    ```bash
    cp environments.yaml.example environments.yaml
    chmod 600 environments.yaml
@@ -390,6 +402,7 @@ Since `environments.yaml` is not in git, new operators follow this process:
    - Or cloud CLI access (AWS/GCP/Azure)
 
 3. **Configure SSH keys:**
+
    ```bash
    # Dev only (developers)
    ssh-keygen -t ed25519 -f ~/.ssh/dev_deploy_key
@@ -402,6 +415,7 @@ Since `environments.yaml` is not in git, new operators follow this process:
    ```
 
 4. **Verify connectivity:**
+
    ```bash
    ./ops.sh --env dev status
    ```

@@ -6,7 +6,7 @@ This document defines how TIM **enforces** standards compliance. The goal is to 
 
 ## Enforcement Layers
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      COMPLIANCE ENFORCEMENT LAYERS                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -52,6 +52,7 @@ This document defines how TIM **enforces** standards compliance. The goal is to 
 ## The Undefined Pattern Problem
 
 AI developers will encounter situations where:
+
 1. No standard exists for a pattern
 2. Multiple valid approaches exist
 3. The AI makes a reasonable-looking but non-standard choice
@@ -145,7 +146,7 @@ CHECKS=(
 
 ### Example Output
 
-```
+```text
 TIM Compliance Check - my-project
 ==================================
 
@@ -191,7 +192,7 @@ Patterns:
 
 When AI or developer needs to use a pattern without a standard:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                     UNDEFINED PATTERN WORKFLOW                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -429,7 +430,7 @@ The compliance checker identifies patterns by:
 
 When checker detects a pattern not in registry:
 
-```
+```text
 ⚠️  UNREGISTERED PATTERN DETECTED
 
 Pattern: Redis caching

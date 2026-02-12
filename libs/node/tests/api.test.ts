@@ -17,7 +17,7 @@ import {
 } from "../src/api.js";
 
 describe("AppError", () => {
-  it("has correct status code and message", () => {
+  it("should have correct status code and message", () => {
     const error = new AppError(500, "Server error");
 
     expect(error.statusCode).toBe(500);
@@ -25,13 +25,13 @@ describe("AppError", () => {
     expect(error.isOperational).toBe(true);
   });
 
-  it("includes detail when provided", () => {
+  it("should include detail when provided", () => {
     const error = new AppError(400, "Bad request", "missing_field");
 
     expect(error.detail).toBe("missing_field");
   });
 
-  it("can be marked as non-operational", () => {
+  it("should be markable as non-operational", () => {
     const error = new AppError(500, "Fatal error", undefined, false);
 
     expect(error.isOperational).toBe(false);
@@ -39,14 +39,14 @@ describe("AppError", () => {
 });
 
 describe("NotFoundError", () => {
-  it("has 404 status code", () => {
+  it("should have 404 status code", () => {
     const error = new NotFoundError();
 
     expect(error.statusCode).toBe(404);
     expect(error.message).toBe("Resource not found");
   });
 
-  it("allows custom message", () => {
+  it("should allow custom message", () => {
     const error = new NotFoundError("User not found");
 
     expect(error.message).toBe("User not found");
@@ -54,7 +54,7 @@ describe("NotFoundError", () => {
 });
 
 describe("ConflictError", () => {
-  it("has 409 status code", () => {
+  it("should have 409 status code", () => {
     const error = new ConflictError();
 
     expect(error.statusCode).toBe(409);
@@ -63,7 +63,7 @@ describe("ConflictError", () => {
 });
 
 describe("ValidationError", () => {
-  it("has 400 status code", () => {
+  it("should have 400 status code", () => {
     const error = new ValidationError();
 
     expect(error.statusCode).toBe(400);
@@ -72,7 +72,7 @@ describe("ValidationError", () => {
 });
 
 describe("UnauthorizedError", () => {
-  it("has 401 status code", () => {
+  it("should have 401 status code", () => {
     const error = new UnauthorizedError();
 
     expect(error.statusCode).toBe(401);
@@ -81,7 +81,7 @@ describe("UnauthorizedError", () => {
 });
 
 describe("ForbiddenError", () => {
-  it("has 403 status code", () => {
+  it("should have 403 status code", () => {
     const error = new ForbiddenError();
 
     expect(error.statusCode).toBe(403);
@@ -90,7 +90,7 @@ describe("ForbiddenError", () => {
 });
 
 describe("securityHeadersMiddleware", () => {
-  it("sets security headers", () => {
+  it("should set security headers", () => {
     const req = {} as Request;
     const res = {
       setHeader: vi.fn(),
@@ -119,7 +119,7 @@ describe("rateLimitMiddleware", () => {
     // Reset rate limit state between tests by using unique IPs
   });
 
-  it("allows requests under limit", () => {
+  it("should allow requests under limit", () => {
     const middleware = rateLimitMiddleware(10);
     const req = {
       headers: {},
@@ -138,7 +138,7 @@ describe("rateLimitMiddleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("blocks requests over limit", () => {
+  it("should block requests over limit", () => {
     const middleware = rateLimitMiddleware(2);
     const ip = `192.168.2.${Math.floor(Math.random() * 1000)}`;
     const req = {
@@ -161,7 +161,7 @@ describe("rateLimitMiddleware", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Too many requests" });
   });
 
-  it("uses X-Forwarded-For header for IP", () => {
+  it("should use X-Forwarded-For header for IP", () => {
     const middleware = rateLimitMiddleware(10);
     const req = {
       headers: { "x-forwarded-for": "203.0.113.50, 70.41.3.18" },
@@ -181,7 +181,7 @@ describe("rateLimitMiddleware", () => {
 });
 
 describe("asyncHandler", () => {
-  it("passes successful result through", async () => {
+  it("should pass successful result through", async () => {
     const handler = asyncHandler(async (_req, res) => {
       res.json({ success: true });
     });
@@ -200,7 +200,7 @@ describe("asyncHandler", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true });
   });
 
-  it("catches errors and passes to next", async () => {
+  it("should catch errors and pass to next", async () => {
     const error = new Error("Test error");
     const handler = asyncHandler(async () => {
       throw error;
@@ -220,7 +220,7 @@ describe("asyncHandler", () => {
 });
 
 describe("setupErrorHandlers", () => {
-  it("handles AppError with correct status", async () => {
+  it("should handle AppError with correct status", async () => {
     const app = express();
     app.use(express.json());
     app.get("/test", (_req, _res, next) => {
@@ -234,7 +234,7 @@ describe("setupErrorHandlers", () => {
     expect(response.body.error).toBe("Invalid input");
   });
 
-  it("includes error detail when present", async () => {
+  it("should include error detail when present", async () => {
     const app = express();
     app.use(express.json());
     app.get("/test", (_req, _res, next) => {
@@ -248,7 +248,7 @@ describe("setupErrorHandlers", () => {
     expect(response.body.detail).toBe("field_missing");
   });
 
-  it("returns 404 for unknown routes", async () => {
+  it("should return 404 for unknown routes", async () => {
     const app = express();
     app.use(express.json());
     setupErrorHandlers(app);
@@ -259,7 +259,7 @@ describe("setupErrorHandlers", () => {
     expect(response.body.error).toBe("Resource not found");
   });
 
-  it("returns 500 for unexpected errors", async () => {
+  it("should return 500 for unexpected errors", async () => {
     const app = express();
     app.use(express.json());
     app.get("/test", () => {
@@ -273,7 +273,7 @@ describe("setupErrorHandlers", () => {
     expect(response.body.error).toBe("Internal server error");
   });
 
-  it("logs unexpected errors when logger provided", async () => {
+  it("should log unexpected errors when logger provided", async () => {
     const logger = { error: vi.fn() };
     const app = express();
     app.use(express.json());
@@ -296,7 +296,7 @@ describe("setupErrorHandlers", () => {
 });
 
 describe("createHealthRouter", () => {
-  it("returns healthy status on /health", async () => {
+  it("should return healthy status on /health", async () => {
     const app = express();
     app.use(await createHealthRouter());
 
@@ -306,7 +306,7 @@ describe("createHealthRouter", () => {
     expect(response.body.status).toBe("healthy");
   });
 
-  it("returns ready status on /health/ready", async () => {
+  it("should return ready status on /health/ready", async () => {
     const app = express();
     app.use(await createHealthRouter());
 
@@ -316,7 +316,7 @@ describe("createHealthRouter", () => {
     expect(response.body.status).toBe("ready");
   });
 
-  it("returns detailed status on /health/live", async () => {
+  it("should return detailed status on /health/live", async () => {
     const app = express();
     app.use(await createHealthRouter());
 

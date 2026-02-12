@@ -31,7 +31,7 @@ class TestPasswordHashing:
     )
     def test_hash_password_returns_bcrypt_hash(self) -> None:
         """Test that hash_password returns a bcrypt hash."""
-        password = "secure123"
+        password = "secure123"  # noqa: S105
         hashed = hash_password(password)
 
         # Bcrypt hashes start with $2b$ or $2a$
@@ -44,7 +44,7 @@ class TestPasswordHashing:
     )
     def test_hash_password_produces_different_hashes(self) -> None:
         """Test that same password produces different hashes (salted)."""
-        password = "secure123"
+        password = "secure123"  # noqa: S105
         hash1 = hash_password(password)
         hash2 = hash_password(password)
 
@@ -56,7 +56,7 @@ class TestPasswordHashing:
     )
     def test_verify_password_with_correct_password_returns_true(self) -> None:
         """Test that verify_password returns True for correct password."""
-        password = "secure123"
+        password = "secure123"  # noqa: S105
         hashed = hash_password(password)
 
         assert verify_password(password, hashed) is True
@@ -67,7 +67,7 @@ class TestPasswordHashing:
     )
     def test_verify_password_with_incorrect_password_returns_false(self) -> None:
         """Test that verify_password returns False for wrong password."""
-        password = "secure123"
+        password = "secure123"  # noqa: S105
         hashed = hash_password(password)
 
         assert verify_password("wrongpass", hashed) is False

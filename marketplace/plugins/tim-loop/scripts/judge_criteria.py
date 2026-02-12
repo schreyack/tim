@@ -11,7 +11,7 @@ import re
 # Task type patterns for context detection
 TASK_TYPE_PATTERNS = {
     "commit": r"\b(commit|push|git\s+add|git\s+commit)\b",
-    "summary": r"\b(summar|list\s+changes|what\s+did|what\s+was\s+done)\b",
+    "summary": r"\b(summary|summarize|summarise|list\s+changes|what\s+did|what\s+was\s+done)\b",
     "review": r"\b(review|analyze|examine|check|look\s+at|evaluate|audit)\b.*\b(this|the|my|our)\b",
     "explain": r"\b(explain|describe|tell\s+me\s+about|what\s+is|how\s+does)\b",
     "implement": r"\b(implement|fix|improve|add|update|make|change)\b.*\b(this|that|it|the)\b",

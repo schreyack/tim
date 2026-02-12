@@ -18,6 +18,7 @@ Every TIM project must address all OWASP Top 10 vulnerabilities. This checklist 
 ### Implementation
 
 **Python (FastAPI)**:
+
 ```python
 from fastapi import Depends, HTTPException, status
 
@@ -35,6 +36,7 @@ async def verify_resource_ownership(
 ```
 
 **TypeScript (Express)**:
+
 ```typescript
 async function verifyOwnership(
   req: Request,
@@ -54,6 +56,7 @@ async function verifyOwnership(
 ```
 
 ### Enforcement
+
 - Unit tests required for every authorization check
 - Integration tests for cross-user access attempts
 
@@ -74,6 +77,7 @@ async function verifyOwnership(
 ### Implementation
 
 **Password Hashing**:
+
 ```python
 # Python
 from passlib.context import CryptContext
@@ -103,6 +107,7 @@ export async function verifyPassword(plain: string, hashed: string): Promise<boo
 ```
 
 ### Enforcement
+
 - Security scanner detects weak algorithms
 - Pre-commit blocks hardcoded secrets
 
@@ -122,6 +127,7 @@ export async function verifyPassword(plain: string, hashed: string): Promise<boo
 ### Implementation
 
 **SQL (Always use ORM)**:
+
 ```python
 # BLOCKED: Raw SQL
 db.execute(f"SELECT * FROM users WHERE id = {user_id}")
@@ -139,6 +145,7 @@ await prisma.user.findUnique({ where: { id: userId } });
 ```
 
 ### Enforcement
+
 - Linter rules block raw SQL patterns
 - Code review flag on `$queryRaw`, `execute()`, `exec()`
 
@@ -156,6 +163,7 @@ await prisma.user.findUnique({ where: { id: userId } });
 - [ ] Defense in depth (multiple layers)
 
 ### Enforcement
+
 - ADR required for security-relevant changes
 - Security team review on architecture PRs
 
@@ -199,6 +207,7 @@ export const env = EnvSchema.parse(process.env);
 ```
 
 ### Enforcement
+
 - CI validates no default secrets
 - Container scan checks for exposed ports
 
@@ -223,6 +232,7 @@ export const env = EnvSchema.parse(process.env);
 | Node.js | npm audit, Snyk | trivy |
 
 ### Enforcement
+
 - CI blocks on HIGH/CRITICAL
 - Weekly automated vulnerability reports
 
@@ -262,6 +272,7 @@ class PasswordPolicy(BaseModel):
 ```
 
 ### Enforcement
+
 - Unit tests for password policy
 - Integration tests for session management
 
@@ -279,6 +290,7 @@ class PasswordPolicy(BaseModel):
 - [ ] Integrity checks on deployments
 
 ### Enforcement
+
 - Branch protection requires CI pass
 - Deployment checksums verified
 
@@ -323,6 +335,7 @@ structlog.configure(
 ```
 
 ### Enforcement
+
 - Code review checks for security event logging
 - Monitoring alerts on auth failure spikes
 
@@ -355,6 +368,7 @@ def validate_url(url: str) -> bool:
 ```
 
 ### Enforcement
+
 - Linter flags URL construction from user input
 - Network policies restrict outbound connections
 

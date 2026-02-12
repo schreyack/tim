@@ -5,6 +5,7 @@ This document defines mechanisms to detect and prevent AI developers from ignori
 ## The Problem
 
 AI developers will ignore instructions when:
+
 1. Instructions are only documented, not enforced
 2. There's no consequence for violation
 3. The AI "forgets" mid-session

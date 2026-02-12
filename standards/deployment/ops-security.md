@@ -25,6 +25,7 @@ ops-config.yaml              # After initial setup, controlled via PR
 ```
 
 **Implementation**:
+
 ```bash
 # Make immutable (requires sudo)
 sudo chattr +i ops-config.yaml
@@ -35,6 +36,7 @@ lsattr ops-config.yaml  # Should show 'i' flag
 ```
 
 **macOS Alternative** (no chattr):
+
 ```bash
 # Lock file
 sudo chflags uchg ops-config.yaml
@@ -56,6 +58,7 @@ Critical files on the remote server:
 ```
 
 **Implementation**:
+
 ```bash
 # On remote server
 sudo chattr +i /home/tim/apps/project/docker-compose.yml
@@ -67,12 +70,14 @@ sudo chattr +i /home/tim/apps/project/.env
 The deployment user should ONLY be able to run ops-approved commands.
 
 **Implementation** (`/home/tim/.ssh/authorized_keys`):
-```
+
+```text
 # Restrict SSH key to specific commands via forced command
 command="/home/tim/bin/ops-gateway.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-rsa AAAA... deploy@local
 ```
 
 **ops-gateway.sh** (Allowlist of permitted commands):
+
 ```bash
 #!/usr/bin/env bash
 # /home/tim/bin/ops-gateway.sh
@@ -130,6 +135,7 @@ fi
 Rsync must not be able to overwrite protected files.
 
 **Implementation** (rsync daemon or wrapper):
+
 ```bash
 # /home/tim/bin/rsync-wrapper.sh
 #!/usr/bin/env bash
@@ -159,6 +165,7 @@ done
 ```
 
 **Alternative: rsync exclude on server**:
+
 ```bash
 # /etc/rsyncd.conf
 [project]
@@ -379,12 +386,14 @@ Run verification automatically:
 When setting up a new TIM project, infrastructure team must:
 
 ### Local Machine
+
 - [ ] ops-config.yaml created and locked (`chattr +i` / `chflags uchg`)
 - [ ] tim-ops-lib.sh downloaded and hash verified
 - [ ] SSH key created specifically for ops deployment
 - [ ] Verification script in place
 
 ### Remote Server
+
 - [ ] Deployment user created (non-root)
 - [ ] SSH authorized_keys with command restriction
 - [ ] ops-gateway.sh installed and tested
@@ -396,6 +405,7 @@ When setting up a new TIM project, infrastructure team must:
 - [ ] Alert webhook configured
 
 ### Verification
+
 - [ ] Run `ops.sh verify` - all checks pass
 - [ ] Test SSH restriction: `ssh user@host "cat /etc/passwd"` should fail
 - [ ] Test rsync restriction: attempt to overwrite docker-compose.yml should fail
@@ -412,7 +422,8 @@ When a violation is detected:
 5. **Verification**: ops.sh verify must pass before operations resume
 
 **Example violation response**:
-```
+
+```text
 ╔══════════════════════════════════════════════════════════════════╗
 ║                    🛑 SECURITY VIOLATIONS DETECTED               ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -439,6 +450,7 @@ For genuine emergencies requiring bypass:
 4. **Post-incident**: Root cause analysis required
 
 The break-glass key should:
+
 - Be stored in a secure vault (not on developer machines)
 - Require manager approval to retrieve
 - Auto-expire after 4 hours

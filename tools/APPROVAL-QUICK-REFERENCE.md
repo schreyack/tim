@@ -8,7 +8,7 @@ Quick reference for human approval commands in `plan-ops.sh`.
 
 ## Approval Workflow Overview
 
-```
+```text
 Draft → [Plan Review] → Promote → AI Ready → Execute → Tim Loop
 ```
 
@@ -61,6 +61,7 @@ Human reviews plan for AI implementation concerns before execution.
 **Review checklist:** `standards/enforcement/ai-developer-ready-checklist.md`
 
 **What to verify:**
+
 - Instructions are unambiguous (AI has one interpretation)
 - No hallucination opportunities (referenced APIs/files exist)
 - Guard rails are explicit (error handling specified)

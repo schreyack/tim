@@ -18,20 +18,20 @@ describe("createLogger", () => {
     expect(typeof logger.debug).toBe("function");
   });
 
-  it("respects log level setting", () => {
+  it("should respect log level setting", () => {
     const logger = createLogger({ level: "error" });
 
     expect(logger.level).toBe("error");
   });
 
-  it("includes serviceName in base context", () => {
+  it("should include serviceName in base context", () => {
     const logger = createLogger({ serviceName: "test-service" });
 
     // Check that the logger was created (pino stores bindings internally)
     expect(logger).toBeDefined();
   });
 
-  it("includes environment in base context", () => {
+  it("should include environment in base context", () => {
     const logger = createLogger({ environment: "test" });
 
     expect(logger).toBeDefined();
@@ -94,7 +94,7 @@ describe("LogContextMiddleware", () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it("uses existing correlation ID from header", () => {
+  it("should use existing correlation ID from header", () => {
     const middleware = LogContextMiddleware(mockLogger);
     const correlationId = "existing-correlation-id";
     const req = {
@@ -135,7 +135,7 @@ describe("LogContextMiddleware", () => {
     });
   });
 
-  it("attaches logger to request", () => {
+  it("should attach logger to request", () => {
     const middleware = LogContextMiddleware(mockLogger);
     const req = {
       headers: {},
@@ -153,7 +153,7 @@ describe("LogContextMiddleware", () => {
     expect((req as RequestWithLogger).log).toBe(mockChildLogger);
   });
 
-  it("logs request started", () => {
+  it("should log request started", () => {
     const middleware = LogContextMiddleware(mockLogger);
     const req = {
       headers: {},
@@ -171,7 +171,7 @@ describe("LogContextMiddleware", () => {
     expect(mockChildLogger.info).toHaveBeenCalledWith("request_started");
   });
 
-  it("logs success response on finish", () => {
+  it("should log success response on finish", () => {
     const middleware = LogContextMiddleware(mockLogger);
     const req = {
       headers: {},
@@ -205,7 +205,7 @@ describe("LogContextMiddleware", () => {
     );
   });
 
-  it("logs warn for 4xx responses", () => {
+  it("should log warn for 4xx responses", () => {
     const middleware = LogContextMiddleware(mockLogger);
     const req = {
       headers: {},
@@ -237,7 +237,7 @@ describe("LogContextMiddleware", () => {
     );
   });
 
-  it("logs error for 5xx responses", () => {
+  it("should log error for 5xx responses", () => {
     const middleware = LogContextMiddleware(mockLogger);
     const req = {
       headers: {},
@@ -279,7 +279,7 @@ describe("withContext", () => {
     expect(typeof childLogger.info).toBe("function");
   });
 
-  it("allows nested context", () => {
+  it("should allow nested context", () => {
     const logger = createLogger({ level: "info" });
     const userLogger = withContext(logger, { userId: 123 });
     const requestLogger = withContext(userLogger, { requestId: "abc" });

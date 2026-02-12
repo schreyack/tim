@@ -5,6 +5,7 @@ Advisory standard for frontend verification during AI development.
 ## Status: Advisory
 
 This is NOT a hard gate. It provides patterns for visual verification when:
+
 - E2E tests don't cover all UI states
 - Console errors indicate runtime issues
 - Visual regressions need human review
@@ -158,6 +159,7 @@ Add to plan when dev server verification is needed:
 ## Limitations
 
 This standard does NOT address:
+
 - Automated visual regression testing (Chromatic, Percy)
 - Cross-browser testing
 - Performance verification

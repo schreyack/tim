@@ -23,7 +23,7 @@ Thank you for your interest in contributing to TIM Standards. This project gets 
 
 Use [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```text
 feat: add user authentication standard
 fix: correct migration rollback example
 docs: clarify coverage requirements

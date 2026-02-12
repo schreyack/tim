@@ -83,7 +83,7 @@ Incidents may be detected through:
 
 ### Update Template
 
-```
+```text
 INCIDENT UPDATE - [P0/P1/P2/P3]
 
 Status: [Investigating | Identified | Monitoring | Resolved]
@@ -197,6 +197,7 @@ Security incidents have special handling:
 See [Secrets Management - Emergency Procedures](../security/secrets.md#emergency-procedures)
 
 Quick actions:
+
 1. Rotate compromised secrets immediately
 2. Audit access logs
 3. Determine scope of compromise
@@ -216,7 +217,7 @@ Each service must maintain runbooks for:
 
 ### Runbook Template
 
-```markdown
+````markdown
 # Runbook: [Action Name]
 
 ## When to Use
@@ -231,18 +232,23 @@ Each service must maintain runbooks for:
    ```bash
    command example
    ```
-2. Step two
+
+1. Step two
 
 ## Verification
+
 How to confirm success
 
 ## Rollback
+
 How to undo if something goes wrong
 
 ## Contacts
+
 - Primary: [Name, Contact]
 - Secondary: [Name, Contact]
-```
+
+````
 
 ## Training
 

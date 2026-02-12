@@ -201,6 +201,7 @@ STRIPE_SECRET_KEY=sk_live_...
 ```
 
 **Security requirements:**
+
 - File permissions: `chmod 600 .env`
 - Owned by deploy user, not root
 - Made immutable after setup: `sudo chattr +i .env`
@@ -242,6 +243,7 @@ def verify_token(token: str) -> dict:
 ```
 
 **Rollover process:**
+
 1. Generate new secret
 2. Add current secret as `jwt_secret_previous`
 3. Set new secret as `jwt_secret`
@@ -261,6 +263,7 @@ def verify_token(token: str) -> dict:
    - JWT: Rotate to new secret
 
 2. **Deploy new secret**
+
    ```bash
    # Update .env on production server
    ssh deploy@prod "cd /app && vim .env"
@@ -333,6 +336,7 @@ repos:
 ```
 
 Setup baseline:
+
 ```bash
 # Initial baseline (marks existing non-secrets)
 detect-secrets scan > .secrets.baseline

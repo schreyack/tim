@@ -13,6 +13,7 @@ TIM has two types of rules:
 2. **Contextual Rules** - Calibrations based on current understanding of AI capabilities, tooling, and operational experience. These may change as technology evolves.
 
 Understanding the difference helps teams know:
+
 - Which rules can never have exceptions
 - Which rules might be adjusted with evidence
 - What would trigger a review of contextual rules

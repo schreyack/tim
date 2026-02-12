@@ -19,7 +19,7 @@ describe("hashPassword", () => {
     expect(hashed.length).toBe(60);
   });
 
-  it("produces different hashes for same password", async () => {
+  it("should produce different hashes for same password", async () => {
     const password = "secure_password_123";
     const hash1 = await hashPassword(password);
     const hash2 = await hashPassword(password);
@@ -62,7 +62,7 @@ describe("createAccessToken", () => {
     expect(token.split(".")).toHaveLength(3);
   });
 
-  it("includes payload data in token", () => {
+  it("should include payload data in token", () => {
     const token = createAccessToken({ sub: "user123", role: "admin" }, secret);
 
     const payload = verifyToken(token, secret);
@@ -74,7 +74,7 @@ describe("createAccessToken", () => {
 describe("verifyToken", () => {
   const secret = "a".repeat(32);
 
-  it("verifies valid token", () => {
+  it("should verify valid token", () => {
     const token = createAccessToken({ sub: "user123" }, secret);
     const payload = verifyToken(token, secret);
 
@@ -109,7 +109,7 @@ describe("verifyTokenWithFallback", () => {
     expect(payload.sub).toBe("user123");
   });
 
-  it("falls back to secondary secret", () => {
+  it("should fall back to secondary secret", () => {
     const token = createAccessToken({ sub: "user123" }, fallbackSecret);
     const payload = verifyTokenWithFallback(token, primarySecret, fallbackSecret);
 
@@ -132,20 +132,20 @@ describe("verifyTokenWithFallback", () => {
 });
 
 describe("generateSecureToken", () => {
-  it("generates hex string of correct length", () => {
+  it("should generate hex string of correct length", () => {
     const token = generateSecureToken();
 
     expect(token).toMatch(/^[0-9a-f]+$/);
     expect(token.length).toBe(64); // 32 bytes = 64 hex chars
   });
 
-  it("respects custom length", () => {
+  it("should respect custom length", () => {
     const token = generateSecureToken(16);
 
     expect(token.length).toBe(32); // 16 bytes = 32 hex chars
   });
 
-  it("generates unique tokens", () => {
+  it("should generate unique tokens", () => {
     const tokens = Array.from({ length: 100 }, () => generateSecureToken());
     const unique = new Set(tokens);
 
@@ -172,12 +172,12 @@ describe("constantTimeCompare", () => {
 });
 
 describe("TokenValidationError", () => {
-  it("has correct name", () => {
+  it("should have correct name", () => {
     const error = new TokenValidationError("message");
     expect(error.name).toBe("TokenValidationError");
   });
 
-  it("includes detail", () => {
+  it("should include detail", () => {
     const error = new TokenValidationError("message", "expired");
     expect(error.detail).toBe("expired");
   });

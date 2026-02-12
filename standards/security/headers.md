@@ -8,11 +8,12 @@ All TIM applications must include these HTTP security headers on every response.
 
 Controls resources the browser can load.
 
-```
+```text
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.stripe.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
 ```
 
 **Directives**:
+
 - `default-src 'self'` - Only load from same origin by default
 - `script-src 'self'` - Scripts only from same origin (no inline)
 - `style-src 'self' 'unsafe-inline'` - Styles from same origin + inline (for frameworks)
@@ -26,7 +27,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 Forces HTTPS connections.
 
-```
+```text
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 ```
 
@@ -38,7 +39,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 Prevents MIME type sniffing.
 
-```
+```text
 X-Content-Type-Options: nosniff
 ```
 
@@ -46,7 +47,7 @@ X-Content-Type-Options: nosniff
 
 Prevents clickjacking.
 
-```
+```text
 X-Frame-Options: DENY
 ```
 
@@ -54,7 +55,7 @@ X-Frame-Options: DENY
 
 Legacy XSS filter (for older browsers).
 
-```
+```text
 X-XSS-Protection: 1; mode=block
 ```
 
@@ -62,7 +63,7 @@ X-XSS-Protection: 1; mode=block
 
 Controls referrer information.
 
-```
+```text
 Referrer-Policy: strict-origin-when-cross-origin
 ```
 
@@ -70,7 +71,7 @@ Referrer-Policy: strict-origin-when-cross-origin
 
 Disables browser features.
 
-```
+```text
 Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()
 ```
 
@@ -221,6 +222,7 @@ if settings.debug:
 ### Production
 
 HSTS preload requires:
+
 1. Valid HTTPS certificate
 2. Redirect HTTP to HTTPS
 3. All subdomains serve HTTPS
@@ -245,7 +247,7 @@ They serve different purposes and both are required.
 
 Set up CSP violation reporting:
 
-```
+```text
 Content-Security-Policy: ...; report-uri /api/csp-report; report-to csp-endpoint
 ```
 

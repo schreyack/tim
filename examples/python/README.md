@@ -13,7 +13,7 @@ A complete reference implementation demonstrating a TIM-compliant Python/FastAPI
 
 ## Project Structure
 
-```
+```text
 python/
 ├── src/
 │   └── app/

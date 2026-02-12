@@ -22,6 +22,7 @@ These are **minimum** thresholds. Projects may set higher targets.
 Test individual functions and classes in isolation.
 
 **Requirements**:
+
 - Every public function must have unit tests
 - Mock external dependencies
 - Fast execution (< 1 second per test)
@@ -32,6 +33,7 @@ Test individual functions and classes in isolation.
 Test interactions between components.
 
 **Requirements**:
+
 - API endpoint tests with real database
 - Service layer tests with real dependencies
 - Run in CI on every PR
@@ -41,11 +43,13 @@ Test interactions between components.
 Test critical user journeys.
 
 **Requirements**:
+
 - Happy path for core features
 - Critical error scenarios
 - Run before production deployment
 
 **Timeout Budget**:
+
 | Environment | Max Duration | Enforcement |
 |-------------|--------------|-------------|
 | Local | 5 minutes | Warning |
@@ -53,6 +57,7 @@ Test critical user journeys.
 | Pre-deploy | 15 minutes | Hard block |
 
 E2E suites exceeding timeout budgets must be:
+
 1. Parallelized across workers
 2. Split into critical vs. extended suites
 3. Optimized for faster execution
@@ -64,6 +69,7 @@ Long E2E suites slow AI iteration cycles. Keep them fast.
 **Format**: `test_<what>_<when>_<then>`
 
 This format answers:
+
 - **What** is being tested (function/feature)
 - **When** (conditions/inputs)
 - **Then** (expected outcome)
@@ -120,7 +126,7 @@ test("createUser throws ConflictError when email exists", async () => {});
 
 ## TDD Workflow (Required for New Features)
 
-```
+```text
 1. Write failing test
    ↓
 2. Run test → EXPECT RED
@@ -142,7 +148,7 @@ test("createUser throws ConflictError when email exists", async () => {});
 
 ### Python Project Structure
 
-```
+```text
 tests/
 ├── conftest.py              # Shared fixtures
 ├── unit/
@@ -160,7 +166,7 @@ tests/
 
 ### TypeScript Project Structure
 
-```
+```text
 tests/
 ├── setup.ts                 # Global test setup
 ├── helpers/
@@ -254,6 +260,7 @@ export async function createAuthenticatedUser() {
 ## Mocking Guidelines
 
 ### What to Mock
+
 - External APIs (Stripe, SendGrid, etc.)
 - Time-dependent operations
 - Random number generation
@@ -261,6 +268,7 @@ export async function createAuthenticatedUser() {
 - Network requests
 
 ### What NOT to Mock
+
 - Your own code under test
 - Database operations (use test database)
 - Business logic
@@ -388,6 +396,7 @@ test:
 ## Test Data Management
 
 ### Principles
+
 1. Tests create their own data
 2. Tests clean up after themselves
 3. Tests don't depend on shared state

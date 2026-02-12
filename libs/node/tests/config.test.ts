@@ -12,7 +12,7 @@ import {
 } from "../src/config.js";
 
 describe("baseEnvSchema", () => {
-  it("validates valid configuration", () => {
+  it("should validate valid configuration", () => {
     const result = baseEnvSchema.safeParse({
       DATABASE_URL: "postgresql://localhost:5432/test",
       JWT_SECRET: "a".repeat(32),
@@ -26,7 +26,7 @@ describe("baseEnvSchema", () => {
     }
   });
 
-  it("rejects missing DATABASE_URL", () => {
+  it("should reject missing DATABASE_URL", () => {
     const result = baseEnvSchema.safeParse({
       JWT_SECRET: "a".repeat(32),
     });
@@ -34,7 +34,7 @@ describe("baseEnvSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects short JWT_SECRET", () => {
+  it("should reject short JWT_SECRET", () => {
     const result = baseEnvSchema.safeParse({
       DATABASE_URL: "postgresql://localhost:5432/test",
       JWT_SECRET: "short",
@@ -46,7 +46,7 @@ describe("baseEnvSchema", () => {
     }
   });
 
-  it("rejects invalid LOG_LEVEL", () => {
+  it("should reject invalid LOG_LEVEL", () => {
     const result = baseEnvSchema.safeParse({
       DATABASE_URL: "postgresql://localhost:5432/test",
       JWT_SECRET: "a".repeat(32),
@@ -133,24 +133,24 @@ describe("environment checks", () => {
 });
 
 describe("maskSecret", () => {
-  it("masks long secrets showing first and last 4 chars", () => {
+  it("should mask long secrets showing first and last 4 chars", () => {
     const result = maskSecret("abcd1234efgh5678");
     expect(result).toBe("abcd...5678");
   });
 
-  it("fully masks short secrets", () => {
+  it("should fully mask short secrets", () => {
     const result = maskSecret("short");
     expect(result).toBe("****");
   });
 
-  it("fully masks secrets of exactly 8 chars", () => {
+  it("should fully mask secrets of exactly 8 chars", () => {
     const result = maskSecret("12345678");
     expect(result).toBe("****");
   });
 });
 
 describe("toSafeConfig", () => {
-  it("masks sensitive fields", () => {
+  it("should mask sensitive fields", () => {
     const config: BaseEnv = {
       DATABASE_URL: "postgresql://user:password@localhost:5432/db",
       JWT_SECRET: "super_secret_key_that_is_long_enough",
@@ -171,7 +171,7 @@ describe("toSafeConfig", () => {
 });
 
 describe("validateProductionConfig", () => {
-  it("passes for valid production config", () => {
+  it("should pass for valid production config", () => {
     const config: BaseEnv = {
       DATABASE_URL: "postgresql://prod.example.com:5432/db",
       JWT_SECRET: "very_long_random_string_for_production_use",
@@ -185,7 +185,7 @@ describe("validateProductionConfig", () => {
     expect(() => validateProductionConfig(config)).not.toThrow();
   });
 
-  it("does not validate non-production configs", () => {
+  it("should not validate non-production configs", () => {
     const config: BaseEnv = {
       DATABASE_URL: "postgresql://localhost:5432/db",
       JWT_SECRET: "test_secret_that_is_long_enough_here",
@@ -200,7 +200,7 @@ describe("validateProductionConfig", () => {
     expect(() => validateProductionConfig(config)).not.toThrow();
   });
 
-  it("rejects localhost DATABASE_URL in production", () => {
+  it("should reject localhost DATABASE_URL in production", () => {
     const config: BaseEnv = {
       DATABASE_URL: "postgresql://localhost:5432/db",
       JWT_SECRET: "very_long_random_string_for_production_use",
@@ -214,7 +214,7 @@ describe("validateProductionConfig", () => {
     expect(() => validateProductionConfig(config)).toThrow("localhost");
   });
 
-  it("rejects 127.0.0.1 DATABASE_URL in production", () => {
+  it("should reject 127.0.0.1 DATABASE_URL in production", () => {
     const config: BaseEnv = {
       DATABASE_URL: "postgresql://127.0.0.1:5432/db",
       JWT_SECRET: "very_long_random_string_for_production_use",
@@ -228,7 +228,7 @@ describe("validateProductionConfig", () => {
     expect(() => validateProductionConfig(config)).toThrow("localhost");
   });
 
-  it("rejects weak JWT_SECRET patterns in production", () => {
+  it("should reject weak JWT_SECRET patterns in production", () => {
     const config: BaseEnv = {
       DATABASE_URL: "postgresql://prod.example.com:5432/db",
       JWT_SECRET: "my_secret_key_that_contains_secret_word",

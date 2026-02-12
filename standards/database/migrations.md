@@ -15,6 +15,7 @@ All schema changes must go through the migration system. Direct schema modificat
 These are **hard blocks** in CI:
 
 ### Python (SQLAlchemy)
+
 ```python
 # BLOCKED - CI will fail
 Base.metadata.create_all(engine)
@@ -23,6 +24,7 @@ connection.execute(text("ALTER TABLE ..."))  # Raw DDL
 ```
 
 ### Node.js (Sequelize)
+
 ```typescript
 // BLOCKED - CI will fail
 sequelize.sync()
@@ -32,6 +34,7 @@ queryInterface.sequelize.query("ALTER TABLE ...")  // Raw DDL
 ```
 
 ### Node.js (Prisma)
+
 ```bash
 # BLOCKED in production
 prisma db push  # Only for prototyping
@@ -40,12 +43,14 @@ prisma db push  # Only for prototyping
 ## Python Migration Workflow (Alembic)
 
 ### Setup
+
 ```bash
 # Initialize Alembic (one-time)
 alembic init alembic
 ```
 
 ### Configuration
+
 ```python
 # alembic/env.py
 from app.models import Base
@@ -126,12 +131,14 @@ alembic history
 ## Node.js Migration Workflow (Prisma)
 
 ### Setup
+
 ```bash
 # Initialize Prisma (one-time)
 npx prisma init
 ```
 
 ### Schema Definition
+
 ```prisma
 // prisma/schema.prisma
 generator client {
@@ -200,6 +207,7 @@ npx prisma migrate status
 For projects using Sequelize instead of Prisma.
 
 ### Setup
+
 ```bash
 # Initialize (one-time)
 npx sequelize-cli init
@@ -288,6 +296,7 @@ def upgrade():
 For production with high availability:
 
 **Adding a column**:
+
 ```python
 # Step 1: Add nullable column
 op.add_column("users", sa.Column("phone", sa.String(20), nullable=True))
@@ -298,6 +307,7 @@ op.alter_column("users", "phone", nullable=False)
 ```
 
 **Renaming a column**:
+
 ```python
 # Step 1: Add new column
 op.add_column("users", sa.Column("full_name", sa.String(255)))

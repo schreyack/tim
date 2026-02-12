@@ -5,6 +5,7 @@ This document defines how enforcement levels change during project migration and
 ## Overview
 
 Not all projects start at 100% compliance. Graduated enforcement allows projects to:
+
 - Start with warn-only rules
 - Progressively tighten enforcement
 - Eventually reach full blocking enforcement
@@ -140,6 +141,7 @@ rules:
 ### Level 0 → Level 1
 
 **Requirements**:
+
 - Assessment complete
 - MIGRATION.md created
 - Migration timeline approved
@@ -149,6 +151,7 @@ rules:
 ### Level 1 → Level 2
 
 **Requirements**:
+
 - Baseline captured
 - No new critical violations for 1 week
 - Infrastructure in place (pre-commit, CI)
@@ -158,6 +161,7 @@ rules:
 ### Level 2 → Level 3
 
 **Requirements**:
+
 - Baseline violations decreasing
 - Test migration started
 - At least 25% improvement from baseline
@@ -167,6 +171,7 @@ rules:
 ### Level 3 → Level 4
 
 **Requirements**:
+
 - Type coverage: 100%
 - Test coverage: ≥ 90%
 - Test naming: 100% compliant
@@ -181,6 +186,7 @@ rules:
 ### CI Configuration by Level
 
 **Level 0 (Audit)**:
+
 ```yaml
 - name: Type Check (audit)
   run: mypy src --strict || true
@@ -193,6 +199,7 @@ rules:
 ```
 
 **Level 1 (Warn)**:
+
 ```yaml
 - name: Type Check (warn)
   run: |
@@ -204,6 +211,7 @@ rules:
 ```
 
 **Level 2 (Freeze)**:
+
 ```yaml
 - name: Type Check (freeze)
   run: |
@@ -216,6 +224,7 @@ rules:
 ```
 
 **Level 3 (Ratchet)**:
+
 ```yaml
 - name: Type Check (ratchet)
   run: |
@@ -229,6 +238,7 @@ rules:
 ```
 
 **Level 4 (Full)**:
+
 ```yaml
 - name: Type Check (full)
   run: mypy src --strict
@@ -238,6 +248,7 @@ rules:
 ### Pre-commit Configuration by Level
 
 **Level 0-1**: Hooks report but don't block
+
 ```yaml
 repos:
   - repo: local
@@ -251,6 +262,7 @@ repos:
 ```
 
 **Level 2+**: Hooks can block
+
 ```yaml
 repos:
   - repo: local

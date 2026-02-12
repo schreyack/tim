@@ -5,6 +5,7 @@ This document defines how multiple AI developers coordinate when working on the 
 ## Overview
 
 TIM uses 2-3 concurrent AI developers per project. Without coordination, this creates:
+
 - Merge conflicts
 - Duplicated work
 - Inconsistent implementations
@@ -18,7 +19,7 @@ Each AI developer works in a separate git worktree with dedicated branches.
 
 ### Directory Structure
 
-```
+```text
 /project/
 ├── main/                    # Main worktree (human review, merges)
 ├── ai-1/                    # AI Developer 1 worktree
@@ -41,11 +42,12 @@ git worktree add ../ai-3 -b ai-3/current-task
 
 ### Branch Naming Convention
 
-```
+```text
 ai-{developer-id}/{task-type}/{description}
 ```
 
 Examples:
+
 - `ai-1/feature/add-user-authentication`
 - `ai-2/fix/resolve-database-timeout`
 - `ai-3/refactor/migrate-tests-to-standard`
@@ -135,7 +137,7 @@ When an AI developer is blocked:
 
 ### PR Flow
 
-```
+```text
 ai-1/feature/xyz → main (via PR)
                  ↓
         Human review required
@@ -155,6 +157,7 @@ After any merge to main:
 ### Automated Checks
 
 Before AI creates PR:
+
 1. Rebase onto latest main
 2. Run all gate checks locally
 3. Verify no file conflicts with other in-progress work
@@ -210,6 +213,7 @@ locks:
 ### Detection
 
 Deadlock occurs when:
+
 - AI-1 is blocked on AI-2's task
 - AI-2 is blocked on AI-1's task
 

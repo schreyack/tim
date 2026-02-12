@@ -13,6 +13,7 @@ Local development is available as an **opt-in option** that requires explicit hu
 ### 1. Environment Parity
 
 Local environments inevitably drift from production:
+
 - Different OS versions
 - Different resource constraints
 - Missing services (Redis, message queues)
@@ -23,6 +24,7 @@ Remote-only ensures all environments behave identically.
 ### 2. Security Enforcement
 
 ops.sh safety tiers cannot be enforced on local machines:
+
 - Developers could bypass restrictions
 - No audit trail for local operations
 - Secrets could leak to local storage
@@ -32,6 +34,7 @@ Remote-only ensures all operations are logged and controlled.
 ### 3. AI Development Safety
 
 TIM develops exclusively with AI. AI developers:
+
 - Cannot distinguish "safe" local operations from "dangerous" ones
 - Will take shortcuts if shortcuts are available
 - Need hard boundaries, not guidelines
@@ -41,6 +44,7 @@ Remote-only removes the temptation entirely.
 ### 4. Reproducibility
 
 "It works on my machine" is not acceptable:
+
 - All testing happens in controlled environments
 - All deployments follow identical procedures
 - All debugging happens with production-like data
@@ -238,6 +242,7 @@ While TIM defaults to remote-only, local development can be enabled for specific
 ### Why Allow Local Dev?
 
 Sometimes local development is appropriate:
+
 - Rapid iteration during feature development
 - Debugging complex issues with local tools
 - Working with limited or no network access
@@ -309,7 +314,7 @@ environments:
 
 All local operations are logged to `~/.tim-ops/local-dev-audit.log` for accountability:
 
-```
+```text
 2025-01-19T10:30:00Z | user | myproject | LOCAL | deploy | STARTED | 0s
 2025-01-19T10:30:45Z | user | myproject | LOCAL | deploy | SUCCESS | 45s
 ```
@@ -338,6 +343,7 @@ After revocation, `./ops.sh --env local` will fail with instructions on how to r
 ### Q: What about offline development?
 
 A: TIM projects require network access. If offline, you can:
+
 - Write code (no execution)
 - Run linters and type checkers
 - Write tests (no execution)
@@ -346,6 +352,7 @@ A: TIM projects require network access. If offline, you can:
 ### Q: What about slow network connections?
 
 A: Dev environments are optimized for low-latency development:
+
 - Deploy only changed files (rsync delta)
 - Persistent SSH connections
 - Log streaming with buffering
@@ -353,6 +360,7 @@ A: Dev environments are optimized for low-latency development:
 ### Q: What about cost?
 
 A: Remote dev is cheaper than you think:
+
 - Single small server for all developers
 - Shared resources (database, Redis)
 - Auto-shutdown during off-hours (optional)
@@ -362,6 +370,7 @@ Estimated cost: $20-50/month for small team.
 ### Q: What about local testing?
 
 A: Local testing is allowed for:
+
 - Unit tests (no I/O, mocked dependencies)
 - Linting and type checking
 - Static analysis

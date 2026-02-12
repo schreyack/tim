@@ -1,0 +1,20 @@
+# Markdownlint configuration for TIM standards
+# See: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# Allow duplicate headings under different parent headings.
+# The OWASP checklist has "Requirements", "Implementation", "Enforcement"
+# repeated under each vulnerability section — this is intentional structure.
+MD024:
+  siblings_only: true
+
+# Allow bold/emphasis used as sub-headings within sections.
+# Several docs use "**1. Step Name**" style for numbered sub-steps.
+MD036: false
+
+# Allow multiple top-level headings.
+# rule-classification.md uses `# PRINCIPLES`, `# CONTEXTUAL RULES`, etc.
+MD025: false
+
+# Allow heading level increments > 1.
+# README.md uses ### for intro sub-sections before ## main sections.
+MD001: false

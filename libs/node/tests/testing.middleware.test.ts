@@ -10,7 +10,7 @@ describe("createTestApp", () => {
     expect(typeof app.get).toBe("function");
   });
 
-  it("allows adding routes via setup function", async () => {
+  it("should allow adding routes via setup function", async () => {
     const app = await createTestApp((app) => {
       app.get("/test", (_req, res) => {
         res.json({ ok: true });
@@ -22,7 +22,7 @@ describe("createTestApp", () => {
 });
 
 describe("createMockAuthMiddleware", () => {
-  it("attaches user to request", () => {
+  it("should attach user to request", () => {
     const mockUser = { id: "user-1", role: "admin" };
     const middleware = createMockAuthMiddleware(mockUser);
     const req = {} as { user?: Record<string, unknown> };
@@ -37,7 +37,7 @@ describe("createMockAuthMiddleware", () => {
 });
 
 describe("createRequestCapture", () => {
-  it("captures request details", () => {
+  it("should capture request details", () => {
     const capture = createRequestCapture();
     const req = {
       method: "POST",
@@ -59,7 +59,7 @@ describe("createRequestCapture", () => {
     });
   });
 
-  it("clear removes captured requests", () => {
+  it("should clear captured requests", () => {
     const capture = createRequestCapture();
     capture.requests.push({
       method: "GET",

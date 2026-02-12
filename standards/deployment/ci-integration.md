@@ -6,7 +6,7 @@ This document explains how CI/CD pipelines integrate with the TIM four-gate mode
 
 ## Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        CI/CD + OPS.SH INTEGRATION                            │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -82,6 +82,7 @@ This document explains how CI/CD pipelines integrate with the TIM four-gate mode
 **ops.sh handles the actual deployment safely.**
 
 They're complementary:
+
 - CI blocks bad code from entering `main`
 - ops.sh deploys good code from `main` to production
 
@@ -238,7 +239,7 @@ Protection rules:
 
 ### Day-to-Day Development
 
-```
+```text
 1. Create feature branch from main
 2. Write code (Gate 1 pre-commit runs locally)
 3. Push branch (Gate 2 CI runs automatically)
@@ -275,6 +276,7 @@ jobs:
 ```
 
 Setup:
+
 1. Settings > Actions > Runners > New self-hosted runner
 2. Follow instructions to install runner on your server
 3. Runner auto-connects and picks up jobs

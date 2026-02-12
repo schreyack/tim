@@ -31,7 +31,7 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 
 **Enforcement Mechanism**:
 
-```
+```text
 ┌─────────────────┐      ┌──────────────────┐      ┌─────────────────┐
 │  Claude edits   │ ───► │  PostToolUse     │ ───► │  Violations?    │
 │  a file         │      │  hook runs       │      │                 │
@@ -44,6 +44,7 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 ```
 
 **Why This Works**:
+
 - Runs immediately after file modification
 - Returns `"decision": "block"` which Claude cannot ignore
 - Provides clear instructions on what must be fixed
@@ -114,7 +115,7 @@ Response S addresses "test-as-goal" thinking where the AI treats passing tests a
 
 **Enforcement Mechanism**:
 
-```
+```text
 ┌─────────────────┐      ┌──────────────────┐      ┌─────────────────┐
 │  Claude tries   │ ───► │  Stop hook       │ ───► │  Excuses found? │
 │  to finish      │      │  scans transcript│      │                 │
@@ -128,6 +129,7 @@ Response S addresses "test-as-goal" thinking where the AI treats passing tests a
 ```
 
 **Why This Works**:
+
 - Catches deflection BEFORE task completion
 - Forces Claude to acknowledge and fix issues
 - Creates accountability loop - no escape hatch
@@ -147,6 +149,7 @@ For new TIM projects, use the installation script:
 For manual installation:
 
 1. Copy hooks to `.claude/hooks/`:
+
    ```bash
    mkdir -p .claude/hooks
    cp templates/hooks/code-quality-validator.py .claude/hooks/
@@ -155,6 +158,7 @@ For manual installation:
    ```
 
 2. Configure `.claude/settings.json`:
+
    ```json
    {
      "hooks": {
@@ -238,6 +242,7 @@ MITIGATION_PATTERNS = [
 > "The file was already at 536 lines before my changes. I only added 6 lines for the PlayheadOverlay. The pre-existing structure is what exceeds the limit. I'll note this but won't refactor since it wasn't part of the plan scope."
 
 **With Gate**:
+
 1. PostToolUse hook detects file is 542 lines
 2. Returns: `"decision": "block"` with refactoring instructions
 3. Claude MUST refactor before continuing
@@ -251,6 +256,7 @@ MITIGATION_PATTERNS = [
 > "The linting error is a pre-existing issue from legacy code. It's not related to my bug fix, so I'll leave it for a separate cleanup task."
 
 **With Gate**:
+
 1. Claude attempts to complete task
 2. Stop hook scans transcript
 3. Detects: "pre-existing issue", "not related to my"
@@ -271,7 +277,8 @@ AI Behavioral Gates complement existing TIM gates:
 | Gate 4 (Patterns) | Before deploy | Pattern compliance |
 
 **Flow**:
-```
+
+```text
 Edit → Gate A → More edits → Gate A → ... → Complete → Gate B → Commit → Gate 1 → ...
 ```
 
@@ -294,6 +301,7 @@ The excuse detector uses conservative patterns. If legitimate technical discussi
 ### Adjusting Strictness
 
 For development/testing, you can temporarily disable hooks by renaming:
+
 ```bash
 mv .claude/settings.json .claude/settings.json.disabled
 ```

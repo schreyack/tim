@@ -40,7 +40,7 @@ npm run test:coverage
 
 ## Project Structure
 
-```
+```text
 src/
 ├── api/              # Route handlers
 │   ├── auth.ts       # Authentication endpoints

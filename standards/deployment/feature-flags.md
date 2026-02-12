@@ -28,7 +28,7 @@ return renderLegacyCheckout();
 
 ### Flag Naming Convention
 
-```
+```text
 <scope>-<feature>-<variant>
 
 Examples:
@@ -76,7 +76,7 @@ flags:
 
 ## Flag Lifecycle
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        FLAG LIFECYCLE                                │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -103,6 +103,7 @@ flags:
 ### Recommended Libraries
 
 **Python (FastAPI)**:
+
 ```python
 # Using LaunchDarkly or custom implementation
 from app.core.flags import feature_flags
@@ -115,6 +116,7 @@ async def checkout(user: User = Depends(get_current_user)):
 ```
 
 **Node.js (TypeScript)**:
+
 ```typescript
 // Using LaunchDarkly, Unleash, or custom implementation
 import { featureFlags } from '@/core/flags';

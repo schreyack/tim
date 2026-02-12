@@ -115,6 +115,7 @@ Ensure the implementation can be verified.
 After reviewing all items:
 
 1. **If all items pass:**
+
    ```bash
    ./plugins/tim-loop/scripts/plan-ops.sh ai-ready <plan-file> --reviewer "<Your Name>"
    ```
@@ -125,6 +126,7 @@ After reviewing all items:
    - Do NOT approve until all items pass
 
 3. **Approval adds this stamp to the plan:**
+
    ```markdown
    ### AI Developer Ready Approval
 

@@ -13,7 +13,7 @@ All test data is defined in a central location. No hardcoding. No duplication. S
 
 ## Directory Structure
 
-```
+```text
 tests/
 └── data/
     ├── index.ts                    # Main export (typed)

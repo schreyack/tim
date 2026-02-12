@@ -20,6 +20,7 @@ All TIM applications require comprehensive e2e testing. No route exists without 
 | **PROD** | Remote (Docker/Cloud) | Full e2e + smoke | Human approval required |
 
 ### DEV Layer
+
 - Unit tests must pass
 - Integration tests must pass
 - Quick iteration allowed
@@ -27,6 +28,7 @@ All TIM applications require comprehensive e2e testing. No route exists without 
 - **Cannot promote to UAT with any failing tests**
 
 ### UAT Layer
+
 - ALL unit tests must pass
 - ALL integration tests must pass
 - ALL e2e tests must pass
@@ -34,6 +36,7 @@ All TIM applications require comprehensive e2e testing. No route exists without 
 - **Auto-promotes to prod-ready if all pass**
 
 ### PROD Layer
+
 - Full e2e suite across entire application
 - Smoke test validates all routes
 - Zero bugs allowed
@@ -44,6 +47,7 @@ All TIM applications require comprehensive e2e testing. No route exists without 
 ### What "True E2E" Means
 
 E2E tests must:
+
 - Run in a real browser (Playwright/Puppeteer)
 - Simulate actual user behavior
 - Enter all data through UI (no API shortcuts)
@@ -75,7 +79,7 @@ test("create user through registration form", async ({ page }) => {
 
 Tests are organized in a tree structure:
 
-```
+```text
 tests/
 ├── e2e/
 │   ├── suites/
@@ -393,6 +397,7 @@ async function determineRigorousTestScope(): Promise<TestScope> {
 ```
 
 For "rigorous" testing, we run every defined path:
+
 - All happy paths
 - All validation error paths
 - All edge cases
@@ -400,6 +405,7 @@ For "rigorous" testing, we run every defined path:
 - All user journey variations
 
 For "standard" testing:
+
 - Smoke test (no console errors)
 - Happy path only
 
@@ -446,6 +452,7 @@ export default defineConfig({
 ```
 
 Run with multi-browser:
+
 ```bash
 # Default: Chrome only
 npm run test:e2e
@@ -594,6 +601,7 @@ export async function enforceTestRules(results: TestResults): Promise<void> {
 ## Next: Test Data SOT & Helpers
 
 See:
+
 - [test-data-sot.md](./test-data-sot.md) - Source of Truth for test data
 - [test-helpers.md](./test-helpers.md) - Shared helper library
 - [promotion-gates.md](./promotion-gates.md) - Promotion workflow

@@ -44,6 +44,7 @@ Before starting AFK development:
 ### Red Flags That Require Human Input
 
 Stop and wait for human if:
+
 - Requirements are ambiguous
 - Multiple valid approaches exist without clear preference
 - Security implications are uncertain
@@ -144,7 +145,7 @@ git diff HEAD~10..HEAD --stat
 
 The reason AFK coding works with TIM:
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                    AI AGENT                          │
 │  ┌─────────┐    ┌─────────┐    ┌─────────────────┐ │

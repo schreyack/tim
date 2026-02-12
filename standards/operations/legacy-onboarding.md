@@ -5,6 +5,7 @@ This document provides a step-by-step playbook for bringing existing TIM project
 ## Overview
 
 Legacy projects typically have:
+
 - Working code that doesn't meet current standards
 - Tests that pass but don't follow naming conventions
 - Missing type hints, inconsistent patterns
@@ -159,6 +160,7 @@ cp tim/templates/python/.pre-commit-config.yaml ./
 ### 1.2 Install Shared Library
 
 **Python:**
+
 ```bash
 # Add to pyproject.toml dependencies
 poetry add tim-lib@path/to/tim/libs/python
@@ -167,6 +169,7 @@ pip install path/to/tim/libs/python
 ```
 
 **Node.js:**
+
 ```bash
 npm install path/to/tim/libs/node
 ```
@@ -304,7 +307,8 @@ poetry update --patch  # or npm update
 
 See [Test Migration Standard](../testing/test-migration.md) for detailed process.
 
-### Summary:
+### Summary
+
 1. Rename tests to `test_what_when_then` format
 2. Add type hints to all fixtures and tests
 3. Remove print statements
@@ -324,6 +328,7 @@ Use a priority order:
 5. **Internal functions** - Least priority
 
 Track progress:
+
 ```bash
 # Count typed vs untyped functions
 mypy src --strict 2>&1 | grep "error:" | wc -l

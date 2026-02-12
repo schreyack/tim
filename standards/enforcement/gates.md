@@ -36,6 +36,7 @@ Runs on every `git commit` attempt. Blocks commit on any failure.
 ### Bypass Policy
 
 Pre-commit hooks can be bypassed with `--no-verify`. However:
+
 - CI will catch the same issues and block merge
 - Repeated bypasses trigger code review flag
 - Production branches have branch protection requiring CI pass
@@ -112,6 +113,7 @@ Runs before production deployment. Blocks deploy on any failure.
 Human approvers must verify before signing off on production deployment:
 
 **Code Quality (AI-Specific)**:
+
 - [ ] Logic reviewed line-by-line - does it actually do what's claimed?
 - [ ] No placeholder or TODO code in changes
 - [ ] No hallucinated APIs or methods
@@ -119,6 +121,7 @@ Human approvers must verify before signing off on production deployment:
 - [ ] Test assertions are meaningful
 
 **Deployment Readiness**:
+
 - [ ] All CI checks passed (green build)
 - [ ] E2E tests passed on UAT environment
 - [ ] Canary deployment completed without issues
@@ -126,12 +129,14 @@ Human approvers must verify before signing off on production deployment:
 - [ ] Database migrations tested with rollback
 
 **Observability**:
+
 - [ ] Logging is in place for new functionality
 - [ ] Metrics exposed for new endpoints
 - [ ] Alerts configured for failure conditions
 - [ ] Dashboard updated if needed
 
 **Rollback Plan**:
+
 - [ ] Rollback procedure documented
 - [ ] Rollback tested (migrations reversible)
 - [ ] Feature flags in place for new features
@@ -142,7 +147,7 @@ Approver must check ALL items before approving. Missing items = deployment block
 
 Every HTTP response must include:
 
-```
+```text
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
@@ -156,7 +161,7 @@ Permissions-Policy: geolocation=(), microphone=(), camera=()
 
 Every service must expose:
 
-```
+```text
 GET /health        → Liveness probe (is process running)
 GET /health/ready  → Readiness probe (can accept traffic)
 GET /health/live   → Full health with dependency status
@@ -207,6 +212,7 @@ CUSTOM patterns without all required fields are blocked at deploy.
 ### Enforcement Integration
 
 Gate 4 is enforced by:
+
 1. `tim-compliance-check.sh` in CI pipeline (Gate 2)
 2. `tim-compliance-check.sh` pre-deploy (Gate 3)
 3. Manual review of CUSTOM patterns

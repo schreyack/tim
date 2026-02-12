@@ -13,6 +13,7 @@ All TIM applications must implement secure authentication. This standard specifi
 All TIM applications use JWT for stateless authentication.
 
 **Required Claims:**
+
 | Claim | Description | Example |
 |-------|-------------|---------|
 | `sub` | Subject (user identifier) | `user-123` or UUID |
@@ -20,6 +21,7 @@ All TIM applications use JWT for stateless authentication.
 | `exp` | Expiration timestamp | Unix timestamp |
 
 **Optional Claims:**
+
 | Claim | Description |
 |-------|-------------|
 | `aud` | Audience (API identifier) |
@@ -52,6 +54,7 @@ openssl rand -base64 32
 ### Configuration
 
 **Python (Pydantic Settings):**
+
 ```python
 class Settings(BaseSettings):
     jwt_secret: str = Field(..., min_length=32)
@@ -59,6 +62,7 @@ class Settings(BaseSettings):
 ```
 
 **Node.js (Zod):**
+
 ```typescript
 const configSchema = z.object({
   jwtSecret: z.string().min(32),
@@ -75,6 +79,7 @@ const configSchema = z.object({
 - **Never**: MD5, SHA1, or plain SHA256
 
 **Python:**
+
 ```python
 import bcrypt
 
@@ -91,6 +96,7 @@ def verify_password(password: str, hashed: str) -> bool:
 ```
 
 **Node.js:**
+
 ```typescript
 import bcrypt from "bcrypt";
 
@@ -126,6 +132,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 Return consistent error responses for authentication failures.
 
 **Python:**
+
 ```python
 class AuthenticationError(Exception):
     def __init__(self, detail: str = "Authentication failed"):
@@ -143,6 +150,7 @@ def verify_token(token: str) -> str:
 ```
 
 **Node.js:**
+
 ```typescript
 class AuthenticationError extends Error {
   constructor(message = "Authentication failed") {
@@ -195,6 +203,7 @@ function verifyToken(token: string): string {
 ### Response Headers
 
 Authentication endpoints MUST include:
+
 - `X-Content-Type-Options: nosniff`
 - `Cache-Control: no-store`
 
@@ -212,6 +221,7 @@ Protect authentication endpoints from brute force attacks.
 ### Logout
 
 Clients discard tokens locally. For server-side invalidation:
+
 - Token blacklist (Redis)
 - Short token lifetime + refresh rotation
 
@@ -227,6 +237,7 @@ Clients discard tokens locally. For server-side invalidation:
 Authentication must be tested at unit and integration levels.
 
 **Required Test Cases:**
+
 - Valid credentials return token
 - Invalid credentials return 401
 - Expired token returns 401
@@ -237,6 +248,7 @@ Authentication must be tested at unit and integration levels.
 ## Dependencies
 
 ### Python
+
 ```toml
 [project.dependencies]
 bcrypt = "^4.1"
@@ -244,6 +256,7 @@ python-jose = { version = "^3.3", extras = ["cryptography"] }
 ```
 
 ### Node.js
+
 ```json
 {
   "dependencies": {

@@ -8,7 +8,7 @@ This document defines how plans are created, managed, and archived across TIM pr
 
 Every TIM project MUST use this folder structure for plans:
 
-```
+```text
 project/
 └── plans/
     ├── drafts/          # Plans being designed (not yet approved)
@@ -43,18 +43,21 @@ This is a core TIM principle. If something is worth including in a plan, it's re
 | Blocking tasks | Future considerations |
 
 **Why this matters for AI development:**
+
 - AI cannot cherry-pick easy tasks while skipping "optional" harder ones
 - Verification is binary: all tasks done = complete, anything missing = incomplete
 - No room for interpretation about what was required
 - Implementation Verification Gate enforces 100% completion
 
 **Anti-patterns to avoid:**
+
 - "Optional: add error handling" → Either require it or remove it from the plan
 - "Phase 3 (if time permits)" → Either commit to Phase 3 or exclude it entirely
 - "Nice to have: tests for edge cases" → Either require the tests or don't mention them
 - "Stretch goal: performance optimization" → Either it's a required phase or exclude it
 
 **What to do with truly optional ideas:**
+
 - Document them separately (not in the plan)
 - Create a separate future plan if they become important
 - Add to project backlog or roadmap documents
@@ -63,7 +66,7 @@ This is a core TIM principle. If something is worth including in a plan, it's re
 
 ## Plan Lifecycle
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                         PLAN LIFECYCLE                          │
 ├─────────────────────────────────────────────────────────────────┤
@@ -89,12 +92,14 @@ This is a core TIM principle. If something is worth including in a plan, it's re
 ### Lifecycle Stages
 
 **1. Draft Creation**
+
 - Claude creates plans in `~/.claude/plans/` during plan mode
 - On approval, copy to `plans/drafts/` with proper naming
 - Delete the original from `~/.claude/plans/` (MANDATORY)
 - Add Status Header if not present
 
 **2. Draft → Active (Human Approval + Plan Review Gate)**
+
 - **Multi-phase plans (2+ phases) MUST complete Plan Review first**
 - Human reviews and approves the plan
 - Move to `plans/active/`
@@ -104,12 +109,14 @@ This is a core TIM principle. If something is worth including in a plan, it's re
 See [Plan Review Gate](#plan-review-gate-for-multi-phase-plans) section below.
 
 **3. Active → Completed**
+
 - All implementation phases completed
 - Move to `plans/completed/`
 - Update Status Header: Stage = completed
 - Add log entry: "All phases completed, verification passed"
 
 **4. Any → Abandoned**
+
 - Plan is cancelled, superseded, or blocked
 - Move to `plans/abandoned/`
 - Update Status Header: Stage = abandoned
@@ -120,6 +127,7 @@ See [Plan Review Gate](#plan-review-gate-for-multi-phase-plans) section below.
 ## Plan Formats
 
 TIM supports two plan formats:
+
 1. **Standalone plans** - Single `.md` files for simple plans
 2. **Package plans** - Folders containing related plans with a MASTER.md
 
@@ -139,6 +147,7 @@ TIM supports two plan formats:
 **Format:** `YYYY-MM-DD-<project>-<brief-description>.md`
 
 Examples:
+
 - `2025-01-16-myapp-compliance-migration.md`
 - `2025-01-16-standards-plan-lifecycle.md`
 
@@ -152,7 +161,7 @@ Packages group related plans that were created during iterative development. Whe
 
 ### Package Structure
 
-```
+```text
 plans/drafts/
 ├── 2026-02-01-feature-auth/              # Package folder
 │   ├── MASTER.md                          # THE implementation plan
@@ -188,7 +197,7 @@ plan-ops package 2026-02-01-feature-auth \
 
 Packages move through lifecycle stages exactly like standalone plans:
 
-```
+```text
 plans/drafts/2026-02-01-my-feature/      → promote →
 plans/active/2026-02-01-my-feature/      → complete →
 plans/completed/2026-02-01-my-feature/
@@ -315,6 +324,7 @@ This is MANDATORY - never leave orphan plans in `~/.claude/plans/`.
 | abandoned | Commit with reason |
 
 Plans should be committed as they progress - this provides:
+
 - Version history of plan evolution
 - Reviewable changes in PRs
 - Blame/history for decisions
@@ -355,6 +365,7 @@ Multi-phase plans (2+ phases) **MUST** complete Plan Review before promotion to 
 ### Why Plan Review?
 
 Plan Review provides iterative AI-driven improvement:
+
 - Catches gaps, inconsistencies, and missing details
 - Improves plan quality through multiple review passes
 - Reduces implementation failures from poor planning
@@ -363,6 +374,7 @@ Plan Review provides iterative AI-driven improvement:
 ### Detection
 
 A plan requires Plan Review if it contains 2+ phases, detected by patterns:
+
 - `## Phase`, `### Phase`
 - `Phase 1:`, `Phase 2:`, etc.
 
@@ -370,7 +382,7 @@ Single-phase plans can be promoted directly without Plan Review.
 
 ### Workflow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                   PLAN REVIEW GATE WORKFLOW                     │
 ├─────────────────────────────────────────────────────────────────┤
@@ -415,7 +427,6 @@ Single-phase plans can be promoted directly without Plan Review.
 
 If blocked, the error message shows exact commands to run.
 
-
 ---
 
 ## Tim Loop Execution
@@ -424,7 +435,7 @@ Active plans are executed via `/tim-loop` after AI Developer Ready approval.
 
 ### Execution Workflow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    PLAN EXECUTION WORKFLOW                        │
 ├─────────────────────────────────────────────────────────────────┤
@@ -466,6 +477,7 @@ Before execution, ALL plans require AI Developer Ready approval. This ensures pl
 ### Why This Gate?
 
 AI developers make different mistakes than humans:
+
 - Misinterpret ambiguous instructions
 - Hallucinate APIs or methods that don't exist
 - Over-engineer simple solutions
@@ -529,6 +541,7 @@ After implementation, tim-loop verifies that 100% of plan objectives are met. Th
 ### Remediation Flow
 
 When verification fails:
+
 1. Original plan marked `<!-- VERIFIED: FAILED -->`
 2. New remediation plan created in `plans/drafts/`
 3. Remediation plan goes through FULL lifecycle (Review → Promote → AI-Ready → Execute)
@@ -563,6 +576,7 @@ A Claude Code hook intercepts Bash commands and blocks approval patterns:
 ### Layer 2: TTY Verification
 
 Approval commands verify they're running from an interactive terminal:
+
 - Checks if stdin is a terminal
 - Checks for Claude Code session environment variables
 - Blocks piped or scripted execution
@@ -570,6 +584,7 @@ Approval commands verify they're running from an interactive terminal:
 ### Layer 3: Process Lineage Check
 
 Approval commands check process ancestry:
+
 - Walks up the process tree
 - Blocks if any ancestor is a Claude process
 
@@ -625,7 +640,8 @@ Every plan should include an Execution Strategy table:
 ### Good vs Bad Plan Design
 
 **Bad: Monolithic, no parallelization**
-```
+
+```text
 Phase 1: Implement the authentication feature
   1. Research existing auth
   2. Design the approach
@@ -635,7 +651,8 @@ Phase 1: Implement the authentication feature
 ```
 
 **Good: Parallelizable with clear dependencies**
-```
+
+```text
 Phase 1: Research (parallel)
   1a. [Explore] Search for existing auth patterns
   1b. [Explore] Search for user model structure

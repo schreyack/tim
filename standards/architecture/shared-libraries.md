@@ -6,7 +6,7 @@ TIM projects must use shared libraries for common functionality. This prevents c
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          TIM SHARED LIBRARIES                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -39,6 +39,7 @@ TIM projects must use shared libraries for common functionality. This prevents c
 The ops.sh deployment library. Already implemented in `templates/ops/tim-ops-lib.sh`.
 
 **Provides:**
+
 - Deployment commands (deploy, rollback, status)
 - Safety tiers (SAFE, MODERATE, HUMAN_REQUIRED, BLOCKED)
 - Health checks
@@ -46,6 +47,7 @@ The ops.sh deployment library. Already implemented in `templates/ops/tim-ops-lib
 - Notifications
 
 **Usage:**
+
 ```bash
 # In project's ops.sh
 source "$PROJECT_ROOT/.tim-ops/tim-ops-lib.sh"
@@ -58,6 +60,7 @@ tim_ops_main "$@"
 Shared Python library for all TIM Python projects.
 
 **Provides:**
+
 - `tim_lib.config` - Pydantic base settings with common patterns
 - `tim_lib.logging` - Structured logging setup (structlog)
 - `tim_lib.security` - Password hashing, JWT helpers
@@ -66,6 +69,7 @@ Shared Python library for all TIM Python projects.
 - `tim_lib.testing` - Test fixtures, factories
 
 **Installation:**
+
 ```bash
 # Option 1: Git submodule
 git submodule add https://github.com/your-org/tim lib/tim
@@ -80,6 +84,7 @@ pip install tim-lib
 Shared TypeScript library for all TIM Node.js projects.
 
 **Provides:**
+
 - `@tim/config` - Zod-based config validation
 - `@tim/logging` - Structured logging (pino)
 - `@tim/security` - Password hashing (bcrypt), JWT helpers
@@ -88,6 +93,7 @@ Shared TypeScript library for all TIM Node.js projects.
 - `@tim/testing` - Test utilities, factories
 
 **Installation:**
+
 ```bash
 # Option 1: Git submodule
 git submodule add https://github.com/your-org/tim lib/tim
@@ -132,17 +138,20 @@ tim-lib = { path = "lib/tim/libs/python", develop = true }
 ```
 
 **Why symlinks + immutability?**
+
 - Symlinks ensure all projects use identical configs from tim
 - `chflags -h schg` makes the symlink itself immutable (not just the target)
 - AI cannot remove, modify, or redirect the symlink to bypass enforcement
 
 **Pros:**
+
 - Consistent enforcement across all projects
 - Single source of truth in tim repo
 - Immutable - AI cannot bypass
 - Full source access for debugging
 
 **Cons:**
+
 - Must update submodule when tim changes
 - Everyone needs repo access
 - macOS-specific immutability (Linux uses `chattr +i`)
@@ -160,11 +169,13 @@ npm install @tim/lib@1.0.0
 ```
 
 **Pros:**
+
 - Semantic versioning
 - Easy dependency management
 - CI/CD can publish automatically
 
 **Cons:**
+
 - Requires registry setup
 - More infrastructure to maintain
 
@@ -185,7 +196,7 @@ source "$TIM_OPS_LIB"
 
 All shared libraries follow semantic versioning:
 
-```
+```text
 MAJOR.MINOR.PATCH
 
 MAJOR: Breaking changes (API changed)
@@ -272,7 +283,7 @@ def old_function():
 
 ## Directory Structure
 
-```
+```text
 tim/
 ├── libs/
 │   ├── python/

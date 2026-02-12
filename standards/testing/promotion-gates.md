@@ -4,7 +4,7 @@ Code promotion through environments is controlled by automated testing gates. No
 
 ## Promotion Flow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           PROMOTION PIPELINE                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -27,6 +27,7 @@ Code promotion through environments is controlled by automated testing gates. No
 ## Gate 1: DEV → UAT
 
 ### Trigger
+
 - Developer initiates promotion
 - Or: Automatic on merge to `develop` branch
 
@@ -41,6 +42,7 @@ Code promotion through environments is controlled by automated testing gates. No
 | Build | Successful | CI gate |
 
 ### What's NOT Required at DEV
+
 - E2E tests (encouraged, not required)
 - Full route coverage
 - Zero console warnings
@@ -100,6 +102,7 @@ jobs:
 ## Gate 2: UAT → PROD
 
 ### Trigger
+
 - Manual workflow dispatch only
 - Requires passing all UAT tests first
 
@@ -545,6 +548,7 @@ exceptions:
 ```
 
 Exceptions are:
+
 - Human-approved only
 - Time-limited (must expire)
 - Tracked in version control

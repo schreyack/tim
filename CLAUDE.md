@@ -230,7 +230,7 @@ cd ../..
 lib/tim/bin/sync-pre-commit   # Regenerate pre-commit configs
 lib/tim/bin/sync-claude-md     # Regenerate CLAUDE.md
 git add lib/tim .pre-commit-config.yaml CLAUDE.md && git commit -m "chore: update tim submodule"
-```
+```text
 <!-- TIM-ONLY-END -->
 
 ---

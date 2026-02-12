@@ -113,7 +113,7 @@ export default [
 
 Each file should have ONE clear purpose:
 
-```
+```text
 # GOOD: Clear separation
 src/
 ├── models/

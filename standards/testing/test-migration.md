@@ -5,6 +5,7 @@ This document defines how to migrate existing tests to TIM standards without bre
 ## Overview
 
 Legacy projects often have tests that work but don't comply with TIM standards:
+
 - Non-standard naming (`test_login` instead of `test_login_with_valid_credentials_returns_token`)
 - Missing type hints
 - Print statements instead of logging
@@ -27,6 +28,7 @@ This standard provides a safe migration path.
 **Goal**: Understand current state, create migration plan.
 
 1. **Count tests**
+
    ```bash
    # Python
    pytest --collect-only | grep "test session starts" -A 1000 | grep "<Function" | wc -l
@@ -36,6 +38,7 @@ This standard provides a safe migration path.
    ```
 
 2. **Identify non-compliant naming**
+
    ```bash
    # Python - find tests not using test_what_when_then
    grep -r "def test_" tests/ | grep -v "_with_\|_when_\|_returns_\|_raises_\|_creates_"
@@ -45,12 +48,14 @@ This standard provides a safe migration path.
    ```
 
 3. **Check for print statements**
+
    ```bash
    grep -r "print(" tests/ --include="*.py"
    grep -r "console.log" tests/ --include="*.ts"
    ```
 
 4. **Generate migration checklist**
+
    ```yaml
    # tests/MIGRATION.yaml
    total_tests: 150
@@ -81,7 +86,8 @@ This standard provides a safe migration path.
    - Remove any print-based debugging
 
 2. **Organize test directories**
-   ```
+
+   ```text
    tests/
    ├── conftest.py           # Shared fixtures
    ├── unit/                  # Unit tests (isolated)
@@ -93,6 +99,7 @@ This standard provides a safe migration path.
    ```
 
 3. **Add pytest configuration**
+
    ```toml
    # pyproject.toml
    [tool.pytest.ini_options]
@@ -196,6 +203,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 **Goal**: Remove non-standard patterns.
 
 1. **Replace print with logging or remove**
+
    ```python
    # Before
    print(f"Created user: {user}")
@@ -221,6 +229,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 **Goal**: Confirm migration is complete.
 
 1. **Run compliance check**
+
    ```bash
    # Check naming
    grep -r "def test_" tests/ | grep -v "_with_\|_when_\|_returns_\|_raises_"
@@ -236,6 +245,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
    ```
 
 2. **Update migration tracking**
+
    ```yaml
    # tests/MIGRATION.yaml
    migration_complete: true
@@ -250,6 +260,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 **Problem**: Tests that modify global state or depend on execution order.
 
 **Solution**:
+
 1. Identify interdependent tests
 2. Add proper setup/teardown
 3. Use fixtures with appropriate scope
@@ -260,6 +271,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 **Problem**: Integration tests that take too long.
 
 **Solution**:
+
 1. Mark slow tests with `@pytest.mark.slow`
 2. Run fast tests in CI, slow tests nightly
 3. Consider converting some to unit tests with mocks
@@ -269,6 +281,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 **Problem**: Tests that pass/fail randomly.
 
 **Solution**:
+
 1. Identify flaky tests: run 10x and track failures
 2. Fix timing issues (add proper waits, remove sleeps)
 3. Fix state issues (proper isolation)
@@ -285,6 +298,7 @@ def test_concurrent_writes_eventually_consistent():
 **Problem**: Tests that don't actually verify anything.
 
 **Solution**:
+
 1. Find tests with no `assert` statements
 2. Determine what should be verified
 3. Add meaningful assertions

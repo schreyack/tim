@@ -5,6 +5,7 @@ This document defines API versioning requirements for all TIM projects.
 ## Overview
 
 All TIM APIs must implement versioning to:
+
 - Allow breaking changes without disrupting clients
 - Support multiple API versions simultaneously during migrations
 - Provide clear upgrade paths for consumers
@@ -15,12 +16,13 @@ All TIM APIs must implement versioning to:
 
 TIM uses URL path versioning as the primary strategy.
 
-```
+```text
 /api/v1/users
 /api/v2/users
 ```
 
 **Rationale**:
+
 - Explicit and visible
 - Easy to route in load balancers
 - Clear in logs and debugging
@@ -28,7 +30,7 @@ TIM uses URL path versioning as the primary strategy.
 
 ### Version Format
 
-```
+```text
 v{major}
 ```
 
@@ -177,7 +179,7 @@ def user_to_v2(user: User) -> UserResponseV2:
 
 Each version must have separate OpenAPI specs:
 
-```
+```text
 /docs/v1  →  OpenAPI spec for v1
 /docs/v2  →  OpenAPI spec for v2
 ```
@@ -227,7 +229,7 @@ async def version_middleware(request: Request, call_next):
 
 Each version needs its own test suite:
 
-```
+```text
 tests/
 ├── v1/
 │   ├── test_users_api_v1.py

@@ -6,7 +6,7 @@ All TIM projects use a standardized `ops.sh` deployment interface. This document
 
 ## Architecture: Shared Library Model
 
-```
+```text
 tim-ops-lib (central repository)
     │
     ├── tim-ops-lib.sh          # Core library - shared by all projects
@@ -86,16 +86,19 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 ## Safety Tier Model
 
 ### SAFE (Exit Code: 0)
+
 - Read-only operations
 - No confirmation required
 - Can be scripted freely
 
 ### MODERATE (Exit Code: 0 with warnings)
+
 - Makes changes but recoverable
 - Logs all actions
 - May prompt for confirmation in interactive mode
 
 ### HUMAN_REQUIRED (Exit Code: 2)
+
 - Potentially destructive operations
 - Requires human approval via `tim-ops-approve`
 - AI cannot bypass - no `--confirm` flag available
@@ -103,6 +106,7 @@ Every TIM project ops.sh must implement these commands with identical behavior:
 - Logged with timestamp, user, and approver
 
 ### BLOCKED (Exit Code: 3)
+
 - Extremely dangerous
 - Requires `--confirm --i-understand-this-is-dangerous`
 - Sends alert to team channel
@@ -332,13 +336,14 @@ deploy_smart() {
 ## Logging and Audit Trail
 
 All operations are logged with:
+
 - Timestamp
 - User (from $USER or git config)
 - Command executed
 - Exit code
 - Duration
 
-```
+```text
 # ~/.tim-ops/audit.log
 2025-01-15T10:30:00Z | tim | my-app | deploy | SUCCESS | 45s
 2025-01-15T11:00:00Z | tim | my-app | db:migrate | SUCCESS | 3s

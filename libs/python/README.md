@@ -41,6 +41,7 @@ settings = Settings()  # Loads from .env and environment
 ```
 
 Features:
+
 - Required secrets validation (no empty JWT_SECRET)
 - Production safety checks (no localhost DB in prod)
 - Masked secrets for logging
