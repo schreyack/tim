@@ -51,18 +51,6 @@ has_review_completed() {
     fi
 }
 
-# Check if plan has completed PM Review
-# Returns: "true" if PM Review: completed, "false" otherwise
-has_pm_review_completed() {
-    local file="$1"
-    # Use regex to handle variable whitespace in markdown tables
-    if grep -qE "\| PM Review[[:space:]]*\|[[:space:]]*completed[[:space:]]*\|" "$file" 2>/dev/null; then
-        echo "true"
-    else
-        echo "false"
-    fi
-}
-
 # Check if plan requires PM Review (always required for multi-phase plans after tech review)
 # Returns: "true" if required, "false" otherwise
 requires_pm_review() {
@@ -141,8 +129,6 @@ get_plan_state() {
                     echo "pm-review"
                 elif [[ "$pm_review" == "completed" || "$pm_review" == "not-required" || -z "$pm_review" ]]; then
                     echo "promote"
-                else
-                    echo "promote"
                 fi
             else
                 # Plan Review field missing or empty - check if multi-phase
@@ -155,7 +141,7 @@ get_plan_state() {
                 fi
             fi
             ;;
-        active|in_progress)
+        active)
             if [[ "$ai_ready" != "yes" ]]; then
                 echo "ai-ready"
             elif [[ "$impl_verified" == "yes" ]]; then
@@ -297,7 +283,7 @@ ensure_status_header_fields() {
     # Determine PM Review status
     local pm_review_status="not-required"
     if [[ "$(requires_pm_review "$file")" == "true" ]]; then
-        pm_review_status="not-required"  # Will be set to required after tech review
+        pm_review_status="required"
     fi
 
     local required_fields=(
@@ -403,16 +389,7 @@ fix_invalid_stage() {
     current_stage=$(get_status_field "$file" "Stage")
 
     # Validate stage value
-    local valid_stages="draft active in_progress completed abandoned"
-    local is_valid=false
-    for valid in $valid_stages; do
-        if [[ "$current_stage" == "$valid" ]]; then
-            is_valid=true
-            break
-        fi
-    done
-
-    if [[ "$is_valid" == true ]]; then
+    if [[ "$current_stage" =~ ^(draft|active|completed|abandoned)$ ]]; then
         # Stage is valid, no fix needed
         return 0
     fi
@@ -474,6 +451,12 @@ add_status_header() {
         review_status="required"
     fi
 
+    # Determine PM Review status based on phase count
+    local pm_review_status="not-required"
+    if [[ "$(requires_pm_review "$file")" == "true" ]]; then
+        pm_review_status="required"
+    fi
+
     # Create header content
     local header="## Status
 
@@ -486,7 +469,7 @@ add_status_header() {
 | Approver | - |
 | Plan Review | ${review_status} |
 | Review Date | - |
-| PM Review | not-required |
+| PM Review | ${pm_review_status} |
 | PM Review Date | - |
 | Execution Approved | no |
 | Execution Approved By | - |

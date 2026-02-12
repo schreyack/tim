@@ -174,7 +174,7 @@ cmd_wizard() {
         stage=$(get_status_field "$WIZARD_PLAN_FILE" "Stage")
         local target_folder="drafts"  # default
         case "$stage" in
-            active|in_progress) target_folder="active" ;;
+            active) target_folder="active" ;;
             completed) target_folder="completed" ;;
             abandoned) target_folder="abandoned" ;;
         esac
