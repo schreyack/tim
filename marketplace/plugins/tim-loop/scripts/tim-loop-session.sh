@@ -8,17 +8,15 @@ should_cleanup_existing_session() {
     local old_state="$1"
     local current_project="$2"
 
-    # Source the state file to get metadata
+    # Read specific values from state file without sourcing (avoids clobbering globals)
     local old_project=""
     local old_plan_file=""
     local created_at=""
 
     if [[ -f "$old_state" ]]; then
-        # shellcheck disable=SC1090
-        source "$old_state"
-        old_project="${PROJECT_PATH:-}"
-        old_plan_file="${PLAN_FILE:-}"
-        created_at="${CREATED_AT:-}"
+        old_project=$(grep '^PROJECT_PATH=' "$old_state" 2>/dev/null | cut -d= -f2- | tr -d '"')
+        old_plan_file=$(grep '^PLAN_FILE=' "$old_state" 2>/dev/null | cut -d= -f2- | tr -d '"')
+        created_at=$(grep '^CREATED_AT=' "$old_state" 2>/dev/null | cut -d= -f2- | tr -d '"')
     fi
 
     # Case 1: Old session's plan file no longer exists
