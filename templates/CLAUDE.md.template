@@ -1,445 +1,201 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ---
 
-## STOP AND READ: Critical Rules
+## Critical Rules
 
-**Before doing ANYTHING, read and understand these rules. They are not optional.**
-
-### Rule 1: Never Prioritize Speed Over Process
-
-This is the most critical rule. No matter what:
-- Follow the rules in this document exactly
-- If uncertain about the correct approach, **ASK the user** rather than guessing
-- Never take shortcuts that could cause problems later
-
-### Rule 2: Ask Before Assuming
-
-When encountering complicated problems:
-- Investigate root causes thoroughly before implementing fixes
-- If in doubt about the approach, **pause and ask for instructions**
-- Avoid quick workarounds that mask underlying issues
+1. **Process over speed** — Follow this document exactly. If uncertain, **ask** rather than guess.
+2. **Ask before assuming** — Investigate root causes before implementing fixes. No quick workarounds that mask real issues.
 
 ---
 
 ## Execution Environment
 
-<!-- CUSTOMIZE: Choose one of these sections based on your project -->
+<!-- CUSTOMIZE: Keep the option that fits your project, delete the other -->
 
-### Option A: Local/Remote Split Architecture
+### Option A: Local/Remote Split
 
-**This project has a split local/remote architecture. You MUST follow these rules:**
-
-1. **Local machine (macOS)**: ONLY for editing files. Do NOT run pytest, docker, or application commands locally.
-2. **Remote server**: ALL execution happens here via `./ops.sh`. This includes deployment, logs, database operations, and container management.
-3. **Before running any command**: Ask yourself "Does this execute code?" If yes, use `./ops.sh`.
+**Local (macOS):** Edit files only. **Remote:** ALL execution via `./ops.sh` — deployment, logs, DB, containers. If it executes code, use `./ops.sh`.
 
 ### Option B: Local Development
 
-**This project runs locally. Commands execute on your machine.**
-
-- Server: `npm start` or `python -m uvicorn app.main:app`
-- Tests: `npm test` or `pytest`
-- See project-specific commands below.
+Everything runs locally. Server: `npm start` or `uvicorn app.main:app`. Tests: `npm test` or `pytest`.
 
 ---
 
-## Mandatory: Use ops.sh for Remote Operations
+## ops.sh Remote Operations
 
-<!-- CUSTOMIZE: Remove this section if not using ops.sh -->
+<!-- Remove if not using ops.sh -->
 
-**All interaction with the remote server MUST go through `./ops.sh`.** This script provides safety controls.
+**All remote interaction goes through `./ops.sh`.** No direct SSH, docker exec, or raw SQL — ever.
 
 ```bash
-./ops.sh help                    # Show all available commands
-./ops.sh deploy                  # Deploy to remote server
-./ops.sh logs backend            # View backend logs
-./ops.sh status                  # Show container status
-./ops.sh health                  # Health check all services
-./ops.sh db backup               # Create database backup
+./ops.sh help | deploy | logs backend | status | health | db backup
 ```
 
-### Safety Tiers
-
-| Tier | Operations | Behavior |
-|------|------------|----------|
-| **SAFE** | logs, status, health, backup | Execute immediately |
-| **MODERATE** | deploy, restart, migrate | Requires confirmation |
-| **HUMAN_REQUIRED** | rollback, restore, stop | Human must approve |
-| **BLOCKED** | DROP, TRUNCATE, DELETE (raw) | Refused with error |
-
-### Never Do These
-
-| DO NOT | WHY |
-|--------|-----|
-| Run `ssh` commands directly | Bypasses safety controls |
-| Run `docker exec` directly | Can execute destructive operations |
-| Run SQL directly on database | No validation, no audit trail |
-
-**If you need to interact with the remote server, use `./ops.sh`. No exceptions.**
+**Safety tiers:** SAFE (logs/status/health) → MODERATE (deploy/restart, needs confirm) → HUMAN_REQUIRED (rollback/restore) → BLOCKED (DROP/TRUNCATE/DELETE)
 
 ---
 
-## Mandatory: Plan Lifecycle Management
+## Plan Lifecycle
 
-All plans MUST use the project's `plans/` folder with lifecycle subfolders.
-
-### Folder Structure
+All plans use the `plans/` folder:
 
 ```
 plans/
-├── drafts/      # Plans being designed (not yet approved)
-├── active/      # Approved plans under implementation
-├── completed/   # Successfully executed plans
-└── abandoned/   # Cancelled plans (preserves learnings)
+├── drafts/      # Being designed
+├── active/      # Approved, in progress
+├── completed/   # Done
+└── abandoned/   # Cancelled (preserves learnings)
 ```
 
-**Naming convention:** `YYYY-MM-DD-<project>-<description>.md`
+**Naming:** `YYYY-MM-DD-<project>-<description>.md`
 
-### Adding plan-ops to PATH (Recommended)
+### Lifecycle Flow
 
-Add the tim `bin/` directory to your PATH to run `plan-ops` from anywhere:
+1. **Draft** → create in `plans/drafts/`
+2. **Plan Review** → MANDATORY for multi-phase (2+) plans via `plan-ops review`
+3. **Active** → human approves, `plan-ops promote`
+4. **Execute** → `plan-ops execute` outputs the tim-loop command
+5. **Completed/Abandoned** → `plan-ops complete` or `plan-ops abandon`
 
-```bash
-# Add to ~/.bashrc or ~/.zshrc:
-export PATH="/path/to/tim/bin:$PATH"
-
-# Reload your shell
-source ~/.bashrc  # or source ~/.zshrc
-```
-
-After setup, run `plan-ops` directly instead of the full path:
-```bash
-plan-ops init
-plan-ops import ~/.claude/plans/my-plan.md
-plan-ops wizard plans/drafts/my-plan.md
-```
-
-The `plan-ops init` command will display these instructions with the correct path.
-
-### Plan Lifecycle
-
-1. **Draft** - Claude creates plan, imports to `plans/drafts/`
-2. **Plan Review** - Multi-phase plans (2+ phases) MUST complete Plan Review
-3. **Active** - Human approves, moves to `plans/active/`
-4. **Completed** - All phases done, moves to `plans/completed/`
-5. **Abandoned** - Cancelled with reason, moves to `plans/abandoned/`
-
-### Plan Review Gate (MANDATORY for Multi-Phase Plans)
-
-Plans with 2+ phases **cannot be promoted** until Plan Review is completed:
-
-```bash
-# 1. Show Plan Review command
-plan-ops review plans/drafts/my-plan.md
-
-# 2. Run the displayed /tim-loop --tech-review command in Claude Code
-
-# 3. Mark review complete
-plan-ops review plans/drafts/my-plan.md --mark-complete
-
-# 4. Now promotion is allowed
-plan-ops promote plans/drafts/my-plan.md --approver "Name"
-```
-
-Single-phase plans can skip Plan Review and promote directly.
-
-
-### Tim Loop Execution
-
-After AI Developer Ready approval, execute the plan:
-
-```bash
-# 1. Run execute to get the tim-loop command
-plan-ops execute plans/active/my-plan.md
-
-# 2. Run the /tim-loop command in Claude Code
-```
-
-### Designing for Parallel Agent Execution
-
-Plans should be designed for parallel agent execution. Include an Execution Strategy table:
-
-| Phase | Task | Dependencies | Agent Type | Parallelizable |
-|-------|------|--------------|------------|----------------|
-| 1 | Search patterns | none | Explore | Yes |
-| 1 | Search models | none | Explore | Yes |
-| 2 | Implement | Phase 1 | Bash | No |
-
-**Agent types:** `Explore` (search/research), `Plan` (design), `Bash` (commands)
-
-**Guidelines:**
-- Max 3 agents in parallel
-- Don't parallelize tasks that modify the same files
-- Break large tasks into smaller parallelizable units
-
-See `standards/operations/plan-management.md` for full guidance.
-
-### MANDATORY: Cleanup ~/.claude/plans
-
-When Claude Code creates plans in `~/.claude/plans/`:
-1. Copy plan to `plans/drafts/` with proper naming
-2. Add Status Header if missing
-3. **DELETE the original from `~/.claude/plans/`**
-4. Commit the new plan to git
-
-**Never leave orphan plans in `~/.claude/plans/`** - they accumulate indefinitely.
+Single-phase plans skip review and promote directly.
 
 ### Status Header (Required)
 
-Every plan MUST start with:
-
-```markdown
-## Status
-
-| Field | Value |
-|-------|-------|
-| Stage | draft / active / completed / abandoned |
-| Created | 2025-01-16 14:30 |
-| Last Updated | 2025-01-16 16:45 |
-| Author | Claude Opus 4.5 |
-| Approver | [human name or "-"] |
-| Plan Review | required / completed / not-required |
-| Review Date | [YYYY-MM-DD or "-"] |
-| Execution Approved | yes / no |
-| Execution Approved By | [human name or "-"] |
-| Execution Started | [YYYY-MM-DD HH:MM or "-"] |
-
-### Progress Log
-
-| Timestamp | Stage | Event |
-|-----------|-------|-------|
-| 2025-01-16 14:30 | draft | Plan created |
-```
-
-**Plan Review values:**
-- `required` - Multi-phase plan, review not yet done
-- `completed` - Review finished, ready for promotion
-- `not-required` - Single-phase plan
+Every plan starts with a Status table: Stage, Created, Last Updated, Author, Approver, Plan Review status, Execution Approved, and a Progress Log.
 
 ### Plan Requirements
 
-Every plan MUST include:
-1. **Problem/Goal** - What needs to be done
-2. **Implementation Steps** - Technical approach
-3. **Testing Strategy** - How to verify changes
-4. **Completion Criteria** - What "done" looks like
+Every plan must include: Problem/Goal, Implementation Steps, Testing Strategy, Completion Criteria.
 
-### Automation
+### Parallel Execution
 
-Use `plan-ops` for lifecycle operations (requires PATH setup, see above):
-- `init` - Create folder structure
-- `import` - Import from ~/.claude/plans (auto-deletes original)
-- `review` - Start/complete Plan Review (multi-phase plans)
-- `promote` - Move draft to active (blocked for multi-phase until reviewed)
-- `execute` - Output tim-loop command for active plan
-- `complete` - Move active to completed
-- `abandon` - Move to abandoned with reason
+Design plans for parallel agents. Include an Execution Strategy table (Phase, Task, Dependencies, Agent Type, Parallelizable). Max 3 agents in parallel. Don't parallelize tasks touching the same files.
 
-See `standards/operations/plan-management.md` for full documentation.
+### Cleanup
+
+When Claude creates plans in `~/.claude/plans/`: copy to `plans/drafts/`, add status header, **delete the original**, commit to git. Never leave orphans.
+
+Use `plan-ops`: `init | import | review | promote | execute | complete | abandon`
+
+See `standards/operations/plan-management.md` for full docs.
 
 ---
 
-## Mandatory: Code Quality Rules
+## Code Quality
 
-### No TODOs or Placeholders
+**No TODOs/placeholders** — No `TODO`, `FIXME`, `XXX`, `HACK`, `NotImplementedError`, `pass`, or `...`. Implement fully or don't add it.
 
-- **NO `TODO`, `FIXME`, `XXX`, `HACK` comments** - Implement fully or don't add it
-- **NO placeholder code** - No `raise NotImplementedError`, no `pass`, no `...`
-- **NO print debugging** - Use logging module (`structlog`, `logging`)
-- **NO bare except clauses** - Catch specific exceptions
+**No print debugging** — Use proper logging (`structlog`, `logging`).
 
-### Type Safety
+**Type safety** — All functions get type hints. Use `mypy --strict` (Python) or `tsc --strict` (TypeScript). No `any` types.
 
-- **ALL functions must have type hints** (parameters and return types)
-- **Use `mypy --strict`** (Python) or **`tsc --strict`** (TypeScript)
-- **No `any` types** in TypeScript
+**Error handling** — Catch specific exceptions with context. Log server-side. Never expose internals to clients.
 
-### Error Handling
-
-- Catch specific exceptions, not `Exception` or bare `except:`
-- Include context in error messages (user ID, relevant IDs)
-- Log errors server-side with context for debugging
-- Never expose internal details to clients
-
-### Security
-
-- Validate all user input server-side
-- Use parameterized queries (never string interpolation for SQL)
-- Validate authorization for all operations
-- Never commit secrets, credentials, or .env files
+**Security** — Validate input server-side. Parameterized queries only. Validate authz. Never commit secrets.
 
 ---
 
-## Mandatory: Single Source of Truth
+## Single Source of Truth
 
-Every piece of data, configuration, or definition must have exactly one authoritative source.
-
-### Why This Matters
-- Prevents inconsistency when values change
-- Eliminates "which one is correct?" ambiguity
-- Makes updates atomic - change once, apply everywhere
-
-### Applying the Principle
-1. **Identify the source of truth** - Where should this value be defined?
-2. **Define it once** - Add to the authoritative source
-3. **Import, don't duplicate** - All consumers reference the source
-4. **Update the source** - When changes are needed, change only the source
-
-### Anti-patterns to Avoid
-- Hardcoding the same value in multiple files
-- Creating "local" versions of shared constants
-- Copying test data between test files instead of importing
-- Duplicating validation logic instead of sharing utilities
+Every value defined once, referenced everywhere. No duplicating constants, validation logic, or test data across files. Change once, apply everywhere.
 
 ---
 
-## Mandatory: Test Requirements
+## Testing
 
-**No changes are complete without testing.**
+**No changes without tests. Minimum 90% coverage.**
 
-### Test Naming Convention
+**Naming:** `test_<what>_<when>_<expected>` (e.g., `test_login_with_valid_credentials_returns_token`)
 
-Use `test_<what>_<when>_<expected>` format:
+**Bug fix protocol:** Write failing test → verify it fails → fix → verify it passes → run full suite.
 
-```python
-def test_login_with_valid_credentials_returns_token():
-def test_upload_with_invalid_format_returns_400():
-def test_create_user_when_email_exists_raises_error():
-```
-
-### Test Coverage
-
-- **Minimum 90% coverage** - All new code must meet this bar
-- **Both unit and integration tests** - Test in isolation AND with real dependencies
-- **E2E tests for critical paths** - Test full user workflows
-
-### Bug Fix Protocol
-
-When a bug is reported:
-1. **Write a test that reproduces the bug FIRST**
-2. **Run the test - verify it FAILS**
-3. **Fix the bug**
-4. **Run the test - verify it PASSES**
-5. **Run all tests to ensure no regressions**
-
-### Completion Checklist
-
-A task is NOT complete until:
-- [ ] All implementation steps are done (no TODOs, no placeholders)
-- [ ] Tests exist and pass (unit, integration, E2E as appropriate)
-- [ ] Code is deployed (if applicable)
-- [ ] Manual verification confirms the fix/feature works
-- [ ] No errors in logs
+**Done means:** Implementation complete (no TODOs), tests pass, deployed (if applicable), manually verified, no log errors.
 
 ---
 
-## Mandatory: Commit Standards
+## Commits
 
-### Commit Message Format
+**Conventional Commits:** `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 
-Use Conventional Commits:
-```
-feat: add user authentication
-fix: resolve token expiration bug
-refactor: simplify database queries
-test: add coverage for billing service
-docs: update API documentation
-```
-
-### Co-Author Line
-
-ALL commits must include:
-```
-Co-Authored-By: Claude <model>/<version> <noreply@anthropic.com>
-```
-
-### What NOT to Commit
-
-- `.env` files
-- Credentials or secrets
-- Debug code or print statements
-- Incomplete implementations
+**Never commit:** `.env`, secrets, debug code, incomplete implementations.
 
 ---
 
-## Project-Specific Information
+## Context Efficiency
 
-<!-- CUSTOMIZE: Fill in the sections below for your project -->
+### Subagent Discipline
+- Prefer inline work for tasks under ~5 tool calls. Subagents have overhead — don't delegate trivially.
+- Cap subagent output: "Final response MUST be under 2000 characters. List files modified and test results. No code snippets or stack traces." Without this, subagents dump entire transcripts into your context.
+- One TaskOutput call per subagent. Period. If it times out, increase the timeout — don't re-read. Double-reads double context consumption.
+- Don't paste file contents into subagent prompts. Give them the file path and let them read it. Pasting duplicates content in both contexts.
+- Put quality rules in subagent prompts, not just the orchestrator. Tell implementers what good code looks like; tell reviewers what to check. Let them enforce quality in their own context instead of the orchestrator re-reading their output to verify.
 
-### Project Overview
+### File Reading
+- Read files with purpose. Before reading a file, know what you're looking for.
+- Use Grep to locate relevant sections before reading entire large files.
+- Never re-read a file you've already read in this session.
+- For files over 500 lines, use offset/limit to read only the relevant section.
 
-<!-- Brief description of what this project does -->
+### Responses
+- Don't echo back file contents you just read — the user can see them.
+- Don't narrate tool calls ("Let me read the file..." / "Now I'll edit..."). Just do it.
+- Keep explanations proportional to complexity. Simple changes need one sentence, not three paragraphs.
 
-### Technology Stack
+---
 
+## Project-Specific
+
+<!-- CUSTOMIZE: Fill in for your project -->
+
+### Overview
+<!-- What this project does -->
+
+### Stack
 | Component | Technology |
 |-----------|------------|
-| Backend | <!-- e.g., FastAPI, Express --> |
-| Frontend | <!-- e.g., Next.js, React --> |
+| Backend | <!-- e.g., FastAPI --> |
+| Frontend | <!-- e.g., Next.js --> |
 | Database | <!-- e.g., PostgreSQL --> |
-| Queue | <!-- e.g., Celery, Redis --> |
 
 ### Key Commands
-
 ```bash
-# Start development server
-<!-- your command -->
-
-# Run tests
-<!-- your command -->
-
-# Deploy
-<!-- your command -->
+# Start dev server / Run tests / Deploy
 ```
 
-### Project Structure
-
+### Structure
 ```
 your-project/
-├── src/              # Source code
-├── tests/            # Test files
-├── plans/            # Planning documents
-└── ...
+├── src/        # Source code
+├── tests/      # Test files
+├── plans/      # Planning docs
 ```
 
 ### Environment Variables
-
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `DATABASE_URL` | Database connection string | Yes |
-| <!-- add more --> | | |
+| `DATABASE_URL` | DB connection string | Yes |
 
 ### Common Issues
-
-<!-- Document project-specific gotchas here -->
+<!-- Project-specific gotchas -->
 
 ---
 
-## TIM Design Standards Reference
-
-This project follows TIM Design Standards. Key requirements:
+## Design Standards
 
 | Requirement | Threshold |
 |-------------|-----------|
-| Type safety | 100% (mypy --strict / tsc --strict) |
-| Test coverage | 90% minimum |
-| File size | 400 lines maximum |
-| Function size | 50 lines maximum |
-| Complexity | 10 maximum (cyclomatic) |
-
-For complete standards, see: [TIM Design Standards Repository](<!-- link to tim -->)
+| Type safety | 100% (strict) |
+| Test coverage | 90% min |
+| File size | 400 lines max |
+| Function size | 50 lines max |
+| Complexity | 10 max (cyclomatic) |
 
 ---
 
 ## AI Developer Acknowledgment
 
-Before making any changes, confirm you understand:
-1. All rules in this CLAUDE.md file
-2. The test naming convention (test_what_when_then)
-3. The file size limits (400 lines max)
-4. The requirement to complete features fully (no TODOs)
-
-**If you are uncertain about any rule, ASK before proceeding.**
+Before making changes, confirm you understand: all rules here, test naming conventions, file size limits, and the requirement to fully complete features. **If uncertain, ask.**

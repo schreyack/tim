@@ -1,239 +1,106 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with TIM projects.
-
----
+Guidance for Claude Code when working with TIM projects.
 
 ## Critical Rules
 
-- **Help the Human** - Deflecting requests because you didn't cause a problem is not helpful.  If the human asks you to resolve an issue, they are not blaming you, they need the problem resolved.
-- **Follow requests exactly** - If uncertain, ASK rather than guess
-- **Investigate root causes** - No quick workarounds that mask issues, the objective is functioning code, not quickest resolution
-- **Complete features fully** - No TODOs, placeholders, or partial implementations
+- **Help the Human** — If asked to resolve an issue, they need it resolved, not deflection about who caused it.
+- **Follow requests exactly** — If uncertain, ASK.
+- **Investigate root causes** — No workarounds that mask issues. Goal is functioning code, not quickest resolution.
+- **Complete features fully** — No TODOs, placeholders, or partial implementations.
 
 <!-- TIM-ONLY-START -->
----
-
 ## Execution Environment
 
-**This repository (tim) is local-only.** All commands execute on your machine.
-
-- Documentation/standards repository - no application to deploy
-- Tests: Run locally if any test infrastructure exists
-- File operations: Standard local editing
-
----
+**Local-only repo.** Documentation/standards — no application to deploy. All commands run on your machine.
 
 ## Repository Purpose
 
-This is the **TIM Standards** repository - the authoritative source for coding, testing, security, and deployment standards used across all TIM projects.
-
-**Philosophy**: Defense in depth. Never trust. Always verify. Build systems that ENFORCE rules, not just document them.
+**TIM Standards** — authoritative source for coding, testing, security, and deployment standards across all TIM projects. Philosophy: Defense in depth. Never trust. Always verify. Build systems that ENFORCE rules, not just document them.
 <!-- TIM-ONLY-END -->
-
----
 
 ## AI Development Context
 
-TIM develops exclusively with AI. Strict enforcement works because AI doesn't fatigue from iteration - when code fails checks, the agent simply tries again. This makes feedback loops incredibly powerful.
+TIM develops exclusively with AI. Strict enforcement works because AI doesn't fatigue — when code fails checks, the agent tries again.
 
-**Key behaviors:**
-
-- Hard gates catch AI mistakes - plausible-sounding bugs need verification
-- NO bypass flags anywhere - if AI can bypass, AI will bypass
+- Hard gates catch plausible-sounding bugs — verification required
+- NO bypass flags anywhere — if AI can bypass, AI will bypass
 - Human approval is the escape hatch for blocked operations
-- If you touched a file with violations, you must fix them (no "it was already broken")
-
-**AI Behavioral Gates** enforce rules in real-time:
-
-- Code Quality Validator: File >400 lines, function >50 lines → BLOCKED
-- Excuse Pattern Detector: Deflection like "was already broken" → BLOCKED
+- If you touched a file with violations, fix them (no "it was already broken")
+- **AI Behavioral Gates:** File >400 lines or function >50 lines → BLOCKED. Deflection patterns → BLOCKED.
 
 <!-- TIM-ONLY-START -->
----
-
 ## Repository Structure
 
 ```text
 tim/
-├── CLAUDE.md                    # This file
-├── .claude-plugin/              # Marketplace definition (NOT for submodule use)
-├── marketplace/                 # Plugin source (NOT for submodule use)
-│   └── plugins/tim-loop/        # tim-loop plugin
-├── standards/                   # All TIM standards
-│   ├── enforcement/             # Gate definitions, AI review
-│   ├── coding/                  # Language-specific standards
-│   ├── testing/                 # Test requirements
-│   ├── security/                # Security requirements
-│   ├── database/                # Migration requirements
-│   └── deployment/              # CI/CD, ops requirements
-├── libs/                        # Shared libraries (REQUIRED)
-├── templates/                   # Ready-to-copy configs
-└── tools/                       # Enforcement tools
+├── standards/          # All TIM standards (enforcement, coding, testing, security, database, deployment)
+├── libs/               # Shared libraries (REQUIRED)
+├── templates/          # Ready-to-copy configs
+├── tools/              # Enforcement tools
+├── marketplace/plugins/tim-loop/  # tim-loop plugin (NOT for submodule use)
+└── .claude-plugin/     # Marketplace definition (NOT for submodule use)
 ```
 
-**Note:** When using tim as a git submodule, exclude `.claude-plugin/` and `marketplace/` via sparse-checkout. Plugins should come from the marketplace, not the submodule.
-
----
+When using tim as a submodule, exclude `.claude-plugin/` and `marketplace/` via sparse-checkout. Plugins come from marketplace, not submodule.
 
 ## Four-Gate Enforcement Model
 
-All TIM projects implement four gates. Each blocks on failure.
+All gates block on failure:
 
-1. **Local (Pre-commit)**: Type checking, linting, formatting, secrets detection
-2. **CI (Pull Request)**: All Gate 1 + tests (100% pass), coverage (90%), security scan
-3. **Deploy (Pre-deployment)**: Integration/E2E tests, migration dry-run, canary (10%)
-4. **Pattern Compliance**: All patterns in `.tim-patterns.yaml`, shared library installed
-
+1. **Local (Pre-commit):** Type checking, linting, formatting, secrets detection
+2. **CI (Pull Request):** Gate 1 + tests (100% pass), coverage (90%), security scan
+3. **Deploy (Pre-deployment):** Integration/E2E, migration dry-run, canary (10%)
+4. **Pattern Compliance:** All patterns in `.tim-patterns.yaml`, shared library installed
 <!-- TIM-ONLY-END -->
----
 
 ## Shared Libraries (REQUIRED)
 
-Every TIM project MUST use `tim-lib` (Python) or `@tim/lib` (Node.js) for: settings, logging, auth (hash/verify password, JWT), errors, exception handlers, database pooling.
-
----
+Every project MUST use `tim-lib` (Python) or `@tim/lib` (Node.js) for: settings, logging, auth, errors, exception handlers, database pooling.
 
 ## Pattern Registry
 
-Every project MUST have `.tim-patterns.yaml`. CUSTOM patterns require human approval with ticket reference. Unregistered patterns block deployment.
-
----
+Every project MUST have `.tim-patterns.yaml`. Custom patterns require human approval with ticket reference. Unregistered patterns block deployment.
 
 ## Remote-First Deployment
 
-**Remote by default.** Use `./ops.sh --env <env>` for all operations. The `--env` flag is REQUIRED.
+Use `./ops.sh --env <env>` for all operations (`--env` REQUIRED). Environments: local (human-approved only), dev (all devs), uat (QA/leads), prod (DevOps/SRE). Local dev disabled by default — human must run `tim-local-dev-enable`.
 
-| Environment | Access |
-|-------------|--------|
-| local | Human-approved only |
-| dev | All developers |
-| uat | QA team, tech leads |
-| prod | DevOps/SRE only |
+**Safety tiers:** SAFE (status/health/logs/backup) → MODERATE logged (deploy/restart/migrate) → HUMAN_REQUIRED (rollback/stop/db:rollback) → BLOCKED (destroy/db:restore)
 
-Local development is disabled by default. A human must run `tim-local-dev-enable`.
-
----
-
-## ops.sh Safety Tiers
-
-| Tier | Behavior | Examples |
-|------|----------|----------|
-| SAFE | Always allowed | status, health, logs, backup |
-| MODERATE | Logged | deploy, restart, migrate |
-| HUMAN_REQUIRED | Needs approval | rollback, stop, db:rollback |
-| BLOCKED | Never in ops.sh | destroy, db:restore |
-
-**Never bypass ops.sh** - No direct SSH, docker exec, raw SQL, or docker-compose up.
-
----
+**Never bypass ops.sh** — no direct SSH, docker exec, raw SQL, or docker-compose up.
 
 ## Hard Rules (No Exceptions)
 
-**Code Quality:**
+**Code Quality:** `mypy --strict` / `tsc strict`, `eslint --max-warnings 0`, coverage 90% min (95% new code), shared library required.
 
-- Python: `mypy --strict`, ruff with security rules
-- TypeScript: `strict: true`, `eslint --max-warnings 0`
-- Coverage: 90% minimum, 95% for new code
-- Shared library MUST be used
+**Security:** Secrets never committed (pre-commit blocks), all input validated (Pydantic/Zod), required headers (CSP, HSTS, X-Content-Type-Options, X-Frame-Options), HIGH/CRITICAL vulns block merge.
 
-**Security:**
+**Database:** Migrations only — no sync(), create_all(), manual DDL. Every migration has tested rollback.
 
-- Secrets NEVER committed (pre-commit blocks)
-- All external input validated (Pydantic/Zod)
-- Required headers: CSP, HSTS, X-Content-Type-Options, X-Frame-Options
-- HIGH/CRITICAL vulnerabilities block merge
-
-**Database:**
-
-- Migrations only - no sync(), create_all(), or manual DDL
-- Every migration must have tested rollback
-
-**Testing:**
-
-- Naming: `test_<what>_<when>_<then>`
-- TDD for new features
-
-**Code Style:**
-
-- No TODO/FIXME/XXX comments
-- No placeholder code (NotImplementedError, pass, ...)
-- No print debugging - use logging
-- No bare except clauses
-- All functions have type hints
-
----
+**Code Style:** No TODO/FIXME/XXX, no placeholders, no print debugging (use logging), no bare except, all functions typed. Test naming: `test_<what>_<when>_<then>`. TDD for new features.
 
 ## Single Source of Truth
 
-Every piece of data must have exactly one authoritative source. Define once, import everywhere, update only the source.
+Every value defined once, imported everywhere, updated only at the source.
 
----
-
-## Test Requirements
+## Tests
 
 **Tests are diagnostic tools, not goals.** The objective is a functioning application, not passing tests.
 
----
+## Plan Lifecycle
 
-## Plan Lifecycle Management
-
-Plans use `plans/` folder with lifecycle subfolders: `drafts/`, `active/`, `completed/`, `abandoned/`.
-
-**No optional work** - Everything in a plan is required. No "nice to have" items.
+Plans use `plans/` folder: `drafts/` → `active/` → `completed/` or `abandoned/`. No optional work — everything in a plan is required.
 
 <!-- TIM-ONLY-START -->
----
-
 ## Using This Repository
 
-### For New TIM Projects
+**New projects:** Add tim as submodule → sparse-checkout (exclude plugin dirs) → `sync-pre-commit` → create `CLAUDE-PROJECT.md` → `sync-claude-md` → create `.tim-patterns.yaml` → install tim-loop from marketplace → `pre-commit install` → `tim-compliance-check.sh`
 
-1. Add tim as git submodule: `git submodule add /path/to/tim lib/tim`
-2. Configure sparse-checkout to exclude plugin directories (plugins come from marketplace):
+**Existing projects:** Run `tim-compliance-check.sh` → add submodule → install plugin → implement four gates → migrate to remote-first.
 
-   ```bash
-   git -C lib/tim config core.sparseCheckout true
-   cat > .git/modules/lib/tim/info/sparse-checkout << 'EOF'
-   /*
-   !.claude-plugin/
-   !marketplace/
-   EOF
-   git -C lib/tim read-tree -mu HEAD
-
-   ```
-
-3. Generate pre-commit config: `lib/tim/bin/sync-pre-commit <project>`
-4. Optionally create `.pre-commit-overrides.yaml` for project-specific hooks
-5. Create `CLAUDE-PROJECT.md` with project-specific content
-6. Run `lib/tim/bin/sync-claude-md` to generate CLAUDE.md
-7. Create `.tim-patterns.yaml` from template
-8. Install tim-loop plugin from marketplace (not from submodule)
-9. Run `pre-commit install`
-10. Run `tools/tim-compliance-check.sh`
-
-### For Existing Projects
-
-1. Run `tools/tim-compliance-check.sh` to identify gaps
-2. Add tim submodule and symlink configs (see above)
-3. Install tim-loop plugin
-4. Implement all four gates
-5. Migrate to remote-first deployment
-
-### Updating Tim Standards in Projects
-
-When tim is updated, run in each project:
-
-```bash
-cd lib/tim && git pull origin main
-cd ../..
-lib/tim/bin/sync-pre-commit   # Regenerate pre-commit configs
-lib/tim/bin/sync-claude-md     # Regenerate CLAUDE.md
-git add lib/tim .pre-commit-config.yaml CLAUDE.md && git commit -m "chore: update tim submodule"
-```text
+**Updating:** `cd lib/tim && git pull origin main && cd ../.. && sync-pre-commit && sync-claude-md && git commit`
 <!-- TIM-ONLY-END -->
-
----
 
 ## Quick Reference
 
@@ -247,46 +114,43 @@ git add lib/tim .pre-commit-config.yaml CLAUDE.md && git commit -m "chore: updat
 | Validation | Pydantic | Zod |
 | Shared lib | tim-lib | @tim/lib |
 
----
+## Commits
 
-## Commit Message Format
-
-Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
+Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 
 <!-- TIM-ONLY-START -->
----
+## Plugin Versioning
 
-## Plugin Version Management
+Update BOTH `.claude-plugin/marketplace.json` and `marketplace/plugins/tim-loop/.claude-plugin/plugin.json`. Semver: Major (breaking), Minor (features), Patch (fixes).
 
-When updating tim-loop version, update BOTH:
+## Standards Thresholds
 
-- `.claude-plugin/marketplace.json`
-- `marketplace/plugins/tim-loop/.claude-plugin/plugin.json`
-
-Use semantic versioning: Major (breaking), Minor (features), Patch (fixes).
-
----
-
-## TIM Standards Reference
-
-| Requirement | Threshold |
-|-------------|-----------|
-| Type safety | 100% (mypy --strict / tsc --strict) |
-| Test coverage | 90% minimum |
-| File size | 400 lines maximum |
-| Function size | 50 lines maximum |
-| Complexity | 10 maximum (cyclomatic) |
+Type safety 100% (strict) · Coverage 90% min · Files 400 lines max · Functions 50 lines max · Complexity 10 max (cyclomatic)
 <!-- TIM-ONLY-END -->
 
----
+## Context Efficiency
+
+### Subagent Discipline
+
+- Prefer inline work for tasks under ~5 tool calls. Subagents have overhead — don't delegate trivially.
+- Cap subagent output: "Final response MUST be under 2000 characters. List files modified and test results. No code snippets or stack traces." Without this, subagents dump entire transcripts into your context.
+- One TaskOutput call per subagent. Period. If it times out, increase the timeout — don't re-read. Double-reads double context consumption.
+- Don't paste file contents into subagent prompts. Give them the file path and let them read it. Pasting duplicates content in both contexts.
+- Put quality rules in subagent prompts, not just the orchestrator. Tell implementers what good code looks like; tell reviewers what to check. Let them enforce quality in their own context instead of the orchestrator re-reading their output to verify.
+
+### File Reading
+
+- Read files with purpose. Before reading a file, know what you're looking for.
+- Use Grep to locate relevant sections before reading entire large files.
+- Never re-read a file you've already read in this session.
+- For files over 500 lines, use offset/limit to read only the relevant section.
+
+### Responses
+
+- Don't echo back file contents you just read — the user can see them.
+- Don't narrate tool calls ("Let me read the file..." / "Now I'll edit..."). Just do it.
+- Keep explanations proportional to complexity. Simple changes need one sentence, not three paragraphs.
 
 ## AI Developer Acknowledgment
 
-Before making changes, confirm you understand:
-
-1. All rules in this CLAUDE.md
-2. Test naming: `test_what_when_then`
-3. File size limits: 400 lines max
-4. Complete features fully - no TODOs
-
-**If uncertain about any rule, ASK before proceeding.**
+Before making changes, confirm you understand all rules here, test naming (`test_what_when_then`), file limits (400 lines), and the requirement to fully complete features. **If uncertain, ASK.**
