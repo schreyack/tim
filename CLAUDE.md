@@ -92,6 +92,8 @@ Every value defined once, imported everywhere, updated only at the source.
 
 Plans use `plans/` folder: `drafts/` → `active/` → `completed/` or `abandoned/`. No optional work — everything in a plan is required.
 
+**Plan mode:** Write both the system plan file AND a copy to `plans/drafts/YYYY-MM-DD-HH-MM-short-description.md`.
+
 <!-- TIM-ONLY-START -->
 ## Using This Repository
 
