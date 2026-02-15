@@ -156,8 +156,61 @@ cmd_cleanup() {
     fi
 }
 
+# Install git-guard wrapper to intercept destructive git commands (Layer 2)
+install_git_guard() {
+    local guard_dir="$HOME/.claude/bin"
+    local guard_path="$guard_dir/git"
+    local guard_source="${SCRIPT_DIR}/git-guard"
+
+    # Source template must exist
+    [ -f "$guard_source" ] || return 1
+
+    # Create bin directory
+    mkdir -p "$guard_dir"
+
+    # Detect real git path (skip our wrapper)
+    local real_git
+    real_git=$(which -a git 2>/dev/null | grep -v "$guard_dir" | head -1)
+    [ -z "$real_git" ] && return 1
+
+    # Validate path contains only safe characters (prevents sed injection)
+    [[ "$real_git" =~ ^[/a-zA-Z0-9._-]+$ ]] || return 1
+
+    # Unlock if previously locked
+    # Safe: SessionStart hooks run as shell commands, not agent Bash tool calls,
+    # so PreToolUse hooks (which block chflags nouchg) don't fire here
+    [ -f "$guard_path" ] && chflags nouchg "$guard_path" 2>/dev/null || true
+
+    # Clean up orphaned temp files from prior failed installs
+    rm -f "$guard_dir/git."?????? 2>/dev/null || true
+
+    # Install atomically: temp file + mv (same filesystem = atomic)
+    local tmp
+    tmp=$(mktemp "$guard_dir/git.XXXXXX")
+    sed "s|%%REAL_GIT%%|${real_git}|g" "$guard_source" > "$tmp"
+    chmod +x "$tmp"
+    mv "$tmp" "$guard_path"
+
+    # Verify wrapper works (pass-through to real git)
+    if ! "$guard_path" --version >/dev/null 2>&1; then
+        rm -f "$guard_path"
+        return 1
+    fi
+
+    # Lock wrapper to prevent agent tampering
+    chflags uchg "$guard_path"
+
+    # Warn if wrapper is not first in PATH
+    local first_git
+    first_git=$(which git 2>/dev/null)
+    if [ "$first_git" != "$guard_path" ]; then
+        echo "WARNING: git-guard not first in PATH. Add \$HOME/.claude/bin to front of PATH." >&2
+    fi
+}
+
 # SessionStart hook mode - outputs JSON for Claude Code
 cmd_hook() {
+    install_git_guard 2>/dev/null || true
     local log_file="${PROMPT_DIR}/.tim-loop-reinject.log"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')

@@ -1,0 +1,129 @@
+#!/bin/sh
+# git-guard — hard block on destructive git commands
+# Installed to ~/.claude/bin/git by tim-loop plugin
+# Intercepts ALL git invocations regardless of how git is called
+
+REAL_GIT="%%REAL_GIT%%"  # Replaced at install time with actual path (e.g., /usr/bin/git)
+
+block() {
+    echo "BLOCKED by git-guard: $1" >&2
+    exit 1
+}
+
+# Get last argument (POSIX-compatible)
+last_arg() {
+    eval echo "\${$#}"
+}
+
+# Find the subcommand, skipping global flags and their arguments.
+# Git global options that take a value: -C <path>, -c <key=value>, --git-dir <path>,
+# --work-tree <path>, --namespace <name>, --super-prefix <path>, --config-env <name=envvar>
+subcmd=""
+skip_next=false
+for arg in "$@"; do
+    if $skip_next; then
+        skip_next=false
+        continue
+    fi
+    case "$arg" in
+        -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env)
+            skip_next=true
+            continue
+            ;;
+        --git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*)
+            continue  # --flag=value form, skip entire arg
+            ;;
+        -*) continue ;;  # other flags (no argument)
+        *) subcmd="$arg"; break ;;
+    esac
+done
+
+case "$subcmd" in
+    stash)
+        # Allow read-only: git stash list, git stash show
+        # Find the stash subcommand (second positional after 'stash')
+        found_stash=false
+        sub2=""
+        skip_next=false
+        for arg in "$@"; do
+            if $skip_next; then skip_next=false; continue; fi
+            case "$arg" in
+                -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env)
+                    skip_next=true; continue ;;
+                --git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*)
+                    continue ;;
+                -*) continue ;;
+                stash) found_stash=true; continue ;;
+                *)
+                    if $found_stash; then sub2="$arg"; break; fi
+                    ;;
+            esac
+        done
+        case "$sub2" in
+            list|show) ;;  # allowed
+            *) block "git stash risks data loss if pop fails. Commit to a temp branch instead." ;;
+        esac
+        ;;
+    clean)
+        # Block if -f or --force is present
+        for arg in "$@"; do
+            case "$arg" in
+                --force) block "git clean --force deletes untracked files irreversibly." ;;
+                -*f*) block "git clean -f deletes untracked files irreversibly." ;;
+            esac
+        done
+        ;;
+    reset)
+        # Block if --hard is present
+        for arg in "$@"; do
+            case "$arg" in
+                --hard) block "git reset --hard destroys uncommitted changes. Commit to a branch first." ;;
+            esac
+        done
+        ;;
+    checkout)
+        # Block 'git checkout .' and 'git checkout -- .'
+        la=$(last_arg "$@")
+        if [ "$la" = "." ]; then
+            block "Blanket working tree discard. Target specific files instead."
+        fi
+        # Block --force / -f (force checkout discards local modifications)
+        for arg in "$@"; do
+            case "$arg" in
+                --force) block "Force checkout discards local modifications. Commit to a branch first." ;;
+                -f) block "Force checkout discards local modifications. Commit to a branch first." ;;
+            esac
+        done
+        ;;
+    restore)
+        # Block if last arg is '.'
+        la=$(last_arg "$@")
+        if [ "$la" = "." ]; then
+            block "Blanket restore. Target specific files instead."
+        fi
+        ;;
+    push)
+        # Block --force and -f, allow --force-with-lease (only when --force is absent)
+        has_force=false
+        for arg in "$@"; do
+            case "$arg" in
+                --force-with-lease*) ;;  # safe variant, don't flag
+                --force|-f) has_force=true ;;
+            esac
+        done
+        if $has_force; then
+            block "Force push can destroy remote history. Requires human approval."
+        fi
+        ;;
+    branch)
+        # Block -D (force delete), allow -d (safe delete)
+        for arg in "$@"; do
+            case "$arg" in
+                -D) block "Force-deletes branch with potentially unmerged work. Use -d instead." ;;
+            esac
+        done
+        ;;
+esac
+
+# Safe command — pass through to real git
+exec "$REAL_GIT" "$@"
