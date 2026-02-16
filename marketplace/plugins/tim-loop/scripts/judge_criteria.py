@@ -15,7 +15,7 @@ TASK_TYPE_PATTERNS = {
     "review": r"\b(review|analyze|examine|check|look\s+at|evaluate|audit)\b.*\b(this|the|my|our)\b",
     "explain": r"\b(explain|describe|tell\s+me\s+about|what\s+is|how\s+does)\b",
     "implement": r"\b(implement|fix|improve|add|update|make|change)\b.*\b(this|that|it|the)\b",
-    "ops": r"^(deploy|restart|stop|start|status|logs|health|backup|rollback|migrate)$",
+    "ops": r"^\s*(deploy|restart|stop|start|status|logs|health|backup|rollback|migrate)\b",
 }
 
 
