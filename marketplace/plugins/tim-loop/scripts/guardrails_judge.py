@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from judge_config import get_llm_config, is_llm_judge_enabled, PLUGIN_CONFIG_PATH, USER_CONFIG_PATH
-from judge_criteria import JUDGE_CRITERIA, detect_task_type, get_judge_criteria
+from judge_criteria import JUDGE_CRITERIA, classify_task_type, get_judge_criteria
 from tim_loop_halt import get_plugin_version
 
 # Where to log LLM catches for pattern learning
@@ -191,8 +191,8 @@ def check_with_guardrails(transcript_text: str, user_request: str = "") -> dict 
 
     config = get_llm_config()
 
-    # Detect task type from user request for context-aware evaluation
-    task_type = detect_task_type(user_request) if user_request else "general"
+    # Classify task type via LLM for context-aware evaluation
+    task_type = classify_task_type(user_request, config) if user_request else "general"
 
     # Truncate transcript if too long
     max_length = 4000

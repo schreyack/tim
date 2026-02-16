@@ -2,14 +2,38 @@
 """
 Judge Criteria for LLM-as-Judge Evaluation
 
-Contains task type detection and context-aware judge criteria.
+Contains LLM-based task type classification and context-aware judge criteria.
 Different task types (commit, implement, etc.) use different evaluation standards.
 """
 
+import json
 import re
+import sys
+import urllib.error
+import urllib.request
 
-# Task type patterns for context detection
-TASK_TYPE_PATTERNS = {
+VALID_TASK_TYPES = frozenset(
+    {"commit", "summary", "review", "explain", "implement", "ops", "general"}
+)
+
+_CLASSIFICATION_PROMPT = """\
+Classify the user's intent into exactly ONE of these task types:
+
+- commit: Creating git commits, pushing, staging changes, version bumps
+- summary: Summarizing changes, listing what was done, reporting progress
+- review: Reviewing, analyzing, examining, auditing code or files
+- explain: Explaining concepts, describing how something works
+- implement: Building, fixing, improving, adding, updating, or changing code
+- ops: Operational commands — deploy, restart, stop, start, status, logs, health, backup, rollback, migrate
+- general: Anything that doesn't clearly fit the above categories
+
+User's request:
+{user_request}
+
+Respond with ONLY the task type (one word, lowercase). Nothing else."""
+
+# Legacy regex patterns (kept as internal fallback)
+_TASK_TYPE_PATTERNS = {
     "commit": r"\b(commit|push|git\s+add|git\s+commit)\b",
     "summary": r"\b(summary|summarize|summarise|list\s+changes|what\s+did|what\s+was\s+done)\b",
     "review": r"\b(review|analyze|examine|check|look\s+at|evaluate|audit)\b.*\b(this|the|my|our)\b",
@@ -19,13 +43,59 @@ TASK_TYPE_PATTERNS = {
 }
 
 
-def detect_task_type(user_text: str) -> str:
-    """Detect task type from the user's request."""
+def _detect_task_type_regex(user_text: str) -> str:
+    """Regex-based task type detection (legacy fallback)."""
     user_lower = user_text.lower()
-    for task_type, pattern in TASK_TYPE_PATTERNS.items():
+    for task_type, pattern in _TASK_TYPE_PATTERNS.items():
         if re.search(pattern, user_lower):
             return task_type
     return "general"
+
+
+def classify_task_type(user_text: str, config: dict) -> str:
+    """Classify user intent via LLM. Falls back to regex then 'general' on failure."""
+    if not user_text or len(user_text.strip()) < 5:
+        return "general"
+
+    server = config.get("server", "http://localhost:11434").rstrip("/")
+    model = config.get("model", "llama3.1:8b")
+    if model.startswith("ollama/"):
+        model = model[7:]
+
+    prompt = _CLASSIFICATION_PROMPT.format(user_request=user_text.strip())
+    payload = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{server}/v1/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            content = result["choices"][0]["message"]["content"]
+            task_type = content.strip().split()[0].lower().rstrip(".")
+            if task_type in VALID_TASK_TYPES:
+                return task_type
+    except (urllib.error.URLError, TimeoutError, KeyError, IndexError):
+        pass
+    except Exception as e:
+        print(f"Warning: Task classification failed: {e}", file=sys.stderr)
+
+    # LLM unavailable or gave bad response — fall back to regex
+    return _detect_task_type_regex(user_text)
+
+
+# Keep old name as alias for any external callers
+def detect_task_type(user_text: str) -> str:
+    """Detect task type from the user's request (regex fallback)."""
+    return _detect_task_type_regex(user_text)
 
 
 # Base criteria for LLM-as-judge evaluation
