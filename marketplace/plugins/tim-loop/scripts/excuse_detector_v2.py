@@ -12,6 +12,7 @@ Over time, local regex catches more, reducing LLM API calls.
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -88,15 +89,35 @@ def check_excuse_patterns(latest_text: str) -> tuple[str, str] | None:
     return None
 
 
+_SHUTDOWN_PATTERNS = re.compile(
+    r"(shut\s*down\s+(gracefully|successfully|complete)|"
+    r"all\s+\d+\s+agents?\s+have\s+shut\s+down|"
+    r"cleaning\s+up\s+the\s+team|"
+    r"teammate\s+@?\S+\s+shut\s+down|"
+    r"shutdown_request|shutdown_response)",
+    re.IGNORECASE,
+)
+
+
 def check_guardrails(transcript: list[dict]) -> dict | None:
     """Check with LLM-as-judge. Returns halt response dict or None."""
     latest_text = extract_latest_assistant_text(transcript)
     if not latest_text:
         return None
+
+    # Skip judge for shutdown/cleanup messages — not behavioral content
+    if _SHUTDOWN_PATTERNS.search(latest_text):
+        return None
+
     stripped_text = strip_code_and_quotes(latest_text)
-    user_request = get_original_task_from_tim_loop()
-    if not user_request:
+
+    # Use latest user request when in implement mode (original task type is stale)
+    if is_implement_mode():
         user_request = extract_latest_user_request(transcript)
+    else:
+        user_request = get_original_task_from_tim_loop()
+        if not user_request:
+            user_request = extract_latest_user_request(transcript)
     return check_with_guardrails(stripped_text, user_request)
 
 
