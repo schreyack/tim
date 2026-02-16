@@ -1,13 +1,20 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) when working in this repository.
+## How to Work
 
----
+- ALWAYS choose the best technical solution, not the easiest. Quality and correctness over speed. Don't offer "easy vs best" — just do the best.
+- Help the human. If asked to resolve an issue, resolve it. No deflection.
+- Follow requests exactly. If uncertain, ASK.
+- Investigate root causes. No workarounds that mask issues.
+- Complete features fully. No TODOs, placeholders, or partial implementations.
+- If you touched a file with violations, fix them. No "it was already broken."
 
-## Critical Rules
+## AI Behavioral Gates
 
-1. **Process over speed** — Follow this document exactly. If uncertain, **ask** rather than guess.
-2. **Ask before assuming** — Investigate root causes before implementing fixes. No quick workarounds that mask real issues.
+- File >400 lines → BLOCKED. Function >50 lines → BLOCKED.
+- NO bypass flags anywhere. If AI can bypass, AI will bypass.
+- Human approval is the only escape hatch for blocked operations.
+- Deflection patterns → BLOCKED.
 
 ---
 
@@ -39,45 +46,41 @@ Everything runs locally. Server: `npm start` or `uvicorn app.main:app`. Tests: `
 
 ---
 
-## Plan Lifecycle
+## Tests
 
-All plans use the `plans/` folder:
+Tests are diagnostic tools, not goals. The objective is a functioning application, not passing tests.
+Test naming: `test_<what>_<when>_<then>`. TDD for new features.
 
-```
-plans/
-├── drafts/      # Being designed
-├── active/      # Approved, in progress
-├── completed/   # Done
-└── abandoned/   # Cancelled (preserves learnings)
-```
+**Bug fix protocol:** Write failing test → verify it fails → fix → verify it passes → run full suite.
+
+---
+
+## Code Quality
+
+- `mypy --strict` (Python) / `tsc strict` (Node). Zero warnings.
+- Coverage 90% min, 95% new code.
+- Secrets never committed. All input validated (Pydantic/Zod).
+- Migrations only — no sync(), create_all(), manual DDL. Every migration has tested rollback.
+- No TODO/FIXME/XXX, no print debugging, no bare except.
+- Conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
+
+---
+
+## Shared Libraries (REQUIRED)
+
+Every project uses `tim-lib` (Python) or `@tim/lib` (Node) for: settings, logging, auth, errors, exception handlers, database pooling.
+
+## Pattern Registry
+
+Every project has `.tim-patterns.yaml`. Unregistered patterns block deployment. Custom patterns require human approval.
+
+---
+
+## Plans
+
+Plans use `plans/` folder: `drafts/` → `active/` → `completed/` or `abandoned/`. Everything in a plan is required — no optional work.
 
 **Naming:** `YYYY-MM-DD-<project>-<description>.md`
-
-### Lifecycle Flow
-
-1. **Draft** → create in `plans/drafts/`
-2. **Plan Review** → MANDATORY for multi-phase (2+) plans via `plan-ops review`
-3. **Active** → human approves, `plan-ops promote`
-4. **Execute** → `plan-ops execute` outputs the tim-loop command
-5. **Completed/Abandoned** → `plan-ops complete` or `plan-ops abandon`
-
-Single-phase plans skip review and promote directly.
-
-### Status Header (Required)
-
-Every plan starts with a Status table: Stage, Created, Last Updated, Author, Approver, Plan Review status, Execution Approved, and a Progress Log.
-
-### Plan Requirements
-
-Every plan must include: Problem/Goal, Implementation Steps, Testing Strategy, Completion Criteria.
-
-### Parallel Execution
-
-Design plans for parallel agents. Include an Execution Strategy table (Phase, Task, Dependencies, Agent Type, Parallelizable). Max 3 agents in parallel. Don't parallelize tasks touching the same files.
-
-### Cleanup
-
-When Claude creates plans in `~/.claude/plans/`: copy to `plans/drafts/`, add status header, **delete the original**, commit to git. Never leave orphans.
 
 Use `plan-ops`: `init | import | review | promote | execute | complete | abandon`
 
@@ -85,65 +88,25 @@ See `standards/operations/plan-management.md` for full docs.
 
 ---
 
-## Code Quality
-
-**No TODOs/placeholders** — No `TODO`, `FIXME`, `XXX`, `HACK`, `NotImplementedError`, `pass`, or `...`. Implement fully or don't add it.
-
-**No print debugging** — Use proper logging (`structlog`, `logging`).
-
-**Type safety** — All functions get type hints. Use `mypy --strict` (Python) or `tsc --strict` (TypeScript). No `any` types.
-
-**Error handling** — Catch specific exceptions with context. Log server-side. Never expose internals to clients.
-
-**Security** — Validate input server-side. Parameterized queries only. Validate authz. Never commit secrets.
-
----
-
-## Single Source of Truth
-
-Every value defined once, referenced everywhere. No duplicating constants, validation logic, or test data across files. Change once, apply everywhere.
-
----
-
-## Testing
-
-**No changes without tests. Minimum 90% coverage.**
-
-**Naming:** `test_<what>_<when>_<expected>` (e.g., `test_login_with_valid_credentials_returns_token`)
-
-**Bug fix protocol:** Write failing test → verify it fails → fix → verify it passes → run full suite.
-
-**Done means:** Implementation complete (no TODOs), tests pass, deployed (if applicable), manually verified, no log errors.
-
----
-
-## Commits
-
-**Conventional Commits:** `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
-
-**Never commit:** `.env`, secrets, debug code, incomplete implementations.
-
----
-
 ## Context Efficiency
 
 ### Subagent Discipline
-- Prefer inline work for tasks under ~5 tool calls. Subagents have overhead — don't delegate trivially.
-- Cap subagent output: "Final response MUST be under 2000 characters. List files modified and test results. No code snippets or stack traces." Without this, subagents dump entire transcripts into your context.
-- One TaskOutput call per subagent. Period. If it times out, increase the timeout — don't re-read. Double-reads double context consumption.
-- Don't paste file contents into subagent prompts. Give them the file path and let them read it. Pasting duplicates content in both contexts.
-- Put quality rules in subagent prompts, not just the orchestrator. Tell implementers what good code looks like; tell reviewers what to check. Let them enforce quality in their own context instead of the orchestrator re-reading their output to verify.
+- Prefer inline work for tasks under ~5 tool calls. Don't delegate trivially.
+- Cap subagent output: "Final response MUST be under 2000 characters. List files modified and test results. No code snippets or stack traces."
+- One TaskOutput call per subagent. If it times out, increase the timeout — don't re-read.
+- Don't paste file contents into subagent prompts. Give file paths, let them read.
+- Put quality rules in subagent prompts, not just the orchestrator. Let them enforce quality in their own context.
 
 ### File Reading
-- Read files with purpose. Before reading a file, know what you're looking for.
-- Use Grep to locate relevant sections before reading entire large files.
-- Never re-read a file you've already read in this session.
-- For files over 500 lines, use offset/limit to read only the relevant section.
+- Read files with purpose. Know what you're looking for before reading.
+- Grep to locate relevant sections before reading large files.
+- Never re-read a file already read this session.
+- Files over 500 lines: use offset/limit for the relevant section only.
 
 ### Responses
-- Don't echo back file contents you just read — the user can see them.
-- Don't narrate tool calls ("Let me read the file..." / "Now I'll edit..."). Just do it.
-- Keep explanations proportional to complexity. Simple changes need one sentence, not three paragraphs.
+- Don't echo back file contents you just read.
+- Don't narrate tool calls. Just do it.
+- Keep explanations proportional to complexity.
 
 ---
 
@@ -193,9 +156,3 @@ your-project/
 | File size | 400 lines max |
 | Function size | 50 lines max |
 | Complexity | 10 max (cyclomatic) |
-
----
-
-## AI Developer Acknowledgment
-
-Before making changes, confirm you understand: all rules here, test naming conventions, file size limits, and the requirement to fully complete features. **If uncertain, ask.**
