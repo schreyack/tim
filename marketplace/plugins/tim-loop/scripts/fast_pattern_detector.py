@@ -29,6 +29,7 @@ from tim_loop_state import (
     log_stderr,
     check_and_clear_user_initiated_marker,
     is_excuse_detector_enabled,
+    is_halted,
     TIM_LOOP_ACTIVE_MARKER,
 )
 from tim_loop_halt import system_halt, build_halt_details_from_patterns
@@ -187,6 +188,14 @@ def main() -> None:
 
     if check_and_clear_user_initiated_marker():
         sys.exit(0)
+
+    # Re-halt if session was previously halted (sticky halt)
+    if is_halted():
+        system_halt(
+            "POSTHOOK",
+            "Session was previously halted. The halt persists until human intervention.",
+            recovery_instructions="The human must intervene. This session cannot continue.",
+        )
 
     try:
         hook_input = json.load(sys.stdin)

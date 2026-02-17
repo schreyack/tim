@@ -258,18 +258,33 @@ def is_implement_mode() -> bool:
     return False
 
 
+def clear_halted_state() -> None:
+    """Clear HALTED flag from session state (called on user intervention)."""
+    state = load_state()
+    if state and state.get("HALTED") == "true":
+        del state["HALTED"]
+        save_state(state)
+
+
+def is_halted() -> bool:
+    """Check if session was previously halted."""
+    state = load_state()
+    return bool(state and state.get("HALTED") == "true")
+
+
 def check_and_clear_user_initiated_marker() -> bool:
     """Check if user initiated this turn, and clear the marker.
 
     Returns True if the marker existed (user is interacting).
     When user intervenes, we reset detection state so previously-flagged
-    content doesn't cause repeated halts.
+    content doesn't cause repeated halts, and clear any sticky halt.
     """
     marker = Path.home() / ".claude" / ".tim-loop-user-initiated"
     try:
         if marker.exists():
             marker.unlink()
             reset_detection_state()
+            clear_halted_state()
             return True
     except Exception:
         pass

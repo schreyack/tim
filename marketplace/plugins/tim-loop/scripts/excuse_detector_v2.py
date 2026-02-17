@@ -32,6 +32,7 @@ from tim_loop_state import (
     check_and_clear_user_initiated_marker,
     get_review_mode,
     is_excuse_detector_enabled,
+    is_halted,
     is_implement_mode,
     load_state,
     reset_detection_state,
@@ -211,6 +212,14 @@ def main():
     """Main hook entry point."""
     if should_skip_detection():
         sys.exit(0)
+
+    # Re-halt if session was previously halted (sticky halt)
+    if is_halted():
+        system_halt(
+            "STOP",
+            "Session was previously halted. The halt persists until human intervention.",
+            recovery_instructions="The human must intervene. This session cannot continue.",
+        )
 
     hook_input = parse_hook_input()
     if not hook_input:

@@ -73,6 +73,14 @@ def system_halt(
         f"The human placed this hook here for a reason. This session is now stopped."
     )
 
+    # Persist halt so it survives turn boundaries
+    from tim_loop_state import load_state, save_state
+
+    state = load_state()
+    if state:
+        state["HALTED"] = "true"
+        save_state(state)
+
     # THE KEY: "continue": false forces full stop per Claude Code docs
     print(json.dumps({"continue": False, "stopReason": stop_reason}))
     sys.exit(0)
