@@ -18,6 +18,7 @@ from tim_loop_responses import (
     build_continue_response,
     build_early_phase_completion_challenge,
     build_final_completion_instruction,
+    build_fresh_eyes_phase_challenge,
     build_full_review_complete_hard_stop,
     build_phase_skip_challenge,
     build_phase_transition_response,
@@ -145,8 +146,47 @@ def _handle_hard_stop(final_result: dict) -> dict:
     return build_full_review_complete_hard_stop(plan_file)
 
 
+def _handle_quality_failure(
+    state: dict, prompt: str, current_phase: int,
+    phase_iterations: int, judge_reason: str
+) -> dict:
+    """Handle LLM judge quality failure for a phase review."""
+    phase_iter_key = f"PHASE_{current_phase}_ITERATIONS"
+    phase_iterations += 1
+    state[phase_iter_key] = str(phase_iterations)
+    current_iteration = int(state.get("CURRENT_ITERATION", "1")) + 1
+    state["CURRENT_ITERATION"] = str(current_iteration)
+    save_state(state)
+    log_stderr(f"Tim Loop: Phase {current_phase} review quality check FAILED - challenging")
+    return build_fresh_eyes_phase_challenge(
+        prompt, current_phase, phase_iterations, judge_reason
+    )
+
+
+def _check_phase_quality_llm(
+    state: dict, prompt: str, assistant_text: str,
+    current_phase: int, phase_iterations: int
+) -> dict | None:
+    """Run LLM judge on phase review quality. Returns challenge or None if passed."""
+    from review_quality_judge import judge_review_quality
+
+    verdict = judge_review_quality(assistant_text)
+    if verdict is None:
+        log_stderr("Tim Loop: Phase review quality judge unreachable - continuing loop")
+        return _handle_quality_failure(
+            state, prompt, current_phase, phase_iterations,
+            "Judge unreachable — re-review required as a precaution."
+        )
+    if not verdict["passed"]:
+        return _handle_quality_failure(
+            state, prompt, current_phase, phase_iterations, verdict["reason"]
+        )
+    log_stderr(f"Tim Loop: Phase {current_phase} review quality check PASSED")
+    return None
+
+
 def _handle_phase_signal(
-    state: dict, prompt: str, phase_signal: tuple[int, str],
+    state: dict, prompt: str, assistant_text: str, phase_signal: tuple[int, str],
     current_phase: int, phase_iterations: int, min_iterations: int, max_iterations: int
 ) -> dict:
     """Handle detected phase signal - validate and process."""
@@ -155,10 +195,19 @@ def _handle_phase_signal(
         return _handle_wrong_phase_signal(
             state, prompt, current_phase, detected_phase, phase_iterations, max_iterations
         )
-    if phase_iterations < min_iterations:
+
+    llm_loop = state.get("LLM_LOOP") == "true"
+    if llm_loop:
+        result = _check_phase_quality_llm(
+            state, prompt, assistant_text, current_phase, phase_iterations
+        )
+        if result is not None:
+            return result
+    elif phase_iterations < min_iterations:
         return _handle_early_completion(
             state, prompt, current_phase, phase_iterations, min_iterations
         )
+
     # Phase complete - mark and transition
     state[f"PHASE_{current_phase}_COMPLETE"] = "true"
     log_stderr(f"Tim Loop: Phase {current_phase} complete")
@@ -192,6 +241,6 @@ def handle_full_review_phase(
         )
 
     return _handle_phase_signal(
-        state, prompt, phase_signal,
+        state, prompt, assistant_text, phase_signal,
         current_phase, phase_iterations, min_iterations, max_iterations
     )

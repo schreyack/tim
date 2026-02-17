@@ -270,6 +270,37 @@ Return PASS if you cannot confidently determine that this was a review task.
 """
 
 
+# Criteria for review quality evaluation (used by --llm-loop)
+JUDGE_CRITERIA_REVIEW_QUALITY = """
+Evaluate whether this review output demonstrates genuine analytical engagement
+with the plan being reviewed, or is a superficial rubber-stamp.
+
+**FAIL** if the review shows ANY of these patterns:
+- Generic approval language without specifics ("looks comprehensive", "well-structured",
+  "thorough plan", "no major issues") without referencing specific sections or files
+- Vague concerns that could apply to any plan ("consider edge cases", "might need more testing")
+- "No issues found" without explaining what was actually examined and why it's acceptable
+- Very short output relative to the size/complexity of the plan being reviewed
+- No references to specific files, sections, line numbers, or codebase artifacts
+- Repeating the plan's own claims without independent verification
+- Listing section headers without analyzing their content
+
+**PASS** if the review demonstrates:
+- References to specific sections, files, functions, or line numbers in the plan
+- Concrete issues identified with explanations of why they're problems
+- Evidence of verifying plan claims against the actual codebase (e.g., "checked src/foo.py
+  and confirmed the function exists" or "the plan references api/bar.ts but it's actually
+  at api/baz.ts")
+- When no issues are found: explicit description of what was checked and why it's sound
+  (e.g., "verified all 5 file references exist, confirmed the migration approach matches
+  the existing ORM pattern in models/")
+- Substantive analysis proportional to the plan's complexity
+
+Return FAIL if the review is superficial or could have been written without reading the plan.
+Return PASS if the review demonstrates genuine engagement with specific plan content.
+"""
+
+
 def get_judge_criteria(task_type: str) -> str:
     """Get appropriate judge criteria based on task type."""
     if task_type in ("commit", "summary"):

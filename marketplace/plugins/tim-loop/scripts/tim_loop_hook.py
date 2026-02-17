@@ -21,6 +21,7 @@ from tim_loop_full_review import handle_full_review_phase
 from tim_loop_responses import (
     build_continue_response,
     build_early_completion_challenge,
+    build_fresh_eyes_review_challenge,
     build_short_output_continue_response,
     build_verification_response,
 )
@@ -89,28 +90,80 @@ def write_verification_failure(plan_file: str, reason: str) -> None:
         log_message(f"Failed to write verification failure: {e}")
 
 
-def handle_completion_promise(state: dict, prompt: str) -> dict | None:
+def _check_review_quality_llm(
+    state: dict, prompt: str, assistant_text: str,
+    current_iteration: int, max_iterations: int
+) -> dict | None:
+    """Run LLM judge on review quality. Returns challenge response or None if passed."""
+    from review_quality_judge import judge_review_quality
+
+    verdict = judge_review_quality(assistant_text)
+    if verdict is None:
+        # Judge unreachable — don't let a transient failure skip review
+        log_stderr("Tim Loop: Review quality judge unreachable - continuing loop")
+        current_iteration += 1
+        state["CURRENT_ITERATION"] = str(current_iteration)
+        save_state(state)
+        return build_fresh_eyes_review_challenge(
+            prompt, current_iteration, max_iterations,
+            "Judge unreachable — re-review required as a precaution."
+        )
+    if not verdict["passed"]:
+        log_stderr("Tim Loop: Review quality check FAILED - challenging")
+        current_iteration += 1
+        state["CURRENT_ITERATION"] = str(current_iteration)
+        save_state(state)
+        return build_fresh_eyes_review_challenge(
+            prompt, current_iteration, max_iterations, verdict["reason"]
+        )
+    log_stderr("Tim Loop: Review quality check PASSED")
+    return None
+
+
+def _challenge_review_completion(
+    state: dict, prompt: str, assistant_text: str
+) -> dict | None:
+    """Challenge early completion in review modes. Returns response or None to proceed."""
+    current_iteration = int(state.get("CURRENT_ITERATION", "1"))
+    max_iterations = int(state.get("MAX_ITERATIONS", "30"))
+    min_review_iterations = int(state.get("MIN_REVIEW_ITERATIONS", "5"))
+    llm_loop = state.get("LLM_LOOP") == "true"
+
+    if llm_loop:
+        result = _check_review_quality_llm(
+            state, prompt, assistant_text, current_iteration, max_iterations
+        )
+        if result is not None:
+            return result
+        return None  # Judge passed
+    if current_iteration < min_review_iterations:
+        log_stderr(
+            f"Tim Loop: Early completion attempt at iteration {current_iteration} "
+            f"(minimum {min_review_iterations}) - challenging"
+        )
+        current_iteration += 1
+        state["CURRENT_ITERATION"] = str(current_iteration)
+        save_state(state)
+        return build_early_completion_challenge(
+            prompt, current_iteration, max_iterations, min_review_iterations
+        )
+    return None
+
+
+def handle_completion_promise(
+    state: dict, prompt: str, assistant_text: str
+) -> dict | None:
     """Handle case when completion promise is found. Returns response or None."""
     state_file = state.get("_state_file", "")
     prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
     current_iteration = int(state.get("CURRENT_ITERATION", "1"))
     max_iterations = int(state.get("MAX_ITERATIONS", "30"))
     review_mode = state.get("REVIEW_MODE", "")
-    min_review_iterations = int(state.get("MIN_REVIEW_ITERATIONS", "5"))
 
-    # For review modes, challenge early completion
     if review_mode in ("tech-review", "ai-ready"):
-        if current_iteration < min_review_iterations:
-            log_stderr(
-                f"Tim Loop: Early completion attempt at iteration {current_iteration} "
-                f"(minimum {min_review_iterations}) - challenging"
-            )
-            current_iteration += 1
-            state["CURRENT_ITERATION"] = str(current_iteration)
-            save_state(state)
-            return build_early_completion_challenge(
-                prompt, current_iteration, max_iterations, min_review_iterations
-            )
+        challenge = _challenge_review_completion(state, prompt, assistant_text)
+        if challenge is not None:
+            return challenge
 
     plan_file = get_plan_file(state, prompt)
     verification = check_plan_verification(plan_file)
@@ -283,7 +336,7 @@ def process_assistant_output(state: dict, prompt: str, assistant_text: str) -> d
     promise_tag = f"<promise>{completion_promise}</promise>"
 
     if promise_tag in assistant_text:
-        return handle_completion_promise(state, prompt) or {}
+        return handle_completion_promise(state, prompt, assistant_text) or {}
     return handle_continue_loop(state, prompt)
 
 

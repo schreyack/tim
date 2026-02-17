@@ -24,7 +24,7 @@ PLAN_OPS_SCRIPT="${PLUGIN_ROOT}/scripts/plan-ops.sh"
 # Defaults
 MAX_ITERATIONS=30 COMPLETION_PROMISE="COMPLETE" TASK_PARTS=() DRY_RUN=false
 PLAN_ONLY=false IMPLEMENT_FILE="" REVIEW_FILE="" REVIEW_MODE="" VERIFY_FILE=""
-NO_REVIEW=false USE_TEAM=false
+NO_REVIEW=false USE_TEAM=false LLM_LOOP=false
 MAX_VERIFY_CYCLES=999999 REVIEW_ITERATIONS=10 MIN_REVIEW_ITERATIONS=5 AUTO_APPROVE=false
 FORCE_NEW_SESSION=false
 
@@ -76,6 +76,7 @@ while [[ $# -gt 0 ]]; do
         --auto-approve) AUTO_APPROVE=true; shift ;;
         --force|-f) FORCE_NEW_SESSION=true; shift ;;
         --team) USE_TEAM=true; shift ;;
+        --llm-loop) LLM_LOOP=true; shift ;;
         --max-verify-cycles) MAX_VERIFY_CYCLES="$2"; shift 2 ;;
         --review-iterations) REVIEW_ITERATIONS="$2"; shift 2 ;;
         --min-review-iterations) MIN_REVIEW_ITERATIONS="$2"; shift 2 ;;
@@ -84,6 +85,23 @@ while [[ $# -gt 0 ]]; do
         *) TASK_PARTS+=("$1"); shift ;;
     esac
 done
+
+# Validate --llm-loop requires LLM judge to be configured
+if [[ "$LLM_LOOP" == true ]]; then
+    llm_enabled=$(python3 -c "
+import sys; sys.path.insert(0, '${SCRIPT_DIR}')
+from judge_config import is_llm_judge_enabled
+print('true' if is_llm_judge_enabled() else 'false')
+" 2>/dev/null || echo "error")
+    if [[ "$llm_enabled" == "error" ]]; then
+        echo "Error: --llm-loop requires the LLM judge but judge_config.py could not be loaded" >&2 && exit 1
+    elif [[ "$llm_enabled" != "true" ]]; then
+        echo "Error: --llm-loop requires the LLM judge to be enabled." >&2
+        echo "  Set TIM_LLM_JUDGE_ENABLED=true and configure TIM_LLM_SERVER/TIM_LLM_MODEL," >&2
+        echo "  or add llm_judge.enabled: true to ~/.claude/tim-loop-config.yaml" >&2
+        exit 1
+    fi
+fi
 
 # Cleanup and session handling
 cleanup_orphan_state_files 2>/dev/null || true
@@ -195,6 +213,7 @@ REVIEW_MODE="$REVIEW_MODE"
 MIN_REVIEW_ITERATIONS="$MIN_REVIEW_ITERATIONS"
 IMPLEMENT_MODE="$( [[ -n "$IMPLEMENT_FILE" ]] && echo "true" || echo "false" )"
 USE_TEAM="$USE_TEAM"
+LLM_LOOP="$LLM_LOOP"
 EOF
 
 # For full-review mode, add phase tracking to state file

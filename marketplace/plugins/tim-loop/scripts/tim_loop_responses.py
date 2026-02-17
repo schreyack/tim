@@ -210,6 +210,61 @@ def build_final_completion_instruction(prompt: str) -> dict:
     }
 
 
+def build_fresh_eyes_review_challenge(
+    prompt: str, iteration: int, max_iter: int, judge_reason: str
+) -> dict:
+    """Build response when LLM judge finds a review superficial (standalone review modes)."""
+    # Truncate judge reason to keep prompt reasonable
+    reason_excerpt = judge_reason[:300].rstrip()
+    return {
+        "decision": "block",
+        "reason": (
+            f"Tim Loop: Iteration {iteration} of {max_iter} "
+            f"(review quality check FAILED)\n\n"
+            f"**Judge assessment:** {reason_excerpt}\n\n"
+            f"---\n\n"
+            f"Clear your mind completely. You are a DIFFERENT reviewer seeing this "
+            f"plan for the FIRST time.\n\n"
+            f"1. Read the plan from line one\n"
+            f"2. Verify specific claims against the actual codebase\n"
+            f"3. Fix any issues you find\n"
+            f"4. If nothing is found, explain exactly what you examined and why "
+            f"it's sound\n\n"
+            f"Do not reference your previous review. This is a clean-slate "
+            f"evaluation.\n\n"
+            f"---\n\n{prompt}"
+        ),
+    }
+
+
+def build_fresh_eyes_phase_challenge(
+    prompt: str, phase: int, current_iter: int, judge_reason: str
+) -> dict:
+    """Build response when LLM judge finds a phase review superficial (full-review mode)."""
+    phase_name = PHASE_NAMES.get(phase, f"Phase {phase}")
+    reason_excerpt = judge_reason[:300].rstrip()
+    return {
+        "decision": "block",
+        "reason": (
+            f"Tim Loop: Phase {phase} ({phase_name}) - "
+            f"review quality check FAILED (pass {current_iter})\n\n"
+            f"**Judge assessment:** {reason_excerpt}\n\n"
+            f"---\n\n"
+            f"Clear your mind completely. You are a DIFFERENT {phase_name} reviewer "
+            f"seeing this plan for the FIRST time.\n\n"
+            f"1. Read the plan from line one\n"
+            f"2. Evaluate EVERY section for {phase_name} concerns\n"
+            f"3. Verify claims against the actual codebase\n"
+            f"4. Fix any issues you find\n"
+            f"5. If nothing is found, explain exactly what you examined and why "
+            f"it's sound\n\n"
+            f"Do not reference your previous review. This is a clean-slate "
+            f"evaluation.\n\n"
+            f"---\n\n{prompt}"
+        ),
+    }
+
+
 def build_full_review_complete_hard_stop(plan_file: str) -> dict:
     """Build HARD STOP response when full-review completes - blocks implementation."""
     return {
