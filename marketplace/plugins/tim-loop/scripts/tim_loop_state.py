@@ -276,20 +276,12 @@ def check_and_clear_user_initiated_marker() -> bool:
     return False
 
 
-def is_tim_loop_stop_hooks_enabled() -> bool:
-    """Check if tim-loop stop hooks are enabled via environment variable.
-
-    Default: enabled (True). Set TIM_STOP_HOOKS_ENABLED=false to disable.
-    """
-    return os.environ.get("TIM_STOP_HOOKS_ENABLED", "true").lower() != "false"
-
-
 def is_excuse_detector_enabled() -> bool:
     """Check if excuse detector is enabled via environment variable.
 
-    Default: enabled (True). Set TIM_EXCUSE_DETECTOR_ENABLED=false to disable.
+    Default: disabled (False). Set TIM_EXCUSE_DETECTOR_ENABLED=true to enable.
     """
-    return os.environ.get("TIM_EXCUSE_DETECTOR_ENABLED", "true").lower() != "false"
+    return os.environ.get("TIM_EXCUSE_DETECTOR_ENABLED", "false").lower() == "true"
 
 
 def save_state(state: dict) -> None:

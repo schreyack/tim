@@ -27,13 +27,12 @@ from tim_loop_responses import (
 )
 from tim_loop_state import (
     cleanup_tim_loop,
-    is_tim_loop_stop_hooks_enabled,
     load_state,
     log_message,
     log_stderr,
     save_state,
 )
-from transcript_utils import extract_assistant_text, read_transcript
+from transcript_utils import extract_assistant_text, is_agent_coordination_turn, read_transcript
 
 
 def get_plan_file(state: dict, prompt: str) -> str:
@@ -294,15 +293,6 @@ def handle_short_output(state: dict, prompt: str, assistant_text: str) -> dict |
     return build_short_output_continue_response(prompt, current_iteration, max_iterations)
 
 
-def get_assistant_text_from_input(hook_input: dict) -> str:
-    """Extract assistant text from hook input."""
-    transcript_path = hook_input.get("transcript_path", "")
-    if not transcript_path:
-        return ""
-    transcript = read_transcript(transcript_path)
-    return extract_assistant_text(transcript)
-
-
 def load_prompt_from_state(state: dict) -> str | None:
     """Load prompt file content. Returns None if unavailable."""
     prompt_file_path = state.get("TIM_LOOP_PROMPT_FILE", "")
@@ -343,10 +333,6 @@ def process_assistant_output(state: dict, prompt: str, assistant_text: str) -> d
 
 def main() -> None:
     """Main hook entry point."""
-    if not is_tim_loop_stop_hooks_enabled():
-        print("{}")
-        sys.exit(0)
-
     state = load_state()
     if not state:
         log_stderr("Tim Loop: Stop hook could not load session state - allowing exit")
@@ -364,7 +350,14 @@ def main() -> None:
         print("{}")
         sys.exit(0)
 
-    assistant_text = get_assistant_text_from_input(hook_input)
+    transcript_path = hook_input.get("transcript_path", "")
+    transcript = read_transcript(transcript_path) if transcript_path else []
+    assistant_text = extract_assistant_text(transcript)
+
+    if is_agent_coordination_turn(transcript):
+        log_stderr("Tim Loop: Agent coordination turn — skipping iteration")
+        print(json.dumps({"decision": "block", "reason": "Continue processing."}))
+        sys.exit(0)
 
     if not assistant_text or len(assistant_text.strip()) < 20:
         response = handle_short_output(state, prompt, assistant_text)

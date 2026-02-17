@@ -118,6 +118,62 @@ def is_human_turn(entry: dict) -> bool:
     return False
 
 
+AGENT_TOOL_NAMES = {"Task", "TaskOutput", "TaskStop"}
+
+# Text under this length alongside agent tools is considered coordination, not review work
+AGENT_COORD_TEXT_THRESHOLD = 500
+
+
+def _classify_content_blocks(content: list) -> tuple[bool, bool, int]:
+    """Classify content blocks into agent tools, non-agent tools, and text length.
+
+    Returns (has_agent_tools, has_non_agent_tools, text_length).
+    """
+    has_agent_tools = False
+    has_non_agent_tools = False
+    text_length = 0
+
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type", "")
+        if block_type == "text":
+            text_length += len(block.get("text", "").strip())
+        elif block_type == "tool_use":
+            if block.get("name", "") in AGENT_TOOL_NAMES:
+                has_agent_tools = True
+            else:
+                has_non_agent_tools = True
+
+    return has_agent_tools, has_non_agent_tools, text_length
+
+
+def is_agent_coordination_turn(transcript: list[dict]) -> bool:
+    """Check if the most recent assistant turn was managing subagents, not doing review work.
+
+    Returns True when the latest assistant entry contains only agent-management
+    tool calls (Task, TaskOutput, TaskStop) with minimal text output. This prevents
+    agent-result turns from burning review iterations and re-injecting prompts.
+    """
+    for entry in reversed(transcript):
+        role, content = get_entry_role_and_content(entry)
+        if role != "assistant":
+            continue
+        if not isinstance(content, list):
+            return False
+
+        has_agent_tools, has_non_agent_tools, text_length = _classify_content_blocks(content)
+
+        # Any non-agent tools (Read, Edit, Grep, etc.) means real work
+        if has_non_agent_tools:
+            return False
+
+        # Agent tools + short text = agent coordination turn
+        return has_agent_tools and text_length < AGENT_COORD_TEXT_THRESHOLD
+
+    return False
+
+
 def get_context_around_match(text: str, start: int, end: int, window: int = 50) -> str:
     """Return context around a regex match with ellipsis when truncated."""
     ctx_start = max(0, start - window)
