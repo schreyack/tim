@@ -250,7 +250,7 @@ update_status() {
     local log_line="| ${ts} | ${stage} | ${event} |"
 
     # Find line number of "### Progress Log" and append after the header row
-    if grep -q "### Progress Log" "$file"; then
+    if grep -qE "^### Progress Log[[:space:]]*$" "$file"; then
         # Use awk to insert after the last table row before the ---
         awk -v line="$log_line" '
             /^\| Timestamp \| Stage \| Event \|/ { in_table=1 }
@@ -268,7 +268,7 @@ ensure_status_header_fields() {
     ts=$(timestamp)
 
     # If no Status Header at all, add_status_header will handle it
-    if ! grep -q "## Status" "$file"; then
+    if ! grep -qE "^## Status[[:space:]]*$" "$file"; then
         return 0
     fi
 
@@ -328,7 +328,7 @@ ensure_status_header_fields() {
     done
 
     # Check for Progress Log section
-    if ! grep -q "### Progress Log" "$file"; then
+    if ! grep -qE "^### Progress Log[[:space:]]*$" "$file"; then
         # Find the last table row and add Progress Log section after it
         local last_field_line
         last_field_line=$(grep -n "^| " "$file" | tail -1 | cut -d: -f1)
@@ -370,7 +370,7 @@ fix_invalid_stage() {
     ts=$(timestamp)
 
     # Check if Status header exists
-    if ! grep -q "## Status" "$file"; then
+    if ! grep -qE "^## Status[[:space:]]*$" "$file"; then
         return 1
     fi
 
@@ -441,7 +441,7 @@ add_status_header() {
     ts=$(timestamp)
 
     # Check if Status header already exists
-    if grep -q "## Status" "$file"; then
+    if grep -qE "^## Status[[:space:]]*$" "$file"; then
         return 0
     fi
 
