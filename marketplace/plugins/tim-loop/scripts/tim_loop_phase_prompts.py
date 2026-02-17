@@ -28,6 +28,9 @@ Think like someone who WANTS this plan to fail. Not because you're hostile, but 
 - Flag risks that need human decision
 - DO NOT remove scope - add safeguards instead
 
+### Context Management
+Delegate codebase verification to Explore subagents. Do NOT read source files directly.
+
 **To signal Phase 2 completion:** Output `<promise>PHASE-2-DEVILS-ADVOCATE-DONE</promise>`
 """
 
@@ -54,6 +57,9 @@ Think like a security professional doing threat modeling. Every plan that touche
 
 **Blocking rule:** CRITICAL and HIGH issues must be fixed before completing this phase.
 
+### Context Management
+Delegate codebase verification to Explore subagents. Do NOT read source files directly.
+
 **To signal Phase 3 completion:** Output `<promise>PHASE-3-SECURITY-DONE</promise>`
 """
 
@@ -75,6 +81,9 @@ Think like a tech lead who manages AI developers. They follow instructions liter
 **Verifiable Criteria** - Can every completion criterion be checked with code?
 
 Fix any AI-readiness issues found before completing this phase.
+
+### Context Management
+Delegate codebase verification to Explore subagents. Do NOT read source files directly.
 
 **To signal Phase 4 completion:** Output `<promise>PHASE-4-AI-READY-DONE</promise>`
 """

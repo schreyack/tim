@@ -6,6 +6,8 @@ This module contains functions that build the various response types
 returned by the tim-loop hook to control conversation flow.
 """
 
+import re
+
 
 PHASE_NAMES = {
     1: "Tech Review",
@@ -18,26 +20,89 @@ PHASE_NAMES = {
 }
 
 
+def _build_compact_context(prompt: str) -> str:
+    """Extract a compact ~200-token summary from the full prompt.
+
+    Preserves: review mode, plan file path, completion signal, and key rules.
+    Used on non-first iterations to avoid re-injecting the full prompt.
+    """
+    # Extract review mode
+    mode_match = re.search(r"## Mode:\s*(.+)", prompt)
+    mode = mode_match.group(1).strip() if mode_match else "Unknown"
+
+    # Extract plan file path
+    plan_match = re.search(r"Plan File:\s*(\S+)", prompt)
+    plan_file = plan_match.group(1).strip() if plan_match else "Unknown"
+
+    # Extract completion signal(s)
+    promise_matches = re.findall(r"<promise>([^<]+)</promise>", prompt)
+    signals = ", ".join(f"`<promise>{s}</promise>`" for s in promise_matches) if promise_matches else "N/A"
+
+    return (
+        f"## Compact Context (full prompt was injected on first iteration)\n\n"
+        f"- **Mode:** {mode}\n"
+        f"- **Plan File:** {plan_file}\n"
+        f"- **Completion Signal(s):** {signals}\n\n"
+        f"### Key Rules (unchanged)\n"
+        f"- Do a COMPLETE review as if this is your only chance\n"
+        f"- NEVER reduce scope — improve through precision, not reduction\n"
+        f"- Raise concerns as questions, not deletions\n"
+        f"- Re-read the ENTIRE plan from the top each pass\n"
+        f"- Delegate codebase verification to Explore subagents — do NOT read source files directly\n"
+    )
+
+
+def _prompt_or_compact(prompt: str, is_first_in_phase: bool = False) -> str:
+    """Return full prompt on first iteration of a phase, compact summary after."""
+    if is_first_in_phase:
+        return f"---\n\n{prompt}"
+    return f"---\n\n{_build_compact_context(prompt)}"
+
+
 def _full_review_guidance(
     current_phase: int, phase_iterations: int, iteration: int, max_iter: int
 ) -> str:
     """Build guidance for full-review phase continuation."""
     phase_name = PHASE_NAMES.get(current_phase, f"Phase {current_phase}")
+
+    if phase_iterations <= 1:
+        codebase_instruction = (
+            "Read all plan and subplan files. "
+            "Delegate codebase verification to Explore subagents."
+        )
+    else:
+        codebase_instruction = (
+            "Re-read the plan from the top. "
+            "Use Explore subagents for any codebase verification "
+            "— do NOT read source files directly."
+        )
+
     return (
         f"PHASE {current_phase} ({phase_name}) - REVIEW PASS (iteration {phase_iterations})\n"
         f"(Global iteration {iteration} of {max_iter})\n\n"
         f"DO A COMPLETE {phase_name} review NOW - as if this is your only chance.\n"
         f"Do NOT pace yourself or save issues for later passes.\n\n"
-        f"1. Re-read the ENTIRE plan from the top\n"
+        f"1. {codebase_instruction}\n"
         f"2. Evaluate EVERY section thoroughly for this phase's concerns\n"
-        f"3. Fix everything you find. Do not leave known issues for a future pass\n"
-        f"4. Verify file references, API calls, and assumptions against the actual codebase\n\n"
+        f"3. Fix everything you find. Do not leave known issues for a future pass\n\n"
         f"When Phase {current_phase} is genuinely complete, output the phase completion signal."
     )
 
 
 def _standalone_review_guidance(iteration: int) -> str:
     """Build guidance for standalone tech-review or ai-ready continuation."""
+    if iteration <= 2:
+        codebase_instruction = (
+            "Read all plan and subplan files. "
+            "Delegate codebase verification to Explore subagents."
+        )
+    else:
+        codebase_instruction = (
+            "Re-read the ENTIRE plan from the top. "
+            "Use Explore subagents for any codebase verification "
+            "— do NOT read source files directly."
+        )
+
     return (
         f"REVIEW PASS (iteration {iteration})\n\n"
         f"DO A COMPLETE REVIEW NOW - as if this is your only chance to review "
@@ -46,11 +111,10 @@ def _standalone_review_guidance(iteration: int) -> str:
         f"each pass - NOT to give you multiple passes to divide the work across. "
         f"Every pass should be a full, exhaustive review.\n\n"
         f"Your task:\n"
-        f"1. Re-read the ENTIRE plan from the top\n"
+        f"1. {codebase_instruction}\n"
         f"2. Evaluate EVERY section thoroughly - technical accuracy, edge cases, "
         f"feasibility, testability, completeness\n"
-        f"3. Fix everything you find. Do not leave known issues for a future pass\n"
-        f"4. Verify file references, API calls, and assumptions against the actual codebase\n\n"
+        f"3. Fix everything you find. Do not leave known issues for a future pass\n\n"
         f"If you find nothing to improve after an exhaustive re-read, output the "
         f"completion promise. But 'I already reviewed this' is not the same as "
         f"'I re-read every section and found nothing new.'"
@@ -68,17 +132,20 @@ def build_continue_response(
     """Build a block response that re-injects the prompt."""
     if review_mode == "full-review" and current_phase > 0:
         guidance = _full_review_guidance(current_phase, phase_iterations, iteration, max_iter)
+        is_first = phase_iterations <= 1
     elif review_mode in ("tech-review", "ai-ready"):
         guidance = _standalone_review_guidance(iteration)
+        is_first = iteration <= 1
     else:
         guidance = "The task is not yet complete. Continue working on it."
+        is_first = iteration <= 1
 
     return {
         "decision": "block",
         "reason": (
             f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
             f"{guidance}\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first)}"
         ),
     }
 
@@ -97,7 +164,8 @@ def build_verification_response(prompt: str, iteration: int, max_iter: int) -> d
 
 
 def build_early_completion_challenge(
-    prompt: str, iteration: int, max_iter: int, min_iter: int
+    prompt: str, iteration: int, max_iter: int, min_iter: int,
+    is_first_in_phase: bool = False,
 ) -> dict:
     """Build a response challenging early completion in review mode."""
     return {
@@ -112,20 +180,21 @@ def build_early_completion_challenge(
             f"API assumption. Tighten every vague criterion.\n\n"
             f"If after that exhaustive re-read you truly find nothing, output the "
             f"completion promise again.\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
     }
 
 
 def build_short_output_continue_response(
-    prompt: str, iteration: int, max_iter: int
+    prompt: str, iteration: int, max_iter: int,
+    is_first_in_phase: bool = False,
 ) -> dict:
     """Build a block response when output was too brief to be a real completion."""
     return {
         "decision": "block",
         "reason": (
             f"Tim Loop: Iteration {iteration} of {max_iter} (response too brief - continuing)\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
     }
 
@@ -150,7 +219,8 @@ def build_phase_transition_response(
 
 
 def build_early_phase_completion_challenge(
-    prompt: str, phase: int, current_iter: int, min_iter: int
+    prompt: str, phase: int, current_iter: int, min_iter: int,
+    is_first_in_phase: bool = False,
 ) -> dict:
     """Challenge when AI tries to complete a phase too early."""
     phase_name = PHASE_NAMES.get(phase, f"Phase {phase}")
@@ -165,12 +235,15 @@ def build_early_phase_completion_challenge(
             f"1. Re-read the ENTIRE plan from the top\n"
             f"2. Evaluate EVERY section for {phase_name} concerns\n"
             f"3. Fix everything you find - do not save issues for later\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
     }
 
 
-def build_phase_skip_challenge(prompt: str, current_phase: int) -> dict:
+def build_phase_skip_challenge(
+    prompt: str, current_phase: int,
+    is_first_in_phase: bool = False,
+) -> dict:
     """Challenge when AI tries to skip directly to final completion."""
     return {
         "decision": "block",
@@ -185,12 +258,15 @@ def build_phase_skip_challenge(prompt: str, current_phase: int) -> dict:
             f"6. PM Review (`<promise>PHASE-6-PM-DONE</promise>`)\n"
             f"7. User Advocate (`<promise>PHASE-7-USER-ADVOCATE-DONE</promise>`)\n\n"
             f"You are on Phase {current_phase}. Complete it first.\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
     }
 
 
-def build_final_completion_instruction(prompt: str) -> dict:
+def build_final_completion_instruction(
+    prompt: str,
+    is_first_in_phase: bool = False,
+) -> dict:
     """Instruct AI to output final completion signal after all phases done."""
     return {
         "decision": "block",
@@ -205,13 +281,14 @@ def build_final_completion_instruction(prompt: str) -> dict:
             "Phase 7 (User Advocate): DONE\n\n"
             "You may now output the final completion signal: "
             "`<promise>FULL-REVIEW-DONE</promise>`\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
     }
 
 
 def build_fresh_eyes_review_challenge(
-    prompt: str, iteration: int, max_iter: int, judge_reason: str
+    prompt: str, iteration: int, max_iter: int, judge_reason: str,
+    is_first_in_phase: bool = False,
 ) -> dict:
     """Build response when LLM judge finds a review superficial (standalone review modes)."""
     # Truncate judge reason to keep prompt reasonable
@@ -232,13 +309,14 @@ def build_fresh_eyes_review_challenge(
             f"it's sound\n\n"
             f"Do not reference your previous review. This is a clean-slate "
             f"evaluation.\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
     }
 
 
 def build_fresh_eyes_phase_challenge(
-    prompt: str, phase: int, current_iter: int, judge_reason: str
+    prompt: str, phase: int, current_iter: int, judge_reason: str,
+    is_first_in_phase: bool = False,
 ) -> dict:
     """Build response when LLM judge finds a phase review superficial (full-review mode)."""
     phase_name = PHASE_NAMES.get(phase, f"Phase {phase}")
@@ -260,7 +338,7 @@ def build_fresh_eyes_phase_challenge(
             f"it's sound\n\n"
             f"Do not reference your previous review. This is a clean-slate "
             f"evaluation.\n\n"
-            f"---\n\n{prompt}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
     }
 
