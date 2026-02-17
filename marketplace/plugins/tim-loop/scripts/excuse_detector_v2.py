@@ -33,6 +33,7 @@ from tim_loop_state import (
     get_review_mode,
     is_excuse_detector_enabled,
     is_implement_mode,
+    is_tim_loop_stop_hooks_enabled,
     reset_detection_state,
 )
 from tim_loop_halt import system_halt, build_halt_details_from_patterns
@@ -159,6 +160,8 @@ def run_detection_passes(
 
 def should_skip_detection() -> bool:
     """Check if excuse detection should be skipped entirely."""
+    if not is_tim_loop_stop_hooks_enabled():
+        return True
     if not is_excuse_detector_enabled():
         return True
     if check_and_clear_user_initiated_marker():

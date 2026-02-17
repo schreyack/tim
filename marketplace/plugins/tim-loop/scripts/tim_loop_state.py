@@ -12,6 +12,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from tim_loop_staleness import check_session_staleness as _check_session_staleness
+
 # Configuration
 TIM_LOOP_ACTIVE_MARKER = Path.home() / ".claude" / ".tim-loop-active"
 CLEANUP_LOG = Path.home() / ".claude" / ".tim-loop-cleanup.log"
@@ -155,6 +157,11 @@ def _collect_claude_pids_from_state_files() -> set[int]:
     return claude_pids
 
 
+def _is_ancestor_pid(target_pid: int) -> bool:
+    """Check if target_pid is an ancestor of the current process."""
+    return _walk_parent_chain_for_pid({target_pid}) is not None
+
+
 def _walk_parent_chain_for_pid(target_pids: set[int]) -> int | None:
     """Walk up parent process chain looking for a PID in the target set."""
     pid = os.getppid()
@@ -221,7 +228,15 @@ def load_state() -> dict | None:
         return None
     try:
         state_file = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
-        return _parse_state_file(state_file)
+        state = _parse_state_file(state_file)
+        if not state:
+            return None
+        # Verify this session owns the state
+        state_pid = _extract_pid_from_state_file(state_file)
+        if state_pid and not _is_ancestor_pid(state_pid):
+            log_stderr(f"Tim Loop: Active marker points to different session (PID {state_pid}) - skipping")
+            return None
+        return state
     except Exception as e:
         log_stderr(f"Tim Loop: Active marker read failed: {e}")
         return None
@@ -261,6 +276,14 @@ def check_and_clear_user_initiated_marker() -> bool:
     return False
 
 
+def is_tim_loop_stop_hooks_enabled() -> bool:
+    """Check if tim-loop stop hooks are enabled via environment variable.
+
+    Default: enabled (True). Set TIM_STOP_HOOKS_ENABLED=false to disable.
+    """
+    return os.environ.get("TIM_STOP_HOOKS_ENABLED", "true").lower() != "false"
+
+
 def is_excuse_detector_enabled() -> bool:
     """Check if excuse detector is enabled via environment variable.
 
@@ -283,87 +306,6 @@ def save_state(state: dict) -> None:
         log_message(f"Failed to save state: {e}")
 
 
-# Staleness detection thresholds
-HEARTBEAT_THRESHOLD_SECONDS = 300  # 5 minutes
-STATE_FILE_THRESHOLD_SECONDS = 30  # 30 seconds if no heartbeat
-
-
-def _is_process_running(pid: int) -> bool:
-    """Check if a process with the given PID is still running."""
-    try:
-        os.kill(pid, 0)  # Signal 0 doesn't kill, just checks existence
-        return True
-    except ProcessLookupError:
-        return False  # Process doesn't exist
-    except PermissionError:
-        return True  # Process exists but we can't signal it
-    except Exception:
-        return True  # Assume running on any other error
-
-
-def _cleanup_stale_session() -> None:
-    """Clean up orphaned tim-loop session files."""
-    heartbeat_path = Path.home() / ".claude" / ".tim-loop-heartbeat"
-    try:
-        state_file_path = (
-            TIM_LOOP_ACTIVE_MARKER.read_text().strip()
-            if TIM_LOOP_ACTIVE_MARKER.exists()
-            else None
-        )
-        TIM_LOOP_ACTIVE_MARKER.unlink(missing_ok=True)
-        heartbeat_path.unlink(missing_ok=True)
-        if state_file_path:
-            Path(state_file_path).unlink(missing_ok=True)
-        # Also clean up related files
-        for pattern in [".tim-loop-iteration-count", ".tim-loop-auto-approve"]:
-            (Path.home() / ".claude" / pattern).unlink(missing_ok=True)
-        log_message("Cleaned up stale session files")
-    except Exception as e:
-        log_message(f"Stale session cleanup error: {e}")
-
-
-def _is_heartbeat_fresh() -> bool | None:
-    """Check if heartbeat file exists and is fresh. Returns None if no heartbeat."""
-    heartbeat_path = Path.home() / ".claude" / ".tim-loop-heartbeat"
-    if not heartbeat_path.exists():
-        return None
-    heartbeat_epoch = int(heartbeat_path.read_text().strip())
-    age_seconds = int(datetime.now().timestamp()) - heartbeat_epoch
-    return age_seconds <= HEARTBEAT_THRESHOLD_SECONDS
-
-
-def _is_state_file_fresh(state_file_path: str) -> bool:
-    """Check if state file exists and was recently modified."""
-    if not state_file_path or not Path(state_file_path).exists():
-        return False
-    state_mtime = Path(state_file_path).stat().st_mtime
-    age_seconds = datetime.now().timestamp() - state_mtime
-    return age_seconds <= STATE_FILE_THRESHOLD_SECONDS
-
-
-def _check_session_staleness(state_file_path: str) -> bool:
-    """Check if session is stale (dead process + stale files). Returns True if active."""
-    # Extract Claude PID - if process is running, session is active
-    claude_pid = _extract_pid_from_state_file(state_file_path)
-    if claude_pid and _is_process_running(claude_pid):
-        return True
-
-    # Process dead or unknown - check file freshness
-    heartbeat_fresh = _is_heartbeat_fresh()
-    if heartbeat_fresh is True:
-        return True
-    if heartbeat_fresh is False:
-        _cleanup_stale_session()
-        return False
-
-    # No heartbeat - fall back to state file age
-    if _is_state_file_fresh(state_file_path):
-        return True
-
-    _cleanup_stale_session()
-    return False
-
-
 def is_tim_loop_active() -> bool:
     """Check if we're inside an active tim-loop session FOR THIS PROCESS.
 
@@ -380,13 +322,12 @@ def is_tim_loop_active() -> bool:
     try:
         state_file_path = TIM_LOOP_ACTIVE_MARKER.read_text().strip()
 
-        # First check if the session is stale (dead process)
-        if not _check_session_staleness(state_file_path):
-            return False
-
-        # Session is alive - now verify THIS process belongs to it
-        # by walking up the parent chain to find the CLAUDE_PID
+        # Extract PID for staleness check and ownership verification
         state_claude_pid = _extract_pid_from_state_file(state_file_path)
+
+        # First check if the session is stale (dead process)
+        if not _check_session_staleness(state_file_path, state_claude_pid):
+            return False
         if not state_claude_pid:
             # No PID in state file - fall back to assuming active (legacy)
             return True

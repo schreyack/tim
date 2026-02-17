@@ -27,6 +27,7 @@ from tim_loop_responses import (
 )
 from tim_loop_state import (
     cleanup_tim_loop,
+    is_tim_loop_stop_hooks_enabled,
     load_state,
     log_message,
     log_stderr,
@@ -342,6 +343,10 @@ def process_assistant_output(state: dict, prompt: str, assistant_text: str) -> d
 
 def main() -> None:
     """Main hook entry point."""
+    if not is_tim_loop_stop_hooks_enabled():
+        print("{}")
+        sys.exit(0)
+
     state = load_state()
     if not state:
         log_stderr("Tim Loop: Stop hook could not load session state - allowing exit")
