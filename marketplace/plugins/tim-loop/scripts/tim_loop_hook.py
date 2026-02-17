@@ -98,15 +98,16 @@ def _check_review_quality_llm(
     from review_quality_judge import judge_review_quality
 
     verdict = judge_review_quality(assistant_text)
-    if verdict is None:
-        # Judge unreachable — don't let a transient failure skip review
-        log_stderr("Tim Loop: Review quality judge unreachable - continuing loop")
+    if "error" in verdict:
+        error_type = verdict["error"]
+        detail = verdict["detail"]
+        log_stderr(f"Tim Loop: Review quality judge {error_type} - {detail}")
         current_iteration += 1
         state["CURRENT_ITERATION"] = str(current_iteration)
         save_state(state)
         return build_fresh_eyes_review_challenge(
             prompt, current_iteration, max_iterations,
-            "Judge unreachable — re-review required as a precaution."
+            f"Judge {error_type}: {detail}"
         )
     if not verdict["passed"]:
         log_stderr("Tim Loop: Review quality check FAILED - challenging")

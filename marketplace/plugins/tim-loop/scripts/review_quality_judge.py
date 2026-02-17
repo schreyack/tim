@@ -7,8 +7,9 @@ analytical engagement vs rubber-stamping. The caller decides whether to invoke
 this based on the LLM_LOOP state flag.
 
 Returns:
-    {"passed": True/False, "reason": "..."} when judge is reachable
-    None when judge is unreachable
+    {"passed": True/False, "reason": "..."} on success or failure
+    {"error": "unreachable", "detail": "..."} when server can't be reached
+    {"error": "bad_response", "detail": "..."} when server responds but parsing fails
 """
 
 import json
@@ -57,30 +58,43 @@ def _build_quality_request(review_text: str) -> tuple[urllib.request.Request, di
     return req, config
 
 
-def _call_quality_judge(req: urllib.request.Request, config: dict) -> dict | None:
+def _call_quality_judge(req: urllib.request.Request, config: dict) -> dict:
     """Execute the LLM API call and parse the verdict."""
     try:
         with urllib.request.urlopen(req, timeout=config.get("timeout", 30)) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            content = result["choices"][0]["message"]["content"]
-            return _parse_verdict(content)
+            raw = resp.read().decode("utf-8")
     except urllib.error.URLError as e:
-        print(f"Warning: Review quality judge could not reach LLM server: {e}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"Warning: Review quality judge failed: {e}", file=sys.stderr)
-        return None
+        detail = f"Could not reach LLM server: {e}"
+        print(f"Warning: {detail}", file=sys.stderr)
+        return {"error": "unreachable", "detail": detail}
+
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError as e:
+        detail = f"LLM returned invalid JSON: {e} — raw response: {raw[:200]}"
+        print(f"Warning: {detail}", file=sys.stderr)
+        return {"error": "bad_response", "detail": detail}
+
+    try:
+        content = result["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as e:
+        detail = f"Unexpected response structure ({type(e).__name__}: {e}) — keys: {list(result.keys())}"
+        print(f"Warning: {detail}", file=sys.stderr)
+        return {"error": "bad_response", "detail": detail}
+
+    return _parse_verdict(content)
 
 
-def judge_review_quality(review_text: str) -> dict | None:
+def judge_review_quality(review_text: str) -> dict:
     """Evaluate whether a review demonstrates genuine analytical engagement.
 
     Args:
         review_text: The assistant's review output to evaluate.
 
     Returns:
-        {"passed": True/False, "reason": "..."} when judge is reachable.
-        None when judge is unreachable.
+        {"passed": True/False, "reason": "..."} on success/failure.
+        {"error": "unreachable", "detail": "..."} when server can't be reached.
+        {"error": "bad_response", "detail": "..."} when response can't be parsed.
     """
     review_text = review_text.strip()
 

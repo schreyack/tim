@@ -205,11 +205,13 @@ def _check_phase_quality_llm(
     from review_quality_judge import judge_review_quality
 
     verdict = judge_review_quality(assistant_text)
-    if verdict is None:
-        log_stderr("Tim Loop: Phase review quality judge unreachable - continuing loop")
+    if "error" in verdict:
+        error_type = verdict["error"]
+        detail = verdict["detail"]
+        log_stderr(f"Tim Loop: Phase {current_phase} judge {error_type} - {detail}")
         return _handle_quality_failure(
             state, prompt, current_phase, phase_iterations,
-            "Judge unreachable — re-review required as a precaution."
+            f"Judge {error_type}: {detail}"
         )
     if not verdict["passed"]:
         return _handle_quality_failure(
