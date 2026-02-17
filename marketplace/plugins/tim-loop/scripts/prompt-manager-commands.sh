@@ -329,15 +329,30 @@ cmd_hook() {
     local prompt_len=${#prompt}
     write_log "$log_file" "[$timestamp] REINJECT: session=$sanitized_id len=$prompt_len hash=$prompt_hash" 2>/dev/null || true
 
+    # Check if this is a full-review session with phase > 1
+    # If so, prepend a phase correction notice to prevent the agent from
+    # re-executing Phase 1 instructions after compaction
+    local phase_notice=""
+    local state_file="${PROMPT_DIR}/.tim-loop-state-${sanitized_id}"
+    if [[ -f "$state_file" ]]; then
+        local review_mode current_phase
+        review_mode=$(grep '^REVIEW_MODE=' "$state_file" 2>/dev/null | head -1 | cut -d'"' -f2)
+        current_phase=$(grep '^CURRENT_PHASE=' "$state_file" 2>/dev/null | head -1 | cut -d'"' -f2)
+        if [[ "$review_mode" == "full-review" && -n "$current_phase" && "$current_phase" -gt 1 ]] 2>/dev/null; then
+            phase_notice="**PHASE CORRECTION:** You are on Phase ${current_phase}, NOT Phase 1. The prompt below contains the original Phase 1 instructions — ignore phase-specific instructions and work on Phase ${current_phase} instead.\n\n"
+            write_log "$log_file" "[$timestamp] PHASE_CORRECTION: phase=$current_phase" 2>/dev/null || true
+        fi
+    fi
+
     # Notify user
     echo "[tim-loop] Original task prompt reinjected (${prompt_len} chars, session ${sanitized_id})" >&2
 
     # Build and validate output JSON
     local output_json
-    output_json=$(jq -n --arg prompt "$prompt" '{
+    output_json=$(jq -n --arg prompt "$prompt" --arg phase_notice "$phase_notice" '{
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
-            "additionalContext": ("=== ORIGINAL TASK (reinjected after context compaction) ===\n\nThe following is the original task prompt. Context was compacted but this task remains active. Continue working on this task:\n\n" + $prompt + "\n\n=== END ORIGINAL TASK ===")
+            "additionalContext": ($phase_notice + "=== ORIGINAL TASK (reinjected after context compaction) ===\n\nThe following is the original task prompt. Context was compacted but this task remains active. Continue working on this task:\n\n" + $prompt + "\n\n=== END ORIGINAL TASK ===")
         }
     }')
 

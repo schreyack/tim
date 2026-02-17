@@ -14,15 +14,16 @@ This module contains the phase transition logic and signal detection for the
 """
 
 from tim_loop_phase_prompts import get_phase_prompt
-from tim_loop_responses import (
-    build_continue_response,
+from tim_loop_phase_responses import (
     build_early_phase_completion_challenge,
     build_final_completion_instruction,
     build_fresh_eyes_phase_challenge,
     build_full_review_complete_hard_stop,
+    build_phase_correction_response,
     build_phase_skip_challenge,
     build_phase_transition_response,
 )
+from tim_loop_responses import build_continue_response
 from tim_loop_state import log_stderr, save_state
 
 # Phase signals for full-review mode
@@ -48,6 +49,14 @@ MIN_PHASE_ITERATIONS = {
 }
 
 FINAL_PHASE = 7
+
+
+def _all_phase_signals_present(text: str) -> bool:
+    """Check if ALL 7 phase completion signals exist in the assistant text."""
+    return all(
+        f"<promise>{signal}</promise>" in text
+        for signal in PHASE_SIGNALS.values()
+    )
 
 
 def detect_phase_signal(assistant_text: str) -> tuple[int, str] | None:
@@ -84,6 +93,18 @@ def _handle_wrong_phase_signal(
     current_iteration = int(state.get("CURRENT_ITERATION", "1")) + 1
     state["CURRENT_ITERATION"] = str(current_iteration)
     save_state(state)
+    # Stale signal (already-completed phase): inject correct phase prompt
+    if detected_phase < current_phase:
+        log_stderr(
+            f"Tim Loop: Stale phase signal (got phase {detected_phase}, "
+            f"on phase {current_phase}) - injecting correct phase prompt"
+        )
+        review_file = state.get("PLAN_FILE", "")
+        phase_prompt = get_phase_prompt(current_phase, review_file)
+        return build_phase_correction_response(
+            phase_prompt, detected_phase, current_phase, current_iteration, max_iter
+        )
+    # Forward skip (future phase): continue with generic guidance
     log_stderr(
         f"Tim Loop: Wrong phase signal (got phase {detected_phase}, "
         f"expected {current_phase}) - continuing"
@@ -133,7 +154,20 @@ def _check_final_signal(state: dict, prompt: str, text: str, phase: int) -> dict
     if f"<promise>{final_promise}</promise>" not in text:
         return None  # No final signal - continue normal processing
     if phase < FINAL_PHASE or state.get(f"PHASE_{FINAL_PHASE}_COMPLETE") != "true":
-        return build_phase_skip_challenge(prompt, phase)
+        # Before rejecting, check if all 7 phase signals are in the text.
+        # After context compaction, the agent may have completed all phases in
+        # a single turn, so the stop hook never processed intermediate transitions.
+        if _all_phase_signals_present(text):
+            log_stderr(
+                "Tim Loop: Fast-forwarding phase state — all 7 phase signals "
+                "found in assistant text (likely post-compaction recovery)"
+            )
+            for p in range(1, FINAL_PHASE + 1):
+                state[f"PHASE_{p}_COMPLETE"] = "true"
+            state["CURRENT_PHASE"] = str(FINAL_PHASE)
+            save_state(state)
+        else:
+            return build_phase_skip_challenge(prompt, phase)
     # All phases complete - return HARD STOP to block implementation
     plan_file = state.get("PLAN_FILE", "the plan file")
     return {"hard_stop": True, "plan_file": plan_file}
