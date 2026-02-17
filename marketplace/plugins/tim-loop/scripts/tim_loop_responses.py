@@ -48,7 +48,7 @@ def _build_compact_context(prompt: str) -> str:
         f"- NEVER reduce scope — improve through precision, not reduction\n"
         f"- Raise concerns as questions, not deletions\n"
         f"- Re-read the ENTIRE plan from the top each pass\n"
-        f"- Delegate codebase verification to Explore subagents — do NOT read source files directly\n"
+        f"- Delegate subplan AND codebase verification to Explore subagents — only read a subplan when editing it\n"
     )
 
 
@@ -67,14 +67,15 @@ def _full_review_guidance(
 
     if phase_iterations <= 1:
         codebase_instruction = (
-            "Read all plan and subplan files. "
-            "Delegate codebase verification to Explore subagents."
+            "Read ONLY the main plan file. "
+            "Delegate subplan verification AND codebase verification to Explore subagents. "
+            "Only read a specific subplan when you need to EDIT it."
         )
     else:
         codebase_instruction = (
-            "Re-read the plan from the top. "
-            "Use Explore subagents for any codebase verification "
-            "— do NOT read source files directly."
+            "Re-read the main plan file from the top. "
+            "Use Explore subagents for subplan and codebase verification "
+            "— do NOT read source files or subplans directly unless editing."
         )
 
     return (
@@ -93,14 +94,15 @@ def _standalone_review_guidance(iteration: int) -> str:
     """Build guidance for standalone tech-review or ai-ready continuation."""
     if iteration <= 2:
         codebase_instruction = (
-            "Read all plan and subplan files. "
-            "Delegate codebase verification to Explore subagents."
+            "Read ONLY the main plan file. "
+            "Delegate subplan verification AND codebase verification to Explore subagents. "
+            "Only read a specific subplan when you need to EDIT it."
         )
     else:
         codebase_instruction = (
-            "Re-read the ENTIRE plan from the top. "
-            "Use Explore subagents for any codebase verification "
-            "— do NOT read source files directly."
+            "Re-read the main plan file from the top. "
+            "Use Explore subagents for subplan and codebase verification "
+            "— do NOT read source files or subplans directly unless editing."
         )
 
     return (
