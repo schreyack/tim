@@ -180,8 +180,6 @@ TIM_LOOP_SESSION_ID="$$"
 TIM_LOOP_CLAUDE_PID=$(find_claude_pid)
 TIM_LOOP_STATE_FILE="$HOME/.claude/.tim-loop-state-${TIM_LOOP_SESSION_ID}"
 TIM_LOOP_PROMPT_FILE="$HOME/.claude/.tim-loop-prompt-${TIM_LOOP_SESSION_ID}"
-TIM_LOOP_HOOK_SCRIPT="python3 ${PLUGIN_ROOT}/scripts/tim_loop_hook.py"
-
 # Register cleanup trap
 trap cleanup_on_exit EXIT
 
@@ -259,42 +257,6 @@ else
     # Direct write if prompt manager not available
     echo "$FULL_PROMPT" > "$TIM_LOOP_PROMPT_FILE"
 fi
-
-# Register hooks
-python3 << PYTHON_EOF
-import json, os
-settings_file = os.path.expanduser("~/.claude/settings.local.json")
-stop_hook = "${TIM_LOOP_HOOK_SCRIPT}"
-permission_hook = "${PLUGIN_ROOT}/scripts/tim-loop-permission-hook.sh"
-prompt_manager_hook = "${PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook"
-option_expander_hook = "python3 ${PLUGIN_ROOT}/scripts/option_expander.py"
-
-try:
-    with open(settings_file, 'r') as f:
-        settings = json.load(f)
-except:
-    settings = {}
-
-if 'hooks' not in settings:
-    settings['hooks'] = {}
-
-# Clean existing tim-loop hooks before registering (prevents version accumulation)
-for ht in ['stop', 'PreToolUse', 'SessionStart', 'UserPromptSubmit']:
-    if ht in settings['hooks']:
-        settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
-        if not settings['hooks'][ht]:
-            del settings['hooks'][ht]
-
-# Register current version's hooks
-for hook_type, hook_cmd in [('stop', stop_hook), ('PreToolUse', permission_hook), ('SessionStart', prompt_manager_hook), ('UserPromptSubmit', option_expander_hook)]:
-    if hook_type not in settings['hooks']:
-        settings['hooks'][hook_type] = []
-    settings['hooks'][hook_type].append({"command": hook_cmd})
-
-with open(settings_file, 'w') as f:
-    json.dump(settings, f, indent=2)
-print("Tim Loop hooks registered (stop, PreToolUse, SessionStart, UserPromptSubmit)")
-PYTHON_EOF
 
 echo -e "\nTim Loop: Starting iteration 1 of $MAX_ITERATIONS\n"
 echo "$FULL_PROMPT"

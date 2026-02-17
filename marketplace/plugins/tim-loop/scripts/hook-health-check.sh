@@ -3,7 +3,6 @@
 set -euo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(dirname "$(dirname "$0")")}"
-SETTINGS_FILE="$HOME/.claude/settings.local.json"
 PLUGIN_HOOKS_FILE="${PLUGIN_ROOT}/hooks/hooks.json"
 
 echo "=== Tim Loop Hook Health Check ==="
@@ -17,31 +16,38 @@ else
     echo "   ✗ hooks.json NOT FOUND at: $PLUGIN_HOOKS_FILE"
 fi
 
-# Check 2: Settings file exists and has hooks
+# Check 2: hooks.json contains required entries
 echo ""
-echo "2. Settings file hooks (runtime):"
-if [[ -f "$SETTINGS_FILE" ]]; then
-    echo "   ✓ settings.local.json exists"
-
-    # Check for each hook type
-    for hook_type in stop PreToolUse SessionStart PostToolUse Stop; do
-        if grep -q "\"$hook_type\"" "$SETTINGS_FILE" 2>/dev/null; then
-            echo "   ✓ $hook_type hook registered"
-        fi
-    done
+echo "2. hooks.json hook entries:"
+if [[ -f "$PLUGIN_HOOKS_FILE" ]]; then
+    if grep -q "tim_loop_hook.py" "$PLUGIN_HOOKS_FILE" 2>/dev/null; then
+        echo "   ✓ tim_loop_hook.py registered in Stop"
+    else
+        echo "   ✗ tim_loop_hook.py NOT found in hooks.json"
+    fi
+    if grep -q "tim-loop-permission-hook.sh" "$PLUGIN_HOOKS_FILE" 2>/dev/null; then
+        echo "   ✓ tim-loop-permission-hook.sh registered in PreToolUse"
+    else
+        echo "   ✗ tim-loop-permission-hook.sh NOT found in hooks.json"
+    fi
+    if grep -q "excuse_detector_v2.py" "$PLUGIN_HOOKS_FILE" 2>/dev/null; then
+        echo "   ✓ excuse_detector_v2.py registered in Stop"
+    else
+        echo "   ✗ excuse_detector_v2.py NOT found in hooks.json"
+    fi
 else
-    echo "   - settings.local.json not found (hooks not yet registered)"
+    echo "   - hooks.json not found (plugin not installed?)"
 fi
 
 # Check 3: Verify scripts exist and are executable
 echo ""
 echo "3. Hook scripts:"
 SCRIPTS=(
-    "tim_loop_hook.py:stop hook (completion check)"
+    "tim_loop_hook.py:Stop hook (completion check)"
     "tim-loop-permission-hook.sh:PreToolUse (auto-approve)"
     "tim-loop-prompt-manager.sh:SessionStart (prompt preservation)"
     "code-quality-validator.py:PostToolUse (code quality)"
-    "excuse-detector.py:Stop (excuse detection)"
+    "excuse_detector_v2.py:Stop (excuse detection)"
 )
 
 for script_info in "${SCRIPTS[@]}"; do

@@ -27,7 +27,7 @@ try:
     with open(os.path.expanduser('~/.claude/settings.local.json'), 'r') as f:
         settings = json.load(f)
     if 'hooks' in settings:
-        for ht in ['stop', 'PreToolUse', 'SessionStart', 'UserPromptSubmit']:
+        for ht in ['stop', 'Stop', 'PreToolUse', 'SessionStart', 'UserPromptSubmit']:
             if ht in settings['hooks']:
                 settings['hooks'][ht] = [h for h in settings['hooks'][ht] if 'tim-loop' not in h.get('command', '')]
                 if not settings['hooks'][ht]: del settings['hooks'][ht]

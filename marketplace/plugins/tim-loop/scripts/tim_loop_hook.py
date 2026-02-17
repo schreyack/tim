@@ -2,7 +2,7 @@
 """
 Tim Loop Hook - Implements iteration for Tim Loop workflow.
 
-This hook is registered as a "stop" hook and intercepts conversation exit.
+This hook is registered as a "Stop" hook in hooks.json and intercepts conversation exit.
 It checks if Claude output the completion promise and if the plan is verified.
 If not, it blocks completion and re-injects the prompt to continue the loop.
 

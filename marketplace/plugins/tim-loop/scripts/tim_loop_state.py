@@ -92,7 +92,7 @@ def cleanup_hooks_from_settings() -> None:
             settings = json.load(f)
         if "hooks" not in settings:
             return
-        for hook_type in ["stop", "PreToolUse", "SessionStart", "UserPromptSubmit"]:
+        for hook_type in ["stop", "Stop", "PreToolUse", "SessionStart", "UserPromptSubmit"]:
             _filter_tim_loop_hooks(settings["hooks"], hook_type)
         if not settings["hooks"]:
             del settings["hooks"]
