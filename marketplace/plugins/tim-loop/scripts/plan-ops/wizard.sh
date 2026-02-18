@@ -106,7 +106,7 @@ wizard_pick_plan() {
         local abs_plans_dir
         abs_plans_dir=$(to_absolute "$PLANS_DIR")
 
-        for stage in drafts active completed abandoned; do
+        for stage in drafts active; do
             local stage_dir="${abs_plans_dir}/${stage}"
             [[ -d "$stage_dir" ]] || continue
 
@@ -133,7 +133,7 @@ wizard_pick_plan() {
 
     if [[ ${#all_plans[@]} -eq 0 ]]; then
         log_error "No plans found."
-        log_info "Searched in: $(to_absolute "$PLANS_DIR")/*, $CLAUDE_PLANS_DIR"
+        log_info "Searched in: $(to_absolute "$PLANS_DIR")/{drafts,active}, $CLAUDE_PLANS_DIR"
         exit 1
     fi
 
