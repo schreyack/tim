@@ -91,6 +91,110 @@ wizard_update_paths_after_move() {
 }
 
 # =============================================================================
+# PLAN PICKER (no-argument wizard)
+# =============================================================================
+
+# Show a numbered list of recent plans and let user pick one
+# Searches plans/ stages and ~/.claude/plans/
+# Sorted by filename (which contains timestamp) most recent first
+# Outputs: selected plan's absolute path
+wizard_pick_plan() {
+    local all_plans=()
+
+    # Collect plans from all stage directories
+    if [[ -d "$PLANS_DIR" ]]; then
+        local abs_plans_dir
+        abs_plans_dir=$(to_absolute "$PLANS_DIR")
+
+        for stage in drafts active completed abandoned; do
+            local stage_dir="${abs_plans_dir}/${stage}"
+            [[ -d "$stage_dir" ]] || continue
+
+            # Standalone plans
+            while IFS= read -r -d '' file; do
+                all_plans+=("$file")
+            done < <(find "$stage_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+
+            # Package plans (directories with MASTER.md)
+            while IFS= read -r -d '' dir; do
+                if [[ -f "${dir}/MASTER.md" ]]; then
+                    all_plans+=("${dir}/MASTER.md")
+                fi
+            done < <(find "$stage_dir" -maxdepth 1 -type d ! -name "$stage" -print0 2>/dev/null)
+        done
+    fi
+
+    # Also check ~/.claude/plans/
+    if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
+        while IFS= read -r -d '' file; do
+            all_plans+=("$file")
+        done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+    fi
+
+    if [[ ${#all_plans[@]} -eq 0 ]]; then
+        log_error "No plans found."
+        log_info "Searched in: $(to_absolute "$PLANS_DIR")/*, $CLAUDE_PLANS_DIR"
+        exit 1
+    fi
+
+    # Build sortable entries: "sortkey|path"
+    # Sort key is the plan/package name (starts with timestamp)
+    local sort_entries=()
+    for plan in "${all_plans[@]}"; do
+        local name
+        if [[ "$(basename "$plan")" == "MASTER.md" ]]; then
+            name=$(basename "$(dirname "$plan")")
+        else
+            name=$(basename "$plan" .md)
+        fi
+        sort_entries+=("${name}|${plan}")
+    done
+
+    # Sort reverse by name (timestamp prefix = most recent first)
+    local sorted
+    sorted=$(printf '%s\n' "${sort_entries[@]}" | sort -t'|' -k1 -r)
+
+    # Display numbered list
+    echo ""
+    echo "=== Recent Plans ==="
+    echo ""
+    local i=1
+    local paths=()
+    while IFS='|' read -r name path; do
+        local stage_label=""
+        case "$path" in
+            */drafts/*)    stage_label="draft" ;;
+            */active/*)    stage_label="active" ;;
+            */completed/*) stage_label="done" ;;
+            */abandoned/*) stage_label="abandoned" ;;
+            *)             stage_label="import" ;;
+        esac
+
+        local pkg_label=""
+        if [[ "$(basename "$path")" == "MASTER.md" ]]; then
+            pkg_label=" [PACKAGE]"
+        fi
+
+        printf "  [%2d] %-12s %s%s\n" "$i" "($stage_label)" "$name" "$pkg_label"
+        paths+=("$path")
+        ((i++))
+    done <<< "$sorted"
+
+    echo ""
+    local count=${#paths[@]}
+    local choice
+    while true; do
+        echo -n "Select plan [1-${count}]: "
+        read -r choice </dev/tty
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$count" ]]; then
+            echo "${paths[$((choice-1))]}"
+            return 0
+        fi
+        echo "Invalid choice. Enter a number between 1 and $count."
+    done
+}
+
+# =============================================================================
 # WIZARD COMMAND
 # =============================================================================
 
@@ -107,14 +211,9 @@ cmd_wizard() {
         esac
     done
 
-    # Validation
+    # No argument: show interactive plan picker
     if [[ -z "$plan_file" ]]; then
-        log_error "Usage: $SCRIPT_PATH wizard <plan-name-or-path> [--status]"
-        log_info "Examples:"
-        log_info "  $SCRIPT_PATH wizard new-ui-front-page"
-        log_info "  $SCRIPT_PATH wizard ~/.claude/plans/my-plan.md"
-        log_info "  $SCRIPT_PATH wizard plans/drafts/2026-02-01-my-package/  # Package folder"
-        exit 1
+        plan_file=$(wizard_pick_plan)
     fi
 
     # Handle package directories - if user passes a folder with MASTER.md, use that

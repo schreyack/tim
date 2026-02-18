@@ -171,8 +171,9 @@ COMMANDS:
         - Explicit mode: specify package name, master file, and include pattern
         Use when you have multiple related plans from iterative development
 
-    wizard <plan-file> [--status]
+    wizard [<plan-file>] [--status]
         Interactive wizard to guide through plan lifecycle
+        - No arguments: shows recent plans sorted by timestamp, pick by number
         - Automatically detects current state from Status Header
         - Shows commands to run in Claude Code vs terminal
         - Prompts for required inputs (names, approvals)
