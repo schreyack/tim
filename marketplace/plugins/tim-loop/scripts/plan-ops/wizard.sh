@@ -154,10 +154,10 @@ wizard_pick_plan() {
     local sorted
     sorted=$(printf '%s\n' "${sort_entries[@]}" | sort -t'|' -k1 -r)
 
-    # Display numbered list
-    echo ""
-    echo "=== Recent Plans ==="
-    echo ""
+    # Display numbered list (all display output to stderr since stdout is captured)
+    echo "" >&2
+    echo "=== Recent Plans ===" >&2
+    echo "" >&2
     local i=1
     local paths=()
     while IFS='|' read -r name path; do
@@ -175,22 +175,22 @@ wizard_pick_plan() {
             pkg_label=" [PACKAGE]"
         fi
 
-        printf "  [%2d] %-12s %s%s\n" "$i" "($stage_label)" "$name" "$pkg_label"
+        printf "  [%2d] %-12s %s%s\n" "$i" "($stage_label)" "$name" "$pkg_label" >&2
         paths+=("$path")
         ((i++))
     done <<< "$sorted"
 
-    echo ""
+    echo "" >&2
     local count=${#paths[@]}
     local choice
     while true; do
-        echo -n "Select plan [1-${count}]: "
+        echo -n "Select plan [1-${count}]: " >&2
         read -r choice </dev/tty
         if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$count" ]]; then
             echo "${paths[$((choice-1))]}"
             return 0
         fi
-        echo "Invalid choice. Enter a number between 1 and $count."
+        echo "Invalid choice. Enter a number between 1 and $count." >&2
     done
 }
 
