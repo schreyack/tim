@@ -31,7 +31,7 @@ def build_phase_transition_response(
 
 def build_early_phase_completion_challenge(
     prompt: str, phase: int, current_iter: int, min_iter: int,
-    is_first_in_phase: bool = False,
+    is_first_in_phase: bool = False, pressure: int = 0,
 ) -> dict:
     """Challenge when AI tries to complete a phase too early."""
     phase_name = PHASE_NAMES.get(phase, f"Phase {phase}")
@@ -46,14 +46,14 @@ def build_early_phase_completion_challenge(
             f"1. Re-read the ENTIRE plan from the top\n"
             f"2. Evaluate EVERY section for {phase_name} concerns\n"
             f"3. Fix everything you find - do not save issues for later\n\n"
-            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
     }
 
 
 def build_phase_skip_challenge(
     prompt: str, current_phase: int,
-    is_first_in_phase: bool = False,
+    is_first_in_phase: bool = False, pressure: int = 0,
 ) -> dict:
     """Challenge when AI tries to skip directly to final completion."""
     return {
@@ -69,14 +69,14 @@ def build_phase_skip_challenge(
             f"6. PM Review (`<promise>PHASE-6-PM-DONE</promise>`)\n"
             f"7. User Advocate (`<promise>PHASE-7-USER-ADVOCATE-DONE</promise>`)\n\n"
             f"You are on Phase {current_phase}. Complete it first.\n\n"
-            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
     }
 
 
 def build_final_completion_instruction(
     prompt: str,
-    is_first_in_phase: bool = False,
+    is_first_in_phase: bool = False, pressure: int = 0,
 ) -> dict:
     """Instruct AI to output final completion signal after all phases done."""
     return {
@@ -92,14 +92,14 @@ def build_final_completion_instruction(
             "Phase 7 (User Advocate): DONE\n\n"
             "You may now output the final completion signal: "
             "`<promise>FULL-REVIEW-DONE</promise>`\n\n"
-            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
     }
 
 
 def build_fresh_eyes_phase_challenge(
     prompt: str, phase: int, current_iter: int, judge_reason: str,
-    is_first_in_phase: bool = False,
+    is_first_in_phase: bool = False, pressure: int = 0,
 ) -> dict:
     """Build response when LLM judge finds a phase review superficial (full-review mode)."""
     phase_name = PHASE_NAMES.get(phase, f"Phase {phase}")
@@ -121,7 +121,7 @@ def build_fresh_eyes_phase_challenge(
             f"it's sound\n\n"
             f"Do not reference your previous review. This is a clean-slate "
             f"evaluation.\n\n"
-            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
+            f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
     }
 

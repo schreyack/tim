@@ -12,82 +12,40 @@ Key fix: This hook now properly handles Claude Code's JSON input format
 
 import json
 import os
-import re
 import sys
-from datetime import datetime
-from pathlib import Path
 
+from tim_loop_context_pressure import (
+    PRESSURE_CRITICAL,
+    PRESSURE_FORCE_STOP,
+    PRESSURE_WARNING,
+    check_soft_completion,
+    detect_response_degradation,
+    get_context_pressure,
+    track_response_length,
+)
 from tim_loop_full_review import handle_full_review_phase
 from tim_loop_responses import (
     build_continue_response,
     build_early_completion_challenge,
     build_fresh_eyes_review_challenge,
     build_short_output_continue_response,
+    build_soft_completion_nudge,
     build_verification_response,
 )
 from tim_loop_state import (
     cleanup_tim_loop,
     load_state,
-    log_message,
     log_stderr,
     save_state,
 )
+from tim_loop_verification import (
+    check_plan_verification,
+    get_plan_file,
+    handle_force_stop,
+    handle_max_iterations,
+    write_verification_failure,
+)
 from transcript_utils import extract_assistant_text, is_agent_coordination_turn, read_transcript
-
-
-def get_plan_file(state: dict, prompt: str) -> str:
-    """Get plan file path from state or prompt."""
-    plan_file = state.get("PLAN_FILE", "")
-    if not plan_file and prompt:
-        match = re.search(r"Plan File:\s*(\S+)", prompt)
-        if match:
-            plan_file = match.group(1)
-    return plan_file
-
-
-def check_plan_verification(plan_file: str) -> str | None:
-    """Check plan verification status. Returns error message or None if verified."""
-    if not plan_file:
-        return None  # No plan specified - verification not applicable (e.g., review mode)
-    if not os.path.isfile(plan_file):
-        return "PLAN_FILE_MISSING"  # Plan was specified but doesn't exist - FAILURE
-    try:
-        with open(plan_file, "r") as f:
-            content = f.read()
-        if "<!-- VERIFIED: FAILED -->" in content:
-            return "FAILED"
-        if "<!-- VERIFIED: YES -->" not in content:
-            return "NOT_VERIFIED"
-        return None  # Verified
-    except Exception:
-        return None
-
-
-def write_verification_failure(plan_file: str, reason: str) -> None:
-    """Write verification failure marker to plan file."""
-    if not plan_file or not os.path.isfile(plan_file):
-        return
-    try:
-        with open(plan_file, "r") as f:
-            content = f.read()
-
-        # Don't double-write failure markers
-        if "<!-- VERIFIED: FAILED -->" in content:
-            return
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        failure_block = (
-            f"\n\n<!-- VERIFIED: FAILED -->\n"
-            f"<!-- FAILURE_REASON: {reason} -->\n"
-            f"<!-- FAILURE_TIME: {timestamp} -->\n"
-        )
-
-        with open(plan_file, "a") as f:
-            f.write(failure_block)
-
-        log_message(f"Wrote verification failure to {plan_file}: {reason}")
-    except Exception as e:
-        log_message(f"Failed to write verification failure: {e}")
 
 
 def _check_review_quality_llm(
@@ -152,7 +110,7 @@ def _challenge_review_completion(
 
 
 def handle_completion_promise(
-    state: dict, prompt: str, assistant_text: str
+    state: dict, prompt: str, assistant_text: str, pressure: int = 0,
 ) -> dict | None:
     """Handle case when completion promise is found. Returns response or None."""
     state_file = state.get("_state_file", "")
@@ -180,56 +138,17 @@ def handle_completion_promise(
         current_iteration += 1
         state["CURRENT_ITERATION"] = str(current_iteration)
         save_state(state)
-        return build_verification_response(prompt, current_iteration, max_iterations)
+        return build_verification_response(
+            prompt, current_iteration, max_iterations, pressure,
+        )
 
     cleanup_tim_loop("Tim Loop: Task complete", state_file, prompt_file)
     return {}
 
 
-def handle_max_iterations(state: dict, max_iterations: int) -> dict:
-    """Handle max iterations reached - check verification before exiting."""
-    state_file = state.get("_state_file", "")
-    prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
-    plan_file = state.get("PLAN_FILE", "")
-    verification_status = check_plan_verification(plan_file)
-
-    if verification_status is None:
-        # Plan is verified - clean exit
-        cleanup_tim_loop(
-            f"Tim Loop: Completed after {max_iterations} iterations (verified)",
-            state_file,
-            prompt_file,
-        )
-        return {}
-
-    # NOT verified - write failure and create remediation notice
-    if verification_status == "PLAN_FILE_MISSING":
-        cleanup_tim_loop(
-            f"Tim Loop: FAILED - Max iterations ({max_iterations}) reached.\n"
-            f"Plan file missing: {plan_file}\n"
-            f"Cannot write failure marker. Recreate the plan or check the path.",
-            state_file,
-            prompt_file,
-        )
-        return {}
-
-    write_verification_failure(
-        plan_file,
-        f"Max iterations ({max_iterations}) reached without verification. "
-        f"Status: {verification_status}",
-    )
-    cleanup_tim_loop(
-        f"Tim Loop: FAILED - Max iterations ({max_iterations}) reached "
-        f"without verification.\n"
-        f"The plan has been marked as FAILED. A remediation pass is required.\n"
-        f"Run: /tim-loop --verify {plan_file}",
-        state_file,
-        prompt_file,
-    )
-    return {}
-
-
-def handle_continue_loop(state: dict, prompt: str) -> dict:
+def handle_continue_loop(
+    state: dict, prompt: str, pressure: int = 0,
+) -> dict:
     """Handle case when completion promise is NOT found - continue loop."""
     # Reset short output counter since we got a normal response
     state["SHORT_OUTPUT_COUNT"] = "0"
@@ -243,7 +162,9 @@ def handle_continue_loop(state: dict, prompt: str) -> dict:
     state["CURRENT_ITERATION"] = str(current_iteration)
     save_state(state)
     log_stderr(f"Tim Loop: Iteration {current_iteration} of {max_iterations}")
-    return build_continue_response(prompt, current_iteration, max_iterations, review_mode)
+    return build_continue_response(
+        prompt, current_iteration, max_iterations, review_mode, pressure=pressure,
+    )
 
 
 def handle_short_output(state: dict, prompt: str, assistant_text: str) -> dict | None:
@@ -316,10 +237,24 @@ def read_hook_input() -> dict:
 
 def process_assistant_output(state: dict, prompt: str, assistant_text: str) -> dict:
     """Process assistant output and determine response."""
-    # Full-review mode has its own phase-based handling
     review_mode = state.get("REVIEW_MODE", "")
+
+    # Context pressure detection
+    track_response_length(state, assistant_text)
+    pressure = get_context_pressure(state)
+
+    if pressure >= PRESSURE_FORCE_STOP:
+        log_stderr("Tim Loop: FORCE STOP — context pressure at maximum")
+        return handle_force_stop(state)
+
+    # Escalate WARNING to CRITICAL if response degradation detected
+    if pressure == PRESSURE_WARNING and detect_response_degradation(state):
+        log_stderr("Tim Loop: Response degradation detected — escalating to CRITICAL")
+        pressure = PRESSURE_CRITICAL
+
+    # Full-review mode has its own phase-based handling
     if review_mode == "full-review":
-        response = handle_full_review_phase(state, prompt, assistant_text)
+        response = handle_full_review_phase(state, prompt, assistant_text, pressure)
         if response is not None:
             return response
         # response is None means all phases complete, fall through to normal completion
@@ -328,8 +263,19 @@ def process_assistant_output(state: dict, prompt: str, assistant_text: str) -> d
     promise_tag = f"<promise>{completion_promise}</promise>"
 
     if promise_tag in assistant_text:
-        return handle_completion_promise(state, prompt, assistant_text) or {}
-    return handle_continue_loop(state, prompt)
+        return handle_completion_promise(state, prompt, assistant_text, pressure) or {}
+
+    # Check for soft completion before full re-injection
+    if check_soft_completion(assistant_text, review_mode):
+        current_iteration = int(state.get("CURRENT_ITERATION", "1"))
+        max_iterations = int(state.get("MAX_ITERATIONS", "30"))
+        log_stderr("Tim Loop: Soft completion detected — sending nudge instead of full re-injection")
+        current_iteration += 1
+        state["CURRENT_ITERATION"] = str(current_iteration)
+        save_state(state)
+        return build_soft_completion_nudge(current_iteration, max_iterations, review_mode)
+
+    return handle_continue_loop(state, prompt, pressure)
 
 
 def main() -> None:

@@ -53,20 +53,31 @@ def _build_compact_context(prompt: str, current_phase: int = 0) -> str:
         f"{phase_notice}"
         f"- **Mode:** {mode}\n"
         f"- **Plan File:** {plan_file}\n"
-        f"- **Completion Signal(s):** {signals}\n\n"
-        f"### Key Rules (unchanged)\n"
-        f"- Do a COMPLETE review as if this is your only chance\n"
-        f"- NEVER reduce scope — improve through precision, not reduction\n"
-        f"- Raise concerns as questions, not deletions\n"
-        f"- Re-read the ENTIRE plan from the top each pass\n"
-        f"- Delegate subplan AND codebase verification to Explore subagents — only read a subplan when editing it\n"
+        f"- **Completion Signal(s):** {signals}\n"
     )
 
 
+def _build_minimal_context(prompt: str) -> str:
+    """Ultra-short context for high pressure: plan file path + completion signal.
+
+    ~30 tokens. Used when context is nearly exhausted.
+    """
+    plan_match = re.search(r"Plan File:\s*(\S+)", prompt)
+    plan_file = plan_match.group(1).strip() if plan_match else "Unknown"
+    promise_matches = re.findall(r"<promise>([^<]+)</promise>", prompt)
+    signals = ", ".join(f"`<promise>{s}</promise>`" for s in promise_matches) if promise_matches else "N/A"
+    return f"Plan: {plan_file} | Signal: {signals}"
+
+
 def _prompt_or_compact(
-    prompt: str, is_first_in_phase: bool = False, current_phase: int = 0
+    prompt: str, is_first_in_phase: bool = False, current_phase: int = 0,
+    pressure: int = 0,
 ) -> str:
-    """Return full prompt on first iteration of a phase, compact summary after."""
+    """Return full prompt, compact summary, or minimal context based on pressure."""
+    if pressure >= 2:  # CRITICAL+
+        return f"---\n\n{_build_minimal_context(prompt)}"
+    if pressure >= 1:  # WARNING — skip full prompt even on first-in-phase
+        return f"---\n\n{_build_compact_context(prompt, current_phase)}"
     if is_first_in_phase:
         return f"---\n\n{prompt}"
     return f"---\n\n{_build_compact_context(prompt, current_phase)}"
@@ -105,6 +116,14 @@ def _full_review_guidance(
 
 def _standalone_review_guidance(iteration: int) -> str:
     """Build guidance for standalone tech-review or ai-ready continuation."""
+    # After 3 full verbose injections, switch to trimmed guidance
+    if iteration > 3:
+        return (
+            f"REVIEW PASS (iteration {iteration})\n\n"
+            f"Re-read the plan from the top. Fix anything you find. "
+            f"Output the completion promise when nothing remains."
+        )
+
     if iteration <= 2:
         codebase_instruction = (
             "Read ONLY the main plan file. "
@@ -143,6 +162,7 @@ def build_continue_response(
     review_mode: str = "",
     current_phase: int = 0,
     phase_iterations: int = 0,
+    pressure: int = 0,
 ) -> dict:
     """Build a block response that re-injects the prompt."""
     if review_mode == "full-review" and current_phase > 0:
@@ -160,20 +180,27 @@ def build_continue_response(
         "reason": (
             f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
             f"{guidance}\n\n"
-            f"{_prompt_or_compact(prompt, is_first, current_phase)}"
+            f"{_prompt_or_compact(prompt, is_first, current_phase, pressure)}"
         ),
     }
 
 
-def build_verification_response(prompt: str, iteration: int, max_iter: int) -> dict:
-    """Build a block response when verification is required."""
+def build_verification_response(
+    prompt: str, iteration: int, max_iter: int, pressure: int = 0,
+) -> dict:
+    """Build a block response when verification is required.
+
+    Uses compact/minimal context instead of re-injecting the full prompt.
+    The plan file path is in the compact context; Claude can re-read it.
+    """
+    context = _prompt_or_compact(prompt, is_first_in_phase=False, pressure=pressure)
     return {
         "decision": "block",
         "reason": (
             f"Tim Loop: Iteration {iteration} of {max_iter} (verification required)\n\n"
             f"You output the completion promise but the plan is not verified.\n"
             f"Add <!-- VERIFIED: YES --> after verifying all objectives.\n\n"
-            f"---\n\n{prompt}"
+            f"{context}"
         ),
     }
 
@@ -211,6 +238,30 @@ def build_short_output_continue_response(
             f"Tim Loop: Iteration {iteration} of {max_iter} (response too brief - continuing)\n\n"
             f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
+    }
+
+
+def build_soft_completion_nudge(
+    iteration: int, max_iter: int, review_mode: str = "",
+) -> dict:
+    """Build a minimal nudge when output suggests completion without the promise tag.
+
+    ~30 tokens. Avoids full re-injection when the agent is clearly done but
+    forgot the structured signal.
+    """
+    if review_mode in ("tech-review", "ai-ready", "full-review"):
+        msg = (
+            "If your review is truly complete, output the completion signal. "
+            "If not, continue reviewing."
+        )
+    else:
+        msg = (
+            "You appear to be done but didn't output the completion signal. "
+            "Output `<promise>COMPLETE</promise>` to finish."
+        )
+    return {
+        "decision": "block",
+        "reason": f"Tim Loop: Iteration {iteration} of {max_iter}\n\n{msg}",
     }
 
 

@@ -325,6 +325,24 @@ cmd_hook() {
     # All validation passed - create reinjection marker
     create_reinjection_marker "$marker_file"
 
+    # Increment compaction counter in state file (context pressure tracking)
+    local state_file="${PROMPT_DIR}/.tim-loop-state-${sanitized_id}"
+    if [[ -f "$state_file" ]]; then
+        local compaction_count
+        compaction_count=$(grep '^COMPACTION_COUNT=' "$state_file" 2>/dev/null | head -1 | cut -d'"' -f2)
+        compaction_count=$(( ${compaction_count:-0} + 1 ))
+        # Atomic update: write to temp file and mv
+        local state_tmp
+        state_tmp=$(mktemp "${state_file}.tmp.XXXXXX") || true
+        if [[ -n "$state_tmp" ]]; then
+            # Copy existing state, replacing or appending COMPACTION_COUNT
+            grep -v '^COMPACTION_COUNT=' "$state_file" > "$state_tmp" 2>/dev/null || true
+            echo "COMPACTION_COUNT=\"${compaction_count}\"" >> "$state_tmp"
+            mv -f "$state_tmp" "$state_file"
+            write_log "$log_file" "[$timestamp] COMPACTION_COUNT: $compaction_count" 2>/dev/null || true
+        fi
+    fi
+
     # Log successful reinjection with hash for audit
     local prompt_len=${#prompt}
     write_log "$log_file" "[$timestamp] REINJECT: session=$sanitized_id len=$prompt_len hash=$prompt_hash" 2>/dev/null || true

@@ -68,7 +68,8 @@ def detect_phase_signal(assistant_text: str) -> tuple[int, str] | None:
 
 
 def _handle_no_signal(
-    state: dict, prompt: str, current_phase: int, phase_iterations: int, max_iter: int
+    state: dict, prompt: str, current_phase: int, phase_iterations: int, max_iter: int,
+    pressure: int = 0,
 ) -> dict:
     """Handle case when no phase signal is detected - continue current phase."""
     phase_iter_key = f"PHASE_{current_phase}_ITERATIONS"
@@ -78,13 +79,14 @@ def _handle_no_signal(
     state["CURRENT_ITERATION"] = str(current_iteration)
     save_state(state)
     return build_continue_response(
-        prompt, current_iteration, max_iter, "full-review", current_phase, phase_iterations
+        prompt, current_iteration, max_iter, "full-review", current_phase, phase_iterations,
+        pressure,
     )
 
 
 def _handle_wrong_phase_signal(
     state: dict, prompt: str, current_phase: int, detected_phase: int,
-    phase_iterations: int, max_iter: int
+    phase_iterations: int, max_iter: int, pressure: int = 0,
 ) -> dict:
     """Handle case when wrong phase signal is detected."""
     phase_iter_key = f"PHASE_{current_phase}_ITERATIONS"
@@ -110,7 +112,8 @@ def _handle_wrong_phase_signal(
         f"expected {current_phase}) - continuing"
     )
     return build_continue_response(
-        prompt, current_iteration, max_iter, "full-review", current_phase, phase_iterations
+        prompt, current_iteration, max_iter, "full-review", current_phase, phase_iterations,
+        pressure,
     )
 
 
@@ -223,13 +226,15 @@ def _check_phase_quality_llm(
 
 def _handle_phase_signal(
     state: dict, prompt: str, assistant_text: str, phase_signal: tuple[int, str],
-    current_phase: int, phase_iterations: int, min_iterations: int, max_iterations: int
+    current_phase: int, phase_iterations: int, min_iterations: int, max_iterations: int,
+    pressure: int = 0,
 ) -> dict:
     """Handle detected phase signal - validate and process."""
     detected_phase, _ = phase_signal
     if detected_phase != current_phase:
         return _handle_wrong_phase_signal(
-            state, prompt, current_phase, detected_phase, phase_iterations, max_iterations
+            state, prompt, current_phase, detected_phase, phase_iterations, max_iterations,
+            pressure,
         )
 
     llm_loop = state.get("LLM_LOOP") == "true"
@@ -254,7 +259,7 @@ def _handle_phase_signal(
 
 
 def handle_full_review_phase(
-    state: dict, prompt: str, assistant_text: str
+    state: dict, prompt: str, assistant_text: str, pressure: int = 0,
 ) -> dict | None:
     """Handle phase transitions for full-review mode. Returns response or None."""
     current_phase = int(state.get("CURRENT_PHASE", "1"))
@@ -273,10 +278,10 @@ def handle_full_review_phase(
     phase_signal = detect_phase_signal(assistant_text)
     if phase_signal is None:
         return _handle_no_signal(
-            state, prompt, current_phase, phase_iterations, max_iterations
+            state, prompt, current_phase, phase_iterations, max_iterations, pressure,
         )
 
     return _handle_phase_signal(
         state, prompt, assistant_text, phase_signal,
-        current_phase, phase_iterations, min_iterations, max_iterations
+        current_phase, phase_iterations, min_iterations, max_iterations, pressure,
     )
