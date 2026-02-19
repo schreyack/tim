@@ -60,7 +60,7 @@ patterns:
   # -------------------------------------------------------------------------
   api_versioning:
     standard: "url-prefix"  # Options: url-prefix, header, none
-    reference: "standards/coding/api-design.md#versioning"
+    reference: "standards/coding/api-versioning.md"
     implemented: true
     notes: "/api/v1/ prefix"
 
@@ -71,25 +71,25 @@ patterns:
   # Caching (if used)
   # caching:
   #   standard: "redis"  # Options: redis, in-memory, none
-  #   reference: "standards/deployment/caching.md"
+  #   reference: "standards/deployment/caching.md"  # Forward reference: this file does not yet exist
   #   implemented: false
 
   # Background Jobs (if used)
   # background_jobs:
   #   standard: "celery-redis"  # Options: celery-redis, bull, none
-  #   reference: "standards/deployment/background-jobs.md"
+  #   reference: "standards/deployment/background-jobs.md"  # Forward reference: this file does not yet exist
   #   implemented: false
 
   # File Storage (if used)
   # file_storage:
   #   standard: "s3-compatible"  # Options: s3-compatible, local, none
-  #   reference: "standards/deployment/file-storage.md"
+  #   reference: "standards/deployment/file-storage.md"  # Forward reference: this file does not yet exist
   #   implemented: false
 
   # Real-time (if used)
   # realtime:
   #   standard: "websocket"  # Options: websocket, sse, polling, none
-  #   reference: "standards/deployment/realtime.md"
+  #   reference: "standards/deployment/realtime.md"  # Forward reference: this file does not yet exist
   #   implemented: false
 
   # =========================================================================

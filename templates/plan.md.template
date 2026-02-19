@@ -108,7 +108,7 @@ USAGE NOTES:
 1. Replace all [PLACEHOLDERS] with actual values
 2. Delete these HTML comments before finalizing
 3. Set Plan Review to "required" if plan has 2+ phases, "not-required" otherwise
-4. Use `./plugins/tim-loop/scripts/plan-ops.sh` to manage plan lifecycle:
+4. Use `plan-ops` to manage plan lifecycle:
    - init: Create folder structure
    - import: Bring plan into project from ~/.claude/plans
    - review: Start/complete Plan Review (multi-phase plans)
@@ -117,13 +117,13 @@ USAGE NOTES:
    - abandon: Move to abandoned with reason
 
 PLAN REVIEW WORKFLOW (for multi-phase plans):
-1. ./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md
+1. plan-ops review plans/drafts/my-plan.md
 2. Run the displayed /tim-loop --review command
-3. ./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md --mark-complete
-4. ./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"
+3. plan-ops review plans/drafts/my-plan.md --mark-complete
+4. plan-ops promote plans/drafts/my-plan.md --approver "Name"
 
 EXECUTION WORKFLOW (for active plans):
-1. ./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
+1. plan-ops execute plans/active/my-plan.md
    (Outputs /tim-loop command)
 2. Run the /tim-loop command
 

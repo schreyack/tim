@@ -86,7 +86,7 @@ prisma/
 - Type imports for interfaces
 
 ### Testing
-- `should_what_when_then` naming convention
+- `test_what_when_then` naming convention
 - Unit tests in `tests/unit/`
 - Integration tests in `tests/integration/`
 - 90% coverage minimum

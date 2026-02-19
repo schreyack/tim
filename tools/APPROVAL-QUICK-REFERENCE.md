@@ -1,6 +1,6 @@
 # Plan Approval Quick Reference
 
-Quick reference for human approval commands in `plan-ops.sh`.
+Quick reference for human approval commands in `plan-ops`.
 
 **Key principle:** AI cannot bypass these commands. They require an interactive terminal and block execution from within Claude Code sessions.
 
@@ -26,12 +26,12 @@ Plans with 2+ phases require Plan Review before promotion.
 
 ```bash
 # Step 1: See the Tim Loop review command to run
-./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md
+bin/plan-ops review plans/drafts/my-plan.md
 
 # Step 2: Run the displayed /tim-loop --tech-review command in Claude Code
 
 # Step 3: Mark review complete (human only)
-./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/my-plan.md --mark-complete
+bin/plan-ops review plans/drafts/my-plan.md --mark-complete
 ```
 
 **Single-phase plans skip this step.**
@@ -43,7 +43,7 @@ Plans with 2+ phases require Plan Review before promotion.
 Move an approved plan from `drafts/` to `active/`.
 
 ```bash
-./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
+bin/plan-ops promote plans/drafts/my-plan.md --approver "Your Name"
 ```
 
 **Blocked if:** Multi-phase plan hasn't completed Plan Review.
@@ -55,7 +55,7 @@ Move an approved plan from `drafts/` to `active/`.
 Human reviews plan for AI implementation concerns before execution.
 
 ```bash
-./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Your Name"
+bin/plan-ops ai-ready plans/active/my-plan.md --reviewer "Your Name"
 ```
 
 **Review checklist:** `standards/enforcement/ai-developer-ready-checklist.md`
@@ -74,7 +74,7 @@ Human reviews plan for AI implementation concerns before execution.
 After AI Developer Ready approval, run execute to get the tim-loop command:
 
 ```bash
-./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/my-plan.md
+bin/plan-ops execute plans/active/my-plan.md
 ```
 
 This outputs the `/tim-loop --implement` command to paste into Claude Code.
@@ -85,10 +85,10 @@ This outputs the `/tim-loop --implement` command to paste into Claude Code.
 
 ```bash
 # Mark as completed
-./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/my-plan.md
+bin/plan-ops complete plans/active/my-plan.md
 
 # Or abandon with reason
-./plugins/tim-loop/scripts/plan-ops.sh abandon plans/active/my-plan.md --reason "Requirements changed"
+bin/plan-ops abandon plans/active/my-plan.md --reason "Requirements changed"
 ```
 
 ---
@@ -97,24 +97,24 @@ This outputs the `/tim-loop --implement` command to paste into Claude Code.
 
 ```bash
 # 1. Import plan from Claude's default location
-./plugins/tim-loop/scripts/plan-ops.sh import ~/.claude/plans/xyz.md --name "feature-auth"
+bin/plan-ops import ~/.claude/plans/xyz.md --name "feature-auth"
 
 # 2. For multi-phase plans: Start Plan Review
-./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/2025-01-16-feature-auth.md
+bin/plan-ops review plans/drafts/2025-01-16-feature-auth.md
 # (Run the displayed /tim-loop --tech-review command in Claude Code)
-./plugins/tim-loop/scripts/plan-ops.sh review plans/drafts/2025-01-16-feature-auth.md --mark-complete
+bin/plan-ops review plans/drafts/2025-01-16-feature-auth.md --mark-complete
 
 # 3. Promote to active
-./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
+bin/plan-ops promote plans/drafts/2025-01-16-feature-auth.md --approver "Tim"
 
 # 4. Mark AI Developer Ready
-./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/2025-01-16-feature-auth.md --reviewer "Tim"
+bin/plan-ops ai-ready plans/active/2025-01-16-feature-auth.md --reviewer "Tim"
 
 # 5. Execute (outputs tim-loop command)
-./plugins/tim-loop/scripts/plan-ops.sh execute plans/active/2025-01-16-feature-auth.md
+bin/plan-ops execute plans/active/2025-01-16-feature-auth.md
 
 # 6. After /tim-loop completes: Mark complete
-./plugins/tim-loop/scripts/plan-ops.sh complete plans/active/2025-01-16-feature-auth.md
+bin/plan-ops complete plans/active/2025-01-16-feature-auth.md
 ```
 
 ---
@@ -132,6 +132,6 @@ This outputs the `/tim-loop --implement` command to paste into Claude Code.
 
 ## See Also
 
-- `./plugins/tim-loop/scripts/plan-ops.sh help` - Full command documentation
+- `bin/plan-ops help` - Full command documentation
 - `standards/operations/plan-management.md` - Complete plan lifecycle docs
 - `standards/enforcement/ai-developer-ready-checklist.md` - AI review checklist

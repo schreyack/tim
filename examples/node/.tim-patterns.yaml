@@ -43,7 +43,7 @@ patterns:
   # Test patterns
   testing:
     framework: Vitest
-    naming: "should_{what}_{when}_{then}"
+    naming: "test_{what}_{when}_{then}"
     structure:
       unit: tests/unit/
       integration: tests/integration/

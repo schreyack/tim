@@ -72,7 +72,7 @@ jobs:
         run: |
           echo "Checking file sizes..."
           failed=0
-          for f in $(find src -name "*.ts" -o -name "*.tsx" -type f 2>/dev/null | grep -v node_modules); do
+          for f in $(find src -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | grep -v node_modules); do
             lines=$(wc -l < "$f")
             if [ $lines -gt 400 ]; then
               echo "ERROR: $f has $lines lines (max 400)"
@@ -295,7 +295,7 @@ jobs:
 #         ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 #
 #     - name: Deploy via ops.sh
-#       run: ./ops.sh deploy --environment production --confirm
+#       run: ./ops.sh --env prod deploy --confirm
 #
 #     - name: Verify deployment
-#       run: ./ops.sh health --environment production
+#       run: ./ops.sh --env prod health

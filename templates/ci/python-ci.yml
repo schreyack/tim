@@ -269,7 +269,7 @@ jobs:
 #         ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 #
 #     - name: Deploy via ops.sh
-#       run: ./ops.sh deploy --environment production --confirm
+#       run: ./ops.sh --env prod deploy --confirm
 #
 #     - name: Verify deployment
-#       run: ./ops.sh health --environment production
+#       run: ./ops.sh --env prod health
