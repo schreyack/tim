@@ -67,7 +67,7 @@ Plans with 0-1 phases can be promoted directly without Plan Review.
 │     (auto-detects phase count, sets Plan Review status)         │
 │           │                                                     │
 │           ▼                                                     │
-│  2. plan-ops.sh review plans/drafts/my-plan.md                  │
+│  2. plan-ops review plans/drafts/my-plan.md                  │
 │     → If single-phase: "Not required, can promote directly"     │
 │     → If multi-phase: Shows Tim Loop review command to run      │
 │           │                                                     │
@@ -76,11 +76,11 @@ Plans with 0-1 phases can be promoted directly without Plan Review.
 │     (Iterates until TECH-REVIEW-DONE or max iterations)         │
 │           │                                                     │
 │           ▼                                                     │
-│  4. plan-ops.sh review plans/drafts/my-plan.md --mark-complete  │
+│  4. plan-ops review plans/drafts/my-plan.md --mark-complete  │
 │     (Updates Status Header: Plan Review = completed)            │
 │           │                                                     │
 │           ▼                                                     │
-│  5. plan-ops.sh promote plans/drafts/my-plan.md --approver "N"  │
+│  5. plan-ops promote plans/drafts/my-plan.md --approver "N"  │
 │     (Promotion now allowed)                                     │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -91,7 +91,7 @@ Plans with 0-1 phases can be promoted directly without Plan Review.
 #### Start Plan Review
 
 ```bash
-plan-ops.sh review plans/drafts/my-plan.md
+plan-ops review plans/drafts/my-plan.md
 ```
 
 **Output for multi-phase plans:**
@@ -108,7 +108,7 @@ plan-ops.sh review plans/drafts/my-plan.md
 #### Mark Review Complete
 
 ```bash
-plan-ops.sh review plans/drafts/my-plan.md --mark-complete
+plan-ops review plans/drafts/my-plan.md --mark-complete
 ```
 
 Updates the plan's Status Header:
@@ -157,7 +157,7 @@ The standard command for plan review:
 │  1. Plan promoted to active/ and marked AI Developer Ready      │
 │           │                                                     │
 │           ▼                                                     │
-│  2. plan-ops.sh execute plans/active/my-plan.md                 │
+│  2. plan-ops execute plans/active/my-plan.md                 │
 │     → Outputs tim-loop command                                  │
 │           │                                                     │
 │           ▼                                                     │
@@ -165,7 +165,7 @@ The standard command for plan review:
 │     (Tim Loop runs with structured methodology)                 │
 │           │                                                     │
 │           ▼                                                     │
-│  4. plan-ops.sh complete plans/active/my-plan.md                │
+│  4. plan-ops complete plans/active/my-plan.md                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -175,7 +175,7 @@ The standard command for plan review:
 #### Execute Plan
 
 ```bash
-plan-ops.sh execute plans/active/my-plan.md
+plan-ops execute plans/active/my-plan.md
 ```
 
 - Checks AI Developer Ready approval (required)
@@ -265,7 +265,7 @@ Draft → Plan Review → Active → AI Developer Ready → Execute → Tim Loop
 Run the Plan Review workflow:
 
 ```bash
-plan-ops.sh review plans/drafts/my-plan.md
+plan-ops review plans/drafts/my-plan.md
 # Follow the displayed instructions
 ```
 

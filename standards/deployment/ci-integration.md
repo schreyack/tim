@@ -57,7 +57,7 @@ This document explains how CI/CD pipelines integrate with the TIM four-gate mode
 │  │ GATE 3: DEPLOYMENT (CI triggers ops.sh)                      │           │
 │  │                                                               │           │
 │  │  ┌─────────────────────────────────────────────────────┐     │           │
-│  │  │ ops.sh deploy --environment production --confirm     │     │           │
+│  │  │ ops.sh --env prod deploy --confirm                    │     │           │
 │  │  │                                                      │     │           │
 │  │  │  1. Security verification (verify-ops-security.sh)  │     │           │
 │  │  │  2. Sync files to remote                            │     │           │

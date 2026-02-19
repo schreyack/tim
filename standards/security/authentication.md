@@ -252,7 +252,7 @@ Authentication must be tested at unit and integration levels.
 ```toml
 [project.dependencies]
 bcrypt = "^4.1"
-python-jose = { version = "^3.3", extras = ["cryptography"] }
+PyJWT = "^2.8"
 ```
 
 ### Node.js

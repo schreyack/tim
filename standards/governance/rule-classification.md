@@ -209,7 +209,7 @@ These are calibrations based on current understanding. They may change as AI cap
 | Canary traffic split | 10% minimum | Operational data suggests different % |
 | Canary observation window | 5 minutes | Operational data suggests different window |
 | Canary min requests | 100 | Operational data suggests different threshold |
-| Auto-rollback error threshold | 1% | Operational data suggests different threshold |
+| Auto-rollback error threshold | 0.5% | Operational data suggests different threshold |
 | Auto-rollback latency threshold | 2x P99 baseline | Operational data suggests different threshold |
 | Secrets rotation (JWT) | Quarterly | Security guidance changes |
 | Secrets rotation (API keys) | Annually | Security guidance changes |

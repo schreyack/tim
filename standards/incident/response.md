@@ -61,13 +61,13 @@ Incidents may be detected through:
 
 ```bash
 # Check current deployment
-./ops.sh status
+./ops.sh --env prod status
 
 # Rollback to previous version
-./ops.sh rollback
+./ops.sh --env prod rollback
 
 # Verify rollback succeeded
-./ops.sh health-check
+./ops.sh --env prod health
 ```
 
 ## Communication Protocol

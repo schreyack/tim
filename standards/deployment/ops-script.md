@@ -433,17 +433,17 @@ deploy:
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
       run: |
-        ./ops.sh deploy --environment staging --confirm
+        ./ops.sh --env staging deploy --confirm
 
     - name: Run integration tests
       run: |
-        ./ops.sh health --environment staging
+        ./ops.sh --env staging health
         npm run test:integration
 
     - name: Deploy to production
       if: github.ref == 'refs/heads/main'
       run: |
-        ./ops.sh deploy --environment production --confirm
+        ./ops.sh --env prod deploy --confirm
 ```
 
 ## Compliance Checklist

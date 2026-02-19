@@ -360,7 +360,7 @@ Before promoting draft → active:
 
 ## Plan Review Gate for Multi-Phase Plans
 
-Multi-phase plans (2+ phases) **MUST** complete Plan Review before promotion to active. This is a hard gate enforced by `plan-ops.sh`.
+Multi-phase plans (2+ phases) **MUST** complete Plan Review before promotion to active. This is a hard gate enforced by `plan-ops`.
 
 ### Why Plan Review?
 
@@ -568,9 +568,9 @@ A Claude Code hook intercepts Bash commands and blocks approval patterns:
 
 ```bash
 # ~/.claude/hooks/block-ai-approvals.sh blocks:
-# - plan-ops.sh promote --approver
-# - plan-ops.sh ai-ready --reviewer
-# - plan-ops.sh review --mark-complete
+# - plan-ops promote --approver
+# - plan-ops ai-ready --reviewer
+# - plan-ops review --mark-complete
 ```
 
 ### Layer 2: TTY Verification
