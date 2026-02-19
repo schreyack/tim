@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Catches "simplest fix", "easiest solution", "quickest approach" language
   - Gentle response that encourages analysis of alternatives, not accusatory
   - New mitigation patterns (16-20) for when Claude considers alternatives
-- New file: `plugins/tim-loop/scripts/patterns_shortcut.py`
-- New test file: `plugins/tim-loop/scripts/test_excuse_patterns_shortcut.py`
+- New file: `marketplace/plugins/tim-loop/scripts/patterns_shortcut.py`
+- New test file: `marketplace/plugins/tim-loop/scripts/test_excuse_patterns_shortcut.py`
 
 ### Changed
 

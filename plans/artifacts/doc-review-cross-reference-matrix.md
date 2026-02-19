@@ -6,12 +6,12 @@
 
 | # | File | Status | Notes |
 |---|------|--------|-------|
-| 2.1 | `README.md` | pending | |
-| 2.2 | `CLAUDE.md` | pending | |
-| 2.3 | `CHANGELOG.md` | pending | |
-| 2.4 | `CONTRIBUTING.md` | pending | |
-| 2.5 | `SECURITY.md` | pending | |
-| 2.6 | `CODE_OF_CONDUCT.md` | pending | |
+| 2.1 | `README.md` | edited | Fixed plugin paths (plugins/ → marketplace/plugins/), added 13 missing standards to index |
+| 2.2 | `CLAUDE.md` | reviewed | No issues found |
+| 2.3 | `CHANGELOG.md` | edited | Fixed stale plugin paths; note: changelog stops at v2.5.6 but repo is at v2.77.0 |
+| 2.4 | `CONTRIBUTING.md` | reviewed | No issues found |
+| 2.5 | `SECURITY.md` | reviewed | No issues found |
+| 2.6 | `CODE_OF_CONDUCT.md` | reviewed | No issues found |
 
 ### Phase 3: Standards Documentation (40 files)
 

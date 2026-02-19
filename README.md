@@ -286,7 +286,7 @@ plan-ops adds human approval gates to the workflow. Use it when:
 
 ### Learn More
 
-- [Full plugin documentation](plugins/tim-loop/README.md) - all options, modes, troubleshooting
+- [Full plugin documentation](marketplace/plugins/tim-loop/README.md) - all options, modes, troubleshooting
 
 ---
 
@@ -295,7 +295,7 @@ plan-ops adds human approval gates to the workflow. Use it when:
 | Goal | Where to Look |
 |------|---------------|
 | **Install Tim Loop plugin** | [Just Want Tim Loop?](#just-want-tim-loop) (above) |
-| **Understand Tim Loop in depth** | [plugins/tim-loop/README.md](plugins/tim-loop/README.md) |
+| **Understand Tim Loop in depth** | [marketplace/plugins/tim-loop/README.md](marketplace/plugins/tim-loop/README.md) |
 | **Set up a new TIM-compliant project** | [New Project Setup](#new-project-setup) (below) |
 | **Migrate an existing project to TIM** | [Existing Project Migration](#existing-project-migration) (below) |
 | **Use the Python shared library** | [libs/python/README.md](libs/python/README.md) |
@@ -457,8 +457,9 @@ tim/
 ├── libs/                  # Shared libraries (required by TIM)
 │   ├── python/            # tim-lib Python package
 │   └── node/              # @tim/lib Node.js package
-├── plugins/               # Claude Code plugins
-│   └── tim-loop/          # Tim Loop plugin
+├── marketplace/            # Claude Code plugins
+│   └── plugins/
+│       └── tim-loop/      # Tim Loop plugin
 ├── examples/              # Reference implementations
 │   ├── python/            # Python/FastAPI example
 │   └── node/              # Node.js/Express example
@@ -481,6 +482,8 @@ tim/
 | [strict-compliance.md](standards/enforcement/strict-compliance.md) | Pattern registry and human approval workflow |
 | [ai-review-checklist.md](standards/enforcement/ai-review-checklist.md) | Human review checklist for AI-generated code |
 | [ai-behavioral-gates.md](standards/enforcement/ai-behavioral-gates.md) | Real-time enforcement during Claude Code sessions |
+| [ai-developer-ready-checklist.md](standards/enforcement/ai-developer-ready-checklist.md) | Pre-implementation review checklist for plans |
+| [ai-instruction-enforcement.md](standards/enforcement/ai-instruction-enforcement.md) | Mechanisms to prevent AI from ignoring instructions |
 
 ### Operations
 
@@ -490,6 +493,7 @@ tim/
 | [ai-coordination.md](standards/operations/ai-coordination.md) | Multi-AI developer coordination |
 | [legacy-onboarding.md](standards/operations/legacy-onboarding.md) | Migration playbook for existing projects |
 | [afk-coding-patterns.md](standards/operations/afk-coding-patterns.md) | Extended autonomous development |
+| [tim-loop-integration.md](standards/operations/tim-loop-integration.md) | Tim Loop execution and review in plan workflows |
 
 ### Coding
 
@@ -507,6 +511,10 @@ tim/
 | [requirements.md](standards/testing/requirements.md) | 90% coverage, TDD workflow |
 | [e2e-requirements.md](standards/testing/e2e-requirements.md) | True e2e testing, route discovery |
 | [test-migration.md](standards/testing/test-migration.md) | Convert tests to TIM standards |
+| [dev-server-verification.md](standards/testing/dev-server-verification.md) | Frontend verification during AI development (advisory) |
+| [promotion-gates.md](standards/testing/promotion-gates.md) | Automated testing gates for environment promotion |
+| [test-data-sot.md](standards/testing/test-data-sot.md) | Centralized test data source of truth |
+| [test-helpers.md](standards/testing/test-helpers.md) | Reusable test helpers library |
 
 ### Security
 
@@ -515,6 +523,7 @@ tim/
 | [owasp-checklist.md](standards/security/owasp-checklist.md) | OWASP Top 10 coverage |
 | [secrets.md](standards/security/secrets.md) | Secrets management, rotation |
 | [authentication.md](standards/security/authentication.md) | JWT, password hashing |
+| [headers.md](standards/security/headers.md) | Required HTTP security headers on all responses |
 
 ### Database
 
@@ -532,6 +541,21 @@ tim/
 | [feature-flags.md](standards/deployment/feature-flags.md) | Ship features safely |
 | [canary.md](standards/deployment/canary.md) | 10% rollout, auto-rollback |
 | [observability.md](standards/deployment/observability.md) | Logs, metrics, traces, alerts |
+| [command-matrix.md](standards/deployment/command-matrix.md) | ops.sh commands by environment and safety tier |
+| [environments.md](standards/deployment/environments.md) | Standardized environments.yaml configuration |
+| [remote-only.md](standards/deployment/remote-only.md) | Remote-first deployment policy and enforcement |
+
+### Architecture
+
+| Document | Summary |
+|----------|---------|
+| [shared-libraries.md](standards/architecture/shared-libraries.md) | Shared library requirements (tim-lib, @tim/lib) |
+
+### Governance
+
+| Document | Summary |
+|----------|---------|
+| [rule-classification.md](standards/governance/rule-classification.md) | Principle vs contextual rule classification |
 
 ### Incident Response
 
