@@ -231,6 +231,7 @@ Exceptions to any gate require:
 4. **Time limit**: When will the exception expire?
 5. **Approval**: Security team sign-off for security-related exceptions
 
+<!-- Forward reference: exceptions.md does not yet exist -->
 Exceptions are tracked in `exceptions.md` with expiration dates. Expired exceptions are removed and the gate is re-enabled.
 
 ## Monitoring Gates

@@ -397,11 +397,13 @@ case $NEXT in
     # Level 1 → 2: Need baseline
     if [ ! -f .tim-ratchet/baseline.yaml ]; then
       echo "Capturing baseline..."
+      # Forward reference: capture-baseline.sh does not yet exist
       ./tools/capture-baseline.sh
     fi
     ;;
   3)
     # Level 2 → 3: Need 25% improvement
+    # Forward reference: check-improvement.sh does not yet exist
     ./tools/check-improvement.sh 25
     ;;
   4)

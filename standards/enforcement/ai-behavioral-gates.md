@@ -141,10 +141,7 @@ Response S addresses "test-as-goal" thinking where the AI treats passing tests a
 
 For new TIM projects, use the installation script:
 
-```bash
-# From tim repo
-./templates/hooks/install-hooks.sh /path/to/project
-```
+<!-- Forward reference: install-hooks.sh does not yet exist -->
 
 For manual installation:
 
@@ -152,8 +149,8 @@ For manual installation:
 
    ```bash
    mkdir -p .claude/hooks
-   cp templates/hooks/code-quality-validator.py .claude/hooks/
-   cp templates/hooks/excuse-detector.py .claude/hooks/
+   cp marketplace/plugins/tim-loop/scripts/code-quality-validator.py .claude/hooks/
+   cp marketplace/plugins/tim-loop/scripts/excuse_detector_v2.py .claude/hooks/
    chmod +x .claude/hooks/*.py
    ```
 
@@ -179,7 +176,7 @@ For manual installation:
            "hooks": [
              {
                "type": "command",
-               "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/excuse-detector.py\""
+               "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/excuse_detector_v2.py\""
              }
            ]
          }
@@ -209,7 +206,8 @@ Patterns are organized into modules for maintainability:
 - `patterns_shortcut.py` - Shortcut reasoning patterns (93-100)
 - `patterns_failure_dismissal.py` - Failure dismissal patterns (101-108)
 - `patterns_test_manipulation.py` - Test manipulation patterns (109-116)
-- `excuse_patterns.py` - Aggregates all patterns
+- `excuse_patterns.yaml` - Pattern definitions in YAML format
+- `excuse_pattern_loader.py` - Loads and compiles patterns from YAML
 
 To add a new pattern, edit the appropriate module:
 
