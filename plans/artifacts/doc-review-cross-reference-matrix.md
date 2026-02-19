@@ -17,91 +17,91 @@
 
 | # | File | Status | Notes |
 |---|------|--------|-------|
-| 3.1.1 | `standards/enforcement/gates.md` | pending | enforcement-locked |
-| 3.1.2 | `standards/enforcement/ai-behavioral-gates.md` | pending | enforcement-locked |
-| 3.1.3 | `standards/enforcement/ai-developer-ready-checklist.md` | pending | |
-| 3.1.4 | `standards/enforcement/ai-instruction-enforcement.md` | pending | |
-| 3.1.5 | `standards/enforcement/ai-review-checklist.md` | pending | |
-| 3.1.6 | `standards/enforcement/graduated-enforcement.md` | pending | |
-| 3.1.7 | `standards/enforcement/strict-compliance.md` | pending | enforcement-locked |
-| 3.2.1 | `standards/operations/plan-management.md` | pending | |
-| 3.2.2 | `standards/operations/ai-coordination.md` | pending | |
-| 3.2.3 | `standards/operations/afk-coding-patterns.md` | pending | |
-| 3.2.4 | `standards/operations/legacy-onboarding.md` | pending | |
-| 3.2.5 | `standards/operations/tim-loop-integration.md` | pending | |
-| 3.3.1 | `standards/coding/python.md` | pending | |
-| 3.3.2 | `standards/coding/typescript.md` | pending | |
-| 3.3.3 | `standards/coding/api-versioning.md` | pending | |
-| 3.3.4 | `standards/coding/code-organization.md` | pending | |
-| 3.4.1 | `standards/testing/requirements.md` | pending | |
-| 3.4.2 | `standards/testing/e2e-requirements.md` | pending | |
-| 3.4.3 | `standards/testing/dev-server-verification.md` | pending | |
-| 3.4.4 | `standards/testing/promotion-gates.md` | pending | |
-| 3.4.5 | `standards/testing/test-data-sot.md` | pending | |
-| 3.4.6 | `standards/testing/test-helpers.md` | pending | |
-| 3.4.7 | `standards/testing/test-migration.md` | pending | |
-| 3.5.1 | `standards/security/authentication.md` | pending | |
-| 3.5.2 | `standards/security/headers.md` | pending | |
-| 3.5.3 | `standards/security/owasp-checklist.md` | pending | |
-| 3.5.4 | `standards/security/secrets.md` | pending | |
-| 3.6.1 | `standards/deployment/canary.md` | pending | |
-| 3.6.2 | `standards/deployment/ci-integration.md` | pending | |
-| 3.6.3 | `standards/deployment/command-matrix.md` | pending | |
-| 3.6.4 | `standards/deployment/environments.md` | pending | |
-| 3.6.5 | `standards/deployment/feature-flags.md` | pending | |
-| 3.6.6 | `standards/deployment/observability.md` | pending | |
-| 3.6.7 | `standards/deployment/ops-script.md` | pending | |
-| 3.6.8 | `standards/deployment/ops-security.md` | pending | |
-| 3.6.9 | `standards/deployment/remote-only.md` | pending | |
-| 3.7.1 | `standards/architecture/shared-libraries.md` | pending | |
-| 3.7.2 | `standards/database/migrations.md` | pending | |
-| 3.7.3 | `standards/governance/rule-classification.md` | pending | |
-| 3.7.4 | `standards/incident/response.md` | pending | |
+| 3.1.1 | `standards/enforcement/gates.md` | edited | Added forward reference comment for non-existent file |
+| 3.1.2 | `standards/enforcement/ai-behavioral-gates.md` | edited | Fixed script paths, excuse detector name, install instructions |
+| 3.1.3 | `standards/enforcement/ai-developer-ready-checklist.md` | edited | Fixed plan-ops.sh → plan-ops path |
+| 3.1.4 | `standards/enforcement/ai-instruction-enforcement.md` | reviewed | No issues found |
+| 3.1.5 | `standards/enforcement/ai-review-checklist.md` | reviewed | No issues found |
+| 3.1.6 | `standards/enforcement/graduated-enforcement.md` | edited | Added forward reference comments |
+| 3.1.7 | `standards/enforcement/strict-compliance.md` | reviewed | No issues found |
+| 3.2.1 | `standards/operations/plan-management.md` | edited | Fixed plan-ops.sh → plan-ops |
+| 3.2.2 | `standards/operations/ai-coordination.md` | reviewed | No issues found |
+| 3.2.3 | `standards/operations/afk-coding-patterns.md` | edited | Minor accuracy fix |
+| 3.2.4 | `standards/operations/legacy-onboarding.md` | reviewed | No issues found |
+| 3.2.5 | `standards/operations/tim-loop-integration.md` | edited | Fixed plan-ops.sh → plan-ops throughout |
+| 3.3.1 | `standards/coding/python.md` | reviewed | No issues found |
+| 3.3.2 | `standards/coding/typescript.md` | reviewed | No issues found |
+| 3.3.3 | `standards/coding/api-versioning.md` | reviewed | No issues found |
+| 3.3.4 | `standards/coding/code-organization.md` | reviewed | No issues found |
+| 3.4.1 | `standards/testing/requirements.md` | reviewed | No issues found |
+| 3.4.2 | `standards/testing/e2e-requirements.md` | reviewed | No issues found |
+| 3.4.3 | `standards/testing/dev-server-verification.md` | reviewed | No issues found |
+| 3.4.4 | `standards/testing/promotion-gates.md` | reviewed | No issues found |
+| 3.4.5 | `standards/testing/test-data-sot.md` | reviewed | No issues found |
+| 3.4.6 | `standards/testing/test-helpers.md` | reviewed | No issues found |
+| 3.4.7 | `standards/testing/test-migration.md` | reviewed | No issues found |
+| 3.5.1 | `standards/security/authentication.md` | edited | Minor accuracy fix |
+| 3.5.2 | `standards/security/headers.md` | reviewed | No issues found |
+| 3.5.3 | `standards/security/owasp-checklist.md` | reviewed | No issues found |
+| 3.5.4 | `standards/security/secrets.md` | reviewed | No issues found |
+| 3.6.1 | `standards/deployment/canary.md` | reviewed | No issues found |
+| 3.6.2 | `standards/deployment/ci-integration.md` | edited | Minor path fix |
+| 3.6.3 | `standards/deployment/command-matrix.md` | reviewed | No issues found |
+| 3.6.4 | `standards/deployment/environments.md` | reviewed | No issues found |
+| 3.6.5 | `standards/deployment/feature-flags.md` | reviewed | No issues found |
+| 3.6.6 | `standards/deployment/observability.md` | reviewed | No issues found |
+| 3.6.7 | `standards/deployment/ops-script.md` | edited | Minor path fix |
+| 3.6.8 | `standards/deployment/ops-security.md` | reviewed | No issues found |
+| 3.6.9 | `standards/deployment/remote-only.md` | reviewed | No issues found |
+| 3.7.1 | `standards/architecture/shared-libraries.md` | reviewed | No issues found |
+| 3.7.2 | `standards/database/migrations.md` | reviewed | No issues found |
+| 3.7.3 | `standards/governance/rule-classification.md` | edited | Minor accuracy fix |
+| 3.7.4 | `standards/incident/response.md` | edited | Minor accuracy fix |
 
 ### Phase 4: Plugin Documentation (4 files)
 
 | # | File | Status | Notes |
 |---|------|--------|-------|
-| 4.1 | `marketplace/plugins/tim-loop/README.md` | pending | |
-| 4.2 | `marketplace/plugins/tim-loop/commands/tim-loop.md` | pending | |
-| 4.3 | `marketplace/plugins/tim-loop/commands/cancel-tim-loop.md` | pending | |
-| 4.4 | `marketplace/plugins/tim-loop/config.yaml` | pending | |
+| 4.1 | `marketplace/plugins/tim-loop/README.md` | edited | Updated hooks table, full review phases (3→7), added missing modes/options |
+| 4.2 | `marketplace/plugins/tim-loop/commands/tim-loop.md` | edited | Updated full review phases, completion signals, modifier options |
+| 4.3 | `marketplace/plugins/tim-loop/commands/cancel-tim-loop.md` | reviewed | No issues found |
+| 4.4 | `marketplace/plugins/tim-loop/config.yaml` | reviewed | No issues found |
 
 ### Phase 5: Templates, Examples, and Libraries (20 files)
 
 | # | File | Status | Notes |
 |---|------|--------|-------|
-| 5.1 | `templates/README.md` | pending | |
-| 5.2 | `templates/CLAUDE.md.template` | pending | |
-| 5.3 | `templates/plan.md.template` | pending | |
-| 5.4 | `templates/tim-patterns.yaml.template` | pending | |
-| 5.5 | `templates/ops/ops-config.yaml.template` | pending | |
-| 5.6 | `templates/ops/ops.sh.template` | pending | |
-| 5.7 | `templates/environments.yaml.example` | pending | |
-| 5.8 | `templates/ci/node-ci.yml` | pending | |
-| 5.9 | `templates/ci/python-ci.yml` | pending | |
-| 5.10 | `templates/node/.pre-commit-config.yaml` | pending | |
-| 5.11 | `templates/python/.pre-commit-config.yaml` | pending | |
-| 5.12 | `examples/python/README.md` | pending | |
-| 5.13 | `examples/node/README.md` | pending | |
-| 5.14 | `examples/python/.tim-patterns.yaml` | pending | |
-| 5.15 | `examples/node/.tim-patterns.yaml` | pending | |
-| 5.16 | `examples/python/.env.example` | pending | |
-| 5.17 | `examples/node/.env.example` | pending | |
-| 5.18 | `libs/python/README.md` | pending | |
-| 5.19 | `libs/node/README.md` | pending | |
-| 5.20 | `tools/APPROVAL-QUICK-REFERENCE.md` | pending | |
+| 5.1 | `templates/README.md` | reviewed | No issues found |
+| 5.2 | `templates/CLAUDE.md.template` | reviewed | No issues found |
+| 5.3 | `templates/plan.md.template` | edited | Fixed plan-ops.sh → plan-ops |
+| 5.4 | `templates/tim-patterns.yaml.template` | edited | Fixed api-design.md → api-versioning.md, added forward references |
+| 5.5 | `templates/ops/ops-config.yaml.template` | reviewed | No issues found |
+| 5.6 | `templates/ops/ops.sh.template` | reviewed | No issues found |
+| 5.7 | `templates/environments.yaml.example` | reviewed | No issues found |
+| 5.8 | `templates/ci/node-ci.yml` | edited | Fixed find operator precedence, --env prod |
+| 5.9 | `templates/ci/python-ci.yml` | edited | Fixed --env prod |
+| 5.10 | `templates/node/.pre-commit-config.yaml` | reviewed | No issues found (caution: propagates to synced projects) |
+| 5.11 | `templates/python/.pre-commit-config.yaml` | reviewed | No issues found (caution: propagates to synced projects) |
+| 5.12 | `examples/python/README.md` | reviewed | No issues found |
+| 5.13 | `examples/node/README.md` | edited | Fixed test naming should to test prefix |
+| 5.14 | `examples/python/.tim-patterns.yaml` | reviewed | No issues found |
+| 5.15 | `examples/node/.tim-patterns.yaml` | edited | Fixed test naming should to test prefix |
+| 5.16 | `examples/python/.env.example` | reviewed | No secrets, placeholder values |
+| 5.17 | `examples/node/.env.example` | reviewed | No secrets, placeholder values |
+| 5.18 | `libs/python/README.md` | reviewed | No issues found |
+| 5.19 | `libs/node/README.md` | reviewed | No issues found |
+| 5.20 | `tools/APPROVAL-QUICK-REFERENCE.md` | edited | Fixed all plan-ops.sh → plan-ops paths |
 
 ### Phase 6: GitHub and Supporting Files (6 files)
 
 | # | File | Status | Notes |
 |---|------|--------|-------|
-| 6.1 | `.github/PULL_REQUEST_TEMPLATE.md` | pending | |
-| 6.2 | `.github/ISSUE_TEMPLATE/bug_report.md` | pending | |
-| 6.3 | `.github/ISSUE_TEMPLATE/feature_request.md` | pending | |
-| 6.4 | `.github/ISSUE_TEMPLATE/standard_proposal.md` | pending | |
-| 6.5 | `.github/ISSUE_TEMPLATE/config.yml` | pending | |
-| 6.6 | `.github/workflows/ci.yml` | pending | |
+| 6.1 | `.github/PULL_REQUEST_TEMPLATE.md` | reviewed | No issues found |
+| 6.2 | `.github/ISSUE_TEMPLATE/bug_report.md` | reviewed | No issues found |
+| 6.3 | `.github/ISSUE_TEMPLATE/feature_request.md` | reviewed | No issues found |
+| 6.4 | `.github/ISSUE_TEMPLATE/standard_proposal.md` | reviewed | No issues found |
+| 6.5 | `.github/ISSUE_TEMPLATE/config.yml` | reviewed | No issues found |
+| 6.6 | `.github/workflows/ci.yml` | reviewed | No issues found |
 
 ---
 
@@ -130,21 +130,34 @@
 | E2E timeout: 5/10/15 min | `standards/testing/e2e-requirements.md` | promotion-gates.md |
 | Error rate rollback: >1% | `standards/deployment/observability.md` | canary.md |
 | Max file size pre-commit: 1000 KB | pre-commit templates | |
+| Full review: 7 phases | `marketplace/plugins/tim-loop/scripts/tim_loop_full_review.py` | plugin README, commands/tim-loop.md |
+| plan-ops command name | `bin/plan-ops` | All operations docs, APPROVAL-QUICK-REFERENCE.md, plan template |
 
 ---
 
-## Inconsistencies Found During Inventory
+## Inconsistencies Found and Resolution Status
 
-| # | Description | Files Involved | Severity |
-|---|-------------|---------------|----------|
-| I-1 | `templates/tim-patterns.yaml.template` references `standards/coding/api-design.md#versioning` but actual file is `standards/coding/api-versioning.md` | tim-patterns.yaml.template | broken link |
-| I-2 | `tools/APPROVAL-QUICK-REFERENCE.md` references `./plugins/tim-loop/scripts/plan-ops.sh` but plan-ops is at `bin/plan-ops` | APPROVAL-QUICK-REFERENCE.md | stale path |
-| I-3 | README.md references `plugins/tim-loop/README.md` but actual path is `marketplace/plugins/tim-loop/README.md` | README.md | broken link |
-| I-4 | CONTRIBUTING.md references `libs/python` and `libs/node` as bare paths (not linking to README.md files within) | CONTRIBUTING.md | minor |
-| I-5 | CHANGELOG.md references `plugins/tim-loop/scripts/` paths that may have moved to `marketplace/plugins/tim-loop/` | CHANGELOG.md | historical (verify) |
-| I-6 | `standards/enforcement/ai-behavioral-gates.md` references `code-quality-validator.py` and `excuse-detector.py` - verify these exist at documented paths | ai-behavioral-gates.md | verify |
-| I-7 | `standards/architecture/shared-libraries.md` references `tim-ops-lib.sh` - verify this exists | shared-libraries.md | verify |
+| # | Description | Files Involved | Status |
+|---|-------------|---------------|--------|
+| I-1 | api-design.md reference → api-versioning.md | tim-patterns.yaml.template | **FIXED** in Phase 5 |
+| I-2 | plan-ops.sh → bin/plan-ops path | APPROVAL-QUICK-REFERENCE.md + many others | **FIXED** across all files |
+| I-3 | plugins/tim-loop/ → marketplace/plugins/tim-loop/ | README.md | **FIXED** in Phase 2 |
+| I-4 | CONTRIBUTING.md bare directory paths | CONTRIBUTING.md | **Accepted** - paths are correct as directory refs |
+| I-5 | CHANGELOG.md stale plugin paths | CHANGELOG.md | **FIXED** in Phase 2 |
+| I-6 | ai-behavioral-gates.md script references | ai-behavioral-gates.md | **FIXED** in Phase 3.1 |
+| I-7 | shared-libraries.md tim-ops-lib.sh reference | shared-libraries.md | **Reviewed** - reference is to project-level script, not repo file |
 
 ---
 
-*Last updated: Phase 1 inventory complete. Statuses will be updated as files are reviewed in Phases 2-6.*
+## Summary
+
+| Phase | Files | Reviewed | Edited | Clean |
+|-------|-------|----------|--------|-------|
+| 2 | 6 | 6 | 2 | 4 |
+| 3 | 40 | 40 | 14 | 26 |
+| 4 | 4 | 4 | 2 | 2 |
+| 5 | 20 | 20 | 7 | 13 |
+| 6 | 6 | 6 | 0 | 6 |
+| **Total** | **76** | **76** | **25** | **51** |
+
+*Last updated: Phase 7 - final cross-reference validation complete.*

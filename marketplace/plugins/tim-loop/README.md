@@ -17,7 +17,7 @@ Tim Loop is a Claude Code plugin that implements a four-phase workflow for AI-dr
 - [Modes](#modes)
 - [Options Reference](#options-reference)
 - [Completion Rules](#completion-rules)
-- [Integration with plan-ops.sh](#integration-with-plan-opssh)
+- [Integration with plan-ops](#integration-with-plan-ops)
 - [SessionStart Hook (Prompt Preservation)](#sessionstart-hook-prompt-preservation)
 - [Cleanup](#cleanup)
 - [File Structure](#file-structure)
@@ -87,7 +87,7 @@ When detected, completion is **blocked**. Claude cannot finish until issues are 
 
 **4. Human-Gated Plan Approval**
 
-Through integration with plan-ops.sh, Tim Loop enforces:
+Through integration with plan-ops, Tim Loop enforces:
 
 - **AI Developer Ready approval** - Human verifies plan is unambiguous before AI implements
 - **No bypass flags** - AI cannot auto-approve itself; approval requires interactive terminal
@@ -154,7 +154,7 @@ Tim Loop works as a system of two tools that handle different concerns:
 │  └─────────┘       └─────────┘       └─────────┘      └──────┘  │
 │       │                 │                 │               │      │
 │       ▼                 ▼                 ▼               ▼      │
-│  plan-ops.sh       plan-ops.sh       plan-ops.sh    plan-ops.sh │
+│  plan-ops          plan-ops          plan-ops       plan-ops    │
 │  import            review            ai-ready        complete   │
 │                    promote           execute                    │
 │                                                                  │
@@ -191,13 +191,13 @@ Tim Loop works as a system of two tools that handle different concerns:
 **Typical workflow:**
 
 1. **Create plan** - Run `/tim-loop --plan "add feature X"` or let Claude create a plan
-2. **Import** - `plan-ops.sh import ~/.claude/plans/my-plan.md`
-3. **Review** - `plan-ops.sh review plans/drafts/my-plan.md` (for multi-phase plans)
-4. **Promote** - `plan-ops.sh promote plans/drafts/my-plan.md --approver "Name"`
-5. **AI Ready** - `plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Name"`
-6. **Execute** - `plan-ops.sh execute plans/active/my-plan.md` (outputs tim-loop command)
+2. **Import** - `plan-ops import ~/.claude/plans/my-plan.md`
+3. **Review** - `plan-ops review plans/drafts/my-plan.md` (for multi-phase plans)
+4. **Promote** - `plan-ops promote plans/drafts/my-plan.md --approver "Name"`
+5. **AI Ready** - `plan-ops ai-ready plans/active/my-plan.md --reviewer "Name"`
+6. **Execute** - `plan-ops execute plans/active/my-plan.md` (outputs tim-loop command)
 7. **Implement** - `/tim-loop --implement plans/active/my-plan.md`
-8. **Complete** - `plan-ops.sh complete plans/active/my-plan.md`
+8. **Complete** - `plan-ops complete plans/active/my-plan.md`
 
 Or use the wizard for guided flow: `/tim-loop --wizard plans/active/my-plan.md`
 
@@ -682,9 +682,9 @@ When tim-loop exits without completing verification (max iterations reached, stu
 2. Run `/tim-loop --verify <plan-file>` to attempt verification again
 3. Or create a remediation plan addressing the gaps
 
-## Integration with plan-ops.sh
+## Integration with plan-ops
 
-Tim Loop integrates with `plan-ops.sh` for full plan lifecycle management:
+Tim Loop integrates with `plan-ops` for full plan lifecycle management:
 
 ### Plan Lifecycle Flow
 
@@ -698,7 +698,7 @@ Tim Loop integrates with `plan-ops.sh` for full plan lifecycle management:
 
 ### Wizard Mode Integration
 
-The `--wizard` mode delegates to plan-ops.sh wizard, which guides you through:
+The `--wizard` mode delegates to plan-ops wizard, which guides you through:
 
 1. **Import** - Import plan from `~/.claude/plans/` if needed
 2. **Plan Review** - Multi-phase validation (2+ phases require this)
@@ -911,10 +911,10 @@ For `--implement` mode, the plan must have:
 | AI Developer Ready | yes |
 ```
 
-in its status table. Use plan-ops.sh to grant this approval:
+in its status table. Use plan-ops to grant this approval:
 
 ```bash
-./plugins/tim-loop/scripts/plan-ops.sh ai-ready plans/active/my-plan.md --reviewer "Your Name"
+plan-ops ai-ready plans/active/my-plan.md --reviewer "Your Name"
 ```
 
 ### "Can only implement plans from active/ folder"
@@ -922,7 +922,7 @@ in its status table. Use plan-ops.sh to grant this approval:
 Move the plan to active first:
 
 ```bash
-./plugins/tim-loop/scripts/plan-ops.sh promote plans/drafts/my-plan.md --approver "Your Name"
+plan-ops promote plans/drafts/my-plan.md --approver "Your Name"
 ```
 
 ### Hooks not being unregistered
