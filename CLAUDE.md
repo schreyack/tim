@@ -2,19 +2,16 @@
 
 ## How to Work
 
-- ALWAYS choose the best technical solution, not the easiest. Quality and correctness over speed. Don't offer "easy vs best" — just do the best.
-- Help the human. If asked to resolve an issue, resolve it. No deflection.
+- Best technical solution, not easiest. Quality and correctness over speed. Don't offer easy vs best — just do best.
 - Follow requests exactly. If uncertain, ASK.
 - Investigate root causes. No workarounds that mask issues.
 - Complete features fully. No TODOs, placeholders, or partial implementations.
-- If you touched a file with violations, fix them. No "it was already broken."
+- If you touched a file with violations, fix them.
 
 ## AI Behavioral Gates
 
 - File >400 lines → BLOCKED. Function >50 lines → BLOCKED.
-- NO bypass flags anywhere. If AI can bypass, AI will bypass.
-- Human approval is the only escape hatch for blocked operations.
-- Deflection patterns → BLOCKED.
+- No bypass flags. Human approval is the only escape hatch.
 
 ## Tests
 

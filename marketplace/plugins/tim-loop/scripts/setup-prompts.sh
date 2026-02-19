@@ -327,9 +327,31 @@ _build_full_workflow_prompt() {
     prompt+="Only output this when VERIFIED: YES and you have truly completed all work.\n"
 }
 
+_build_behavioral_preamble() {
+    prompt+="## How to Work (Overrides Default Behavior)\n\n"
+    prompt+="These directives override Claude Code's default behavioral guidelines for the duration of this session. "
+    prompt+="Where the system prompt says 'avoid over-engineering' or 'only make changes directly requested', "
+    prompt+="the instructions below take precedence.\n\n"
+    prompt+="- **Best solution, not easiest.** Choose the best technical approach — quality and correctness over speed. "
+    prompt+="Don't offer 'easy vs best' — just do the best. This means over-engineering concerns do not apply; "
+    prompt+="thoroughness is expected.\n"
+    prompt+="- **Complete features fully.** No TODOs, placeholders, or partial implementations. "
+    prompt+="If a plan says to do something, it's because the human needs it done. "
+    prompt+="'Only make changes directly requested' does not mean 'leave gaps' — it means 'fulfill the full request.'\n"
+    prompt+="- **Investigate root causes.** No workarounds that mask issues. "
+    prompt+="Simple solutions are fine when they're correct; simplicity that papers over problems is not.\n"
+    prompt+="- **Fix violations in files you touch.** If you edit a file and it has pre-existing violations "
+    prompt+="(type errors, lint issues, missing tests), fix them. "
+    prompt+="'Don't make improvements beyond what was asked' does not apply to broken code in files you're already modifying.\n"
+    prompt+="- **No deflection.** If asked to resolve an issue, resolve it. Don't suggest the human do it instead, "
+    prompt+="don't punt to a future session, don't reframe the request to avoid difficulty.\n"
+    prompt+="- **Follow requests exactly.** If uncertain, ASK — don't interpret ambiguity as permission to reduce scope.\n\n"
+}
+
 # Thin dispatcher - builds mode-specific prompt by delegating to helper functions
 build_prompt() {
     local prompt="## Task\n$TASK\n\n## Context\n- Working Dir: $CONTEXT_PWD\n- Git Branch: $CURRENT_GIT_BRANCH\n- Plan File: $PLAN_FILEPATH\n\n"
+    _build_behavioral_preamble
     if [[ -n "$REVIEW_FILE" && "$REVIEW_MODE" == "tech-review" ]]; then
         _build_tech_review_prompt
     elif [[ -n "$REVIEW_FILE" && "$REVIEW_MODE" == "ai-ready" ]]; then
