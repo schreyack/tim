@@ -414,13 +414,16 @@ Then paste your tim-loop command:
 
 ### Hooks Used
 
-| Hook | Purpose |
-|------|---------|
-| `Stop` | Intercepts exit to check for completion and re-inject prompt |
-| `Stop` | Excuse pattern detector - catches deflection and blocks completion |
-| `PreToolUse` | Auto-approves tools when `--auto-approve` is active |
-| `PostToolUse` | Code quality validator - enforces file/function size limits |
-| `SessionStart` | Preserves original prompt across context compaction |
+| Hook | Script | Purpose |
+|------|--------|---------|
+| `SessionStart` | `tim-loop-prompt-manager.sh` | Preserves original prompt across context compaction |
+| `UserPromptSubmit` | `option_expander.py` | Expands shorthand options in user prompts |
+| `PreToolUse` | `block_bypass_flags.py` | Blocks `--no-verify` and similar bypass flags on Bash commands |
+| `PreToolUse` | `tim-loop-permission-hook.sh` | Auto-approves tools when `--auto-approve` is active |
+| `PostToolUse` | `code-quality-validator.py` | Code quality validator - enforces file/function size limits |
+| `PostToolUse` | `fast_pattern_detector.py` | Fast pattern detection for behavioral enforcement |
+| `Stop` | `excuse_detector_v2.py` | Excuse pattern detector - catches deflection and blocks completion |
+| `Stop` | `tim_loop_hook.py` | Intercepts exit to check for completion and re-inject prompt |
 
 ## AI Behavioral Gates
 
@@ -552,13 +555,13 @@ Import → Plan Review → Promote → AI-Ready → Execute → Tim-Loop → Com
 /tim-loop --full-review plans/drafts/my-plan.md
 ```
 
-**Phases:** Six comprehensive review phases
+**Phases:** Seven comprehensive review phases
 **End state:** Plan file ready for implementation (technically sound, AI-ready, goal-aligned)
 **Use for:** Complete review in a single session
 
-#### Full Review Details (6 Phases)
+#### Full Review Details (7 Phases)
 
-Full review mode performs a comprehensive 6-phase review:
+Full review mode performs a comprehensive 7-phase review:
 
 | Phase | Focus | Min Iterations |
 |-------|-------|----------------|
@@ -568,9 +571,10 @@ Full review mode performs a comprehensive 6-phase review:
 | 4. AI-Ready | Unambiguous instructions, hallucination prevention | 2 |
 | 5. Goal Alignment | Does plan still match original intent? | 1 |
 | 6. PM Review | Organization, flow, clerical (no scope reduction) | 1 |
+| 7. User Advocate | Unauthorized decisions audit (feature/UX changes) | 1 |
 
-**Total minimum iterations:** 13
-**Typical actual iterations:** 15-25
+**Total minimum iterations:** 14
+**Typical actual iterations:** 16-26
 
 Each phase must output its completion signal before advancing.
 
@@ -605,6 +609,11 @@ Empty or vague logs (e.g., "verified all files") are not accepted.
 | (default) | Full workflow: Plan → Review → Implement → Verify |
 | `--plan` | Create plan only, no implementation |
 | `--implement FILE` | Implement existing approved plan (must be in `active/` with AI Developer Ready) |
+| `--full-review FILE` | Comprehensive 7-phase review in a single session |
+| `--tech-review FILE` | Technical review by skeptical senior engineer persona |
+| `--pm-review FILE` | Project management review (organization, no scope reduction) |
+| `--ai-ready FILE` | AI-readiness review + goal alignment check |
+| `--verify FILE` | Post-implementation verification audit |
 | `--wizard FILE` | Interactive wizard through full plan lifecycle |
 
 ### Modifier Options
@@ -612,11 +621,15 @@ Empty or vague logs (e.g., "verified all files") are not accepted.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--no-review` | - | Skip review phase (Plan → Implement → Verify) |
+| `--force`, `-f` | - | Override existing active session detection |
+| `--team` | - | Use agent teams for parallel implementation (experimental) |
 | `--auto-approve` | - | Auto-approve all tool permissions. **WARNING:** Use with caution. |
 | `--max-iterations N` | 30 | Safety limit - force exit after N iterations |
 | `--max-verify-cycles N` | 999999 | Max verification attempts (effectively unlimited) |
 | `--review-iterations N` | 10 | Max iterations for review phase |
+| `--min-review-iterations N` | 5 | Minimum review passes before allowing completion |
 | `--completion-promise STR` | "COMPLETE" | Phrase that signals completion. Change if "COMPLETE" appears in your task. |
+| `--llm-loop` | - | Enable LLM judge for semantic evasion detection (requires LLM judge config) |
 | `--dry-run` | - | Preview generated prompt without executing |
 | `--health` | - | Run hook health check to verify tim-loop hooks are configured |
 | `--help` | - | Show detailed help text |
@@ -768,11 +781,12 @@ The SessionStart hook is defined in `hooks/hooks.json` and registered automatica
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "",
+        "matcher": "compact",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tim-loop-prompt-manager.sh hook",
+            "timeout": 10
           }
         ]
       }
@@ -842,7 +856,7 @@ Tim Loop automatically cleans up:
 |----------|---------|-------------|
 | `TIM_LOOP_ORPHAN_AGE_HOURS` | 24 | Hours before orphan files are cleaned |
 | `PLAN_OPS_SCRIPT` | (auto-detected) | Path to plan-ops.sh |
-| `TIM_PROMPT_DIR` | `.tim-execution-requests` | Directory for prompt files |
+| `TIM_PROMPT_DIR` | `~/.claude` | Directory for prompt files |
 | `TIM_PROMPT_STALE_MINUTES` | 1440 | Minutes before prompts are stale |
 
 ## File Structure
@@ -852,16 +866,21 @@ plugins/tim-loop/
 ├── .claude-plugin/
 │   └── plugin.json           # Plugin metadata (name, description, author, version)
 ├── commands/
-│   └── tim-loop.md           # Skill definition (command syntax, allowed tools)
+│   ├── tim-loop.md           # Skill definition (command syntax, allowed tools)
+│   └── cancel-tim-loop.md    # Cancel command (cleanup state files)
+├── config.yaml               # Default plugin settings (LLM judge config)
 ├── scripts/
 │   ├── tim-loop-setup.sh     # Main setup script (parses args, creates state, registers hooks)
-│   ├── tim-loop-hook.py      # Stop hook (checks completion, re-injects prompt)
+│   ├── tim_loop_hook.py      # Stop hook (checks completion, re-injects prompt)
 │   ├── tim-loop-permission-hook.sh  # PreToolUse hook (auto-approve when enabled)
 │   ├── tim-loop-prompt-manager.sh   # SessionStart hook (preserves prompt across compaction)
 │   ├── code-quality-validator.py    # PostToolUse hook (file/function size limits)
-│   └── excuse-detector.py    # Stop hook (catches deflection patterns)
+│   ├── excuse_detector_v2.py # Stop hook (catches deflection patterns)
+│   ├── fast_pattern_detector.py     # PostToolUse hook (fast pattern detection)
+│   ├── block_bypass_flags.py # PreToolUse hook (blocks --no-verify and similar flags)
+│   └── option_expander.py    # UserPromptSubmit hook (expands shorthand options)
 ├── hooks/
-│   └── hooks.json            # Hook configuration (SessionStart, PostToolUse, Stop)
+│   └── hooks.json            # Hook configuration (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop)
 └── README.md                 # This file
 ```
 
@@ -948,7 +967,7 @@ Each phase has minimum iteration requirements:
 
 - Phase 1: 5 iterations minimum
 - Phases 2-4: 2 iterations minimum
-- Phases 5-6: 1 iteration minimum
+- Phases 5-7: 1 iteration minimum
 
 ### Max iterations reached
 

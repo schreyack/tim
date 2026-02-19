@@ -85,15 +85,19 @@ From within Claude Code:
 /tim-loop --full-review plans/drafts/my-plan.md
 ```
 
-**Phases:** Three-phase comprehensive review with per-phase iteration tracking:
+**Phases:** Seven-phase comprehensive review with per-phase iteration tracking:
 
 | Phase | Focus | Min Iterations | Completion Signal |
 |-------|-------|----------------|-------------------|
-| 1. Tech Review | Technical accuracy, edge cases | 3 | `<promise>PHASE-1-TECH-DONE</promise>` |
-| 2. AI-Ready Review | Unambiguous instructions | 2 | `<promise>PHASE-2-AI-READY-DONE</promise>` |
-| 3. Goal Alignment | Original intent preserved | 1 | `<promise>PHASE-3-GOAL-ALIGN-DONE</promise>` |
+| 1. Tech Review | Technical accuracy, edge cases | 5 | `<promise>PHASE-1-TECH-DONE</promise>` |
+| 2. Devil's Advocate | Assumptions, failure modes | 2 | `<promise>PHASE-2-DEVILS-ADVOCATE-DONE</promise>` |
+| 3. Security Review | Auth, validation, OWASP | 2 | `<promise>PHASE-3-SECURITY-DONE</promise>` |
+| 4. AI-Ready Review | Unambiguous instructions | 2 | `<promise>PHASE-4-AI-READY-DONE</promise>` |
+| 5. Goal Alignment | Original intent preserved | 1 | `<promise>PHASE-5-GOAL-ALIGN-DONE</promise>` |
+| 6. PM Review | Organization, flow, clerical | 1 | `<promise>PHASE-6-PM-DONE</promise>` |
+| 7. User Advocate | Unauthorized decision audit | 1 | `<promise>PHASE-7-USER-ADVOCATE-DONE</promise>` |
 
-**After all 3 phases:** Output `<promise>FULL-REVIEW-DONE</promise>` to complete.
+**After all 7 phases:** Output `<promise>FULL-REVIEW-DONE</promise>` to complete.
 
 **Key features:**
 
@@ -170,12 +174,14 @@ then handles promotion and status updates automatically.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--no-verify` | - | Skip verification phase. **WARNING:** Can leave incomplete work. Only use for debugging. |
+| `--force`, `-f` | - | Override existing active session detection |
 | `--team` | - | Use agent teams for parallel implementation. Only valid with full workflow or `--implement`. **(experimental)** |
 | `--auto-approve` | - | Auto-approve all tool permissions. **WARNING:** Use with caution. |
 | `--max-iterations <n>` | 30 | Safety limit - force exit after N iterations |
 | `--max-verify-cycles <n>` | 999999 | Max verification attempts (effectively unlimited) |
+| `--min-review-iterations <n>` | 5 | Minimum review passes before allowing completion |
 | `--completion-promise` | "COMPLETE" | Phrase that signals completion. Change if "COMPLETE" appears in your task. |
+| `--llm-loop` | - | Enable LLM judge for semantic evasion detection (requires LLM judge config) |
 | `--dry-run` | - | Preview generated prompt without executing |
 | `--help` | - | Show detailed help text |
 
