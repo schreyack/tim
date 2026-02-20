@@ -112,14 +112,6 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Enforce test naming convention (it('should...when...'))
-      - id: test-naming
-        name: Test naming convention
-        entry: "bash -c 'INVALID=$(grep -rn \"^\\s*it(\" --include=\"*.test.ts\" --include=\"*.spec.ts\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null | grep -v should || true); if [ -n \"$INVALID\" ]; then echo ERROR - Test names must use should pattern; echo \"$INVALID\"; exit 1; fi; exit 0'"
-        language: system
-        pass_filenames: false
-        always_run: true
-
 # CI runs these same checks
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit issues"

@@ -115,14 +115,6 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Enforce test naming convention (test_what_when_then)
-      - id: test-naming
-        name: Test naming convention
-        entry: "bash -c 'INVALID=$(grep -rn \"^def test_\" --include=\"test_*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null | grep -v _when_ | grep -v _with_ | grep -v _returns_ | grep -v _raises_ || true); if [ -n \"$INVALID\" ]; then echo ERROR - Test names must follow test_what_when_then pattern; exit 1; fi; exit 0'"
-        language: system
-        pass_filenames: false
-        always_run: true
-
 # CI runs these same checks
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit issues"
