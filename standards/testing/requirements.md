@@ -1,19 +1,18 @@
 # Testing Requirements
 
-All TIM projects must meet these testing standards. Violations block merge.
+All TIM projects must meet these testing standards.
 
-## Coverage Thresholds (Hard Gates)
+## Coverage Thresholds
 
 | Metric | Threshold | Enforcement |
 |--------|-----------|-------------|
-| Line coverage | >= 90% | CI blocks merge |
-| Branch coverage | >= 90% | CI blocks merge |
-| Function coverage | >= 90% | CI blocks merge |
-| New code coverage | >= 95% | CI blocks merge |
+| Line coverage | >= 70% | CI blocks merge |
+| Branch coverage | >= 70% | CI blocks merge |
+| Function coverage | >= 70% | CI blocks merge |
 
-**Note**: All coverage metrics unified at 90% for consistency. For AI development, consistent thresholds are easier to follow than varied ones.
+Coverage is a signal that you're testing the important parts, not a goal in itself. The 70% threshold catches projects that are clearly under-tested without forcing coverage of trivial code.
 
-These are **minimum** thresholds. Projects may set higher targets.
+Projects may set higher targets where it makes sense.
 
 ## Test Types Required
 
@@ -21,9 +20,21 @@ These are **minimum** thresholds. Projects may set higher targets.
 
 Test individual functions and classes in isolation.
 
+**What to test**:
+
+- Business logic, calculations, state machines, permission checks
+- Data transformations with non-obvious edge cases
+- Error handling for external dependencies
+- Anything where a bug costs money or corrupts data
+
+**What NOT to test** (equally important):
+
+- Simple getters/setters, pass-through functions, formatters
+- Framework boilerplate (route wiring, DI registration)
+- Things where you'd spot the bug immediately in the UI
+
 **Requirements**:
 
-- Every public function must have unit tests
 - Mock external dependencies
 - Fast execution (< 1 second per test)
 - Run on every commit (pre-commit hook optional, CI required)
@@ -66,9 +77,9 @@ Long E2E suites slow AI iteration cycles. Keep them fast.
 
 ## Test Naming Convention
 
-**Format**: `test_<what>_<when>_<then>`
+**Recommended format**: `test_<what>_<when>_<then>`
 
-This format answers:
+Good test names are documentation. Bad names are a code review issue, not a gate issue. This format answers:
 
 - **What** is being tested (function/feature)
 - **When** (conditions/inputs)
@@ -124,7 +135,9 @@ test("createUser returns user when valid data provided", async () => {});
 test("createUser throws ConflictError when email exists", async () => {});
 ```
 
-## TDD Workflow (Required for New Features)
+## TDD Workflow (Recommended for Complex Logic)
+
+TDD is recommended for calculations, state machines, parsers, and other complex logic where the expected behavior can be precisely defined upfront. It's not required for simple CRUD operations or UI wiring.
 
 ```text
 1. Write failing test
@@ -332,7 +345,7 @@ addopts = [
     "--strict-markers",
     "--cov=src",
     "--cov-report=term-missing",
-    "--cov-fail-under=90",
+    "--cov-fail-under=70",
     "--cov-branch",
 ]
 markers = [
@@ -357,10 +370,10 @@ export default defineConfig({
       reporter: ["text", "lcov", "html"],
       exclude: ["node_modules", "tests", "dist"],
       thresholds: {
-        lines: 90,
-        branches: 90,
-        functions: 90,
-        statements: 90,
+        lines: 70,
+        branches: 70,
+        functions: 70,
+        statements: 70,
       },
     },
     setupFiles: ["tests/setup.ts"],

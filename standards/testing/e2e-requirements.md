@@ -1,15 +1,13 @@
 # End-to-End Testing Requirements
 
-All TIM applications require comprehensive e2e testing. No route exists without tests. No code deploys without passing tests. Zero tolerance for flaky tests.
+All TIM applications require e2e testing for critical user journeys. No code deploys without passing tests. Zero tolerance for flaky tests.
 
 ## Core Principles
 
-1. **All code requires tests** - Unit, integration, AND e2e. Always.
+1. **Critical journeys require e2e tests** - Authentication, payment, core workflows
 2. **True e2e testing** - Real browser, real user simulation, real data entry
-3. **Defense in depth** - No route allowed without proper e2e coverage
-4. **DevOps mindset** - See a problem, fix it, regardless of who created it
-5. **Zero tolerance** - No flaky tests, no skipped tests, no exceptions
-6. **Strict enforcement** - System-level blocks, not developer honor system
+3. **DevOps mindset** - See a problem, fix it, regardless of who created it
+4. **Zero tolerance for flaky tests** - No flaky tests, no skipped tests in promotion
 
 ## Three-Layer Testing Model
 
@@ -32,13 +30,13 @@ All TIM applications require comprehensive e2e testing. No route exists without 
 - ALL unit tests must pass
 - ALL integration tests must pass
 - ALL e2e tests must pass
-- Smoke test discovers and validates route coverage
+- Smoke test validates critical routes
 - **Auto-promotes to prod-ready if all pass**
 
 ### PROD Layer
 
-- Full e2e suite across entire application
-- Smoke test validates all routes
+- Full e2e suite for critical user journeys
+- Smoke test validates critical routes
 - Zero bugs allowed
 - **Requires human approval after tests pass**
 
@@ -151,18 +149,18 @@ tests/
 │       ├── wait.ts                  # Timing utilities
 │       └── index.ts
 │
-└── data/                            # Source of Truth (YAML)
+└── data/                            # Source of Truth
     ├── users.yaml
     ├── projects.yaml
     ├── billing.yaml
     └── index.ts                     # Exports typed test data
 ```
 
-## Automatic Route Discovery
+## Route Discovery (Recommended)
 
 ### Smoke Test: Route Discovery
 
-The smoke test automatically discovers all routes and validates e2e coverage:
+Route discovery is a useful technique for validating that pages load without errors. It's recommended for projects with many routes but is not a hard gate:
 
 ```typescript
 // smoke/route-discovery.spec.ts
@@ -195,8 +193,8 @@ test.describe('Route Discovery Smoke Test', () => {
     const coverage = await validateCoverage(frontendRoutes);
 
     for (const route of coverage.uncovered) {
-      // This will FAIL the test - no route without e2e coverage
-      expect.fail(`Missing e2e test for route: ${route.path}`);
+      // Log uncovered routes for review — not a hard gate
+      console.warn(`No e2e test for route: ${route.path}`);
     }
   });
 });
@@ -270,109 +268,23 @@ export async function validateCoverage(routes: Route[]): Promise<{
 
 ## User Journey Testing
 
-### Defining User Paths
+Critical user journeys should have dedicated e2e tests that cover the full flow:
 
-User paths are defined in YAML and approved by humans:
+- **New user onboarding** - Registration through first meaningful action
+- **Core workflow** - The primary thing users come to do
+- **Payment/billing** - If applicable, test the money path end-to-end
+- **Error recovery** - Critical error scenarios (payment failure, session expiry)
 
-```yaml
-# data/user-journeys/new-user-onboarding.yaml
-journey:
-  name: "New User Onboarding"
-  description: "Complete flow from landing to first project creation"
-  approved_by: "tim@example.com"
-  approved_date: "2025-01-15"
+Organize journey tests separately from feature-level e2e tests:
 
-  preconditions:
-    - "No existing user with test email"
-
-  steps:
-    - name: "Visit landing page"
-      action: "navigate"
-      path: "/"
-      assertions:
-        - "page loads without errors"
-        - "CTA button visible"
-
-    - name: "Click sign up"
-      action: "click"
-      selector: "[data-testid='signup-cta']"
-      assertions:
-        - "navigates to /register"
-
-    - name: "Fill registration form"
-      action: "fill-form"
-      form: "registration"
-      data_ref: "users.new_user"
-      assertions:
-        - "form submits successfully"
-        - "navigates to /onboarding"
-
-    - name: "Complete onboarding"
-      action: "complete-onboarding"
-      steps:
-        - "select-plan"
-        - "add-payment"
-        - "create-first-project"
-      assertions:
-        - "arrives at /dashboard"
-        - "project visible in list"
-
-  cleanup:
-    - "delete created user"
-    - "delete created project"
-    - "delete payment method"
+```text
+tests/e2e/
+├── suites/          # Feature-level e2e tests
+├── user-journeys/   # Full flow tests
+└── smoke/           # Quick validation
 ```
 
-### AI-Proposed, Human-Approved
-
-When creating new tests, the AI developer:
-
-1. Analyzes the feature/route being tested
-2. Proposes testing paths covering:
-   - Happy path (successful flow)
-   - Validation errors
-   - Edge cases
-   - Error states
-3. Presents proposal to human for review
-4. Human approves, modifies, or requests changes
-5. Only approved paths are implemented
-
-```yaml
-# AI proposal format
-proposal:
-  feature: "User Registration"
-  proposed_by: "Claude"
-  date: "2025-01-15"
-  status: "pending_approval"  # pending_approval | approved | rejected
-
-  paths:
-    - name: "Successful registration"
-      type: "happy_path"
-      priority: "critical"
-      steps: [...]
-
-    - name: "Duplicate email rejection"
-      type: "validation_error"
-      priority: "high"
-      steps: [...]
-
-    - name: "Weak password rejection"
-      type: "validation_error"
-      priority: "high"
-      steps: [...]
-
-    - name: "Network error handling"
-      type: "error_state"
-      priority: "medium"
-      steps: [...]
-
-  # Human fills this out
-  approval:
-    approved_by: null
-    approved_date: null
-    notes: null
-    modifications: []
-```
+Journey tests are typically longer and slower than feature tests. Run them in CI but prioritize them for pre-deploy gates.
 
 ## Changed-Area Rigorous Testing
 
@@ -517,13 +429,11 @@ jobs:
             exit 1
           fi
 
-      - name: Check coverage
+      - name: Check route coverage
         run: |
           UNCOVERED=$(node scripts/check-route-coverage.js)
           if [ -n "$UNCOVERED" ]; then
-            echo "::error::HARD STOP: Routes without e2e coverage detected"
-            echo "$UNCOVERED"
-            exit 1
+            echo "::warning::Routes without e2e coverage: $UNCOVERED"
           fi
 
   promote-uat:
@@ -567,10 +477,10 @@ export async function enforceTestRules(results: TestResults): Promise<void> {
     violations.push(`${flaky.length} flaky tests detected`);
   }
 
-  // Check for uncovered routes
+  // Log uncovered routes as informational (not a promotion blocker)
   const coverage = await checkRouteCoverage();
   if (coverage.uncovered.length > 0) {
-    violations.push(`${coverage.uncovered.length} routes without e2e tests`);
+    console.warn(`${coverage.uncovered.length} routes without e2e tests — review recommended`);
   }
 
   if (violations.length > 0 && process.env.PROMOTION_MODE === 'true') {

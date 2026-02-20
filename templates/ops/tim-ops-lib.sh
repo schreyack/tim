@@ -1210,11 +1210,13 @@ cmd_db_rollback() {
 
 cmd_db_backup() {
     local backup_path="${CONFIG[database_backup_path]:-/backups}"
+    local db_user="${CONFIG[database_user]:-postgres}"
+    local db_name="${CONFIG[database_name]:-${PROJECT_NAME}}"
     local timestamp=$(date +%Y%m%d_%H%M%S)
     local filename="${PROJECT_NAME}_${timestamp}.sql"
 
     log_info "Creating database backup..."
-    ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec -T db pg_dump -U postgres > ${backup_path}/${filename}"
+    ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec -T db pg_dump -U ${db_user} ${db_name} > ${backup_path}/${filename}"
     audit_log "db:backup" "SUCCESS" "0"
     log_success "Backup created: ${backup_path}/${filename}"
 }

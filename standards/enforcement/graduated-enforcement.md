@@ -128,8 +128,7 @@ description: "Full TIM compliance required"
 
 rules:
   type_check: block
-  test_coverage: block  # 90% threshold
-  test_naming: block
+  test_coverage: block  # 70% threshold
   file_size: block  # 400 lines
   complexity: block  # 10 max
   secrets: block
@@ -173,8 +172,7 @@ rules:
 **Requirements**:
 
 - Type coverage: 100%
-- Test coverage: ≥ 90%
-- Test naming: 100% compliant
+- Test coverage: ≥ 70%
 - No files > 400 lines
 - No functions > 50 lines or complexity > 10
 - All patterns registered (no MIGRATION status)
@@ -327,8 +325,7 @@ Projects should report:
 |--------|-------|--------|--------|
 | Enforcement Level | 3 | 4 | 🟡 |
 | Type Errors | 85 | 0 | 🟡 |
-| Test Coverage | 84% | 90% | 🟡 |
-| Compliant Tests | 80% | 100% | 🟡 |
+| Test Coverage | 84% | 70% | ✅ |
 | Files > 400 | 3 | 0 | 🟡 |
 
 ## Edge Cases

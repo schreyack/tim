@@ -105,7 +105,7 @@ on:
 jobs:
   typecheck:   # mypy --strict
   lint:        # ruff check + format
-  test:        # pytest with 90% coverage
+  test:        # pytest with 70% coverage
   security:    # bandit + safety
   secrets:     # trufflehog
   container:   # trivy (if Dockerfile exists)
@@ -128,7 +128,7 @@ on:
 jobs:
   typecheck:   # tsc --noEmit
   lint:        # eslint + prettier
-  test:        # vitest with 90% coverage
+  test:        # vitest with 70% coverage
   security:    # npm audit + snyk
   secrets:     # gitleaks + trufflehog
   build:       # verify build works
@@ -290,7 +290,7 @@ Setup:
 | Format | Pre-commit hook | CI job | - |
 | Secrets scan | Pre-commit hook | CI job (deep) | - |
 | Unit tests | - | CI job | - |
-| Coverage | - | CI job (90%) | - |
+| Coverage | - | CI job (70%) | - |
 | Security scan | - | CI job | - |
 | Container scan | - | CI job | - |
 | Security verify | - | - | ops.sh verify |

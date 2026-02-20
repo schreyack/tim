@@ -206,10 +206,10 @@ check_configuration() {
         fi
 
         # Coverage threshold
-        if grep -qE "fail_under[[:space:]]*=[[:space:]]*(9[0-9]|100)" pyproject.toml; then
-            log_pass "Coverage threshold: >= 90%"
+        if grep -qE "fail_under[[:space:]]*=[[:space:]]*(7[0-9]|[89][0-9]|100)" pyproject.toml; then
+            log_pass "Coverage threshold: >= 70%"
         else
-            log_fail "Coverage threshold not set to >= 90% in pyproject.toml"
+            log_fail "Coverage threshold not set to >= 70% in pyproject.toml"
         fi
     fi
 

@@ -1,6 +1,6 @@
 # TIM Templates
 
-Ready-to-copy configuration files that implement the TIM standards. These templates enforce the required thresholds (90% coverage, strict type checking, file size limits) and integrate with the four-gate enforcement model.
+Ready-to-copy configuration files that implement the TIM standards. These templates enforce the required thresholds (70% coverage, strict type checking, file size limits) and integrate with the four-gate enforcement model.
 
 ## Template Index
 

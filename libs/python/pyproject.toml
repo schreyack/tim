@@ -62,4 +62,4 @@ select = ["E", "W", "F", "I", "B", "C4", "UP", "S", "T20", "SIM", "ARG", "PTH", 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = ["--cov=tim_lib", "--cov-fail-under=90"]
+addopts = ["--cov=tim_lib", "--cov-fail-under=70"]

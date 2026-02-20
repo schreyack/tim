@@ -26,7 +26,7 @@ Understanding the difference helps teams know:
 |----------|-------------------|---------------------|
 | Philosophy | Trust but verify, Human oversight | - |
 | Code Size | Code must be comprehensible | 400 lines max |
-| Testing | Must have coverage threshold | 90% coverage |
+| Testing | Must have coverage threshold | 70% coverage |
 | Tools | Must use a linter | ruff vs. black |
 | Deployment | Human approval for prod | Canary 10% split |
 
@@ -167,10 +167,9 @@ These are calibrations based on current understanding. They may change as AI cap
 
 | Rule | Current Value | Review Trigger |
 |------|---------------|----------------|
-| Minimum line coverage | 90% | Evidence different threshold is more effective |
-| Minimum branch coverage | 90% | Evidence different threshold is more effective |
-| Minimum function coverage | 90% | Evidence different threshold is more effective |
-| New code coverage | 95% | Evidence different threshold is more effective |
+| Minimum line coverage | 70% | Evidence different threshold is more effective |
+| Minimum branch coverage | 70% | Evidence different threshold is more effective |
+| Minimum function coverage | 70% | Evidence different threshold is more effective |
 
 ## Tool Choices
 

@@ -16,12 +16,12 @@
 ## Tests
 
 Tests are diagnostic tools, not goals. The objective is a functioning application, not passing tests.
-Test naming: `test_<what>_<when>_<then>`. TDD for new features.
+Test naming: `test_<what>_<when>_<then>` (guidance, not enforced at pre-commit). TDD recommended for complex logic (calculations, state machines, parsers).
 
 ## Code Quality
 
 - `mypy --strict` (Python) / `tsc strict` (Node). Zero warnings.
-- Coverage 90% min, 95% new code.
+- Coverage 70% min.
 - Secrets never committed. All input validated (Pydantic/Zod).
 - Migrations only — no sync(), create_all(), manual DDL. Every migration has tested rollback.
 - No TODO/FIXME/XXX, no print debugging, no bare except.

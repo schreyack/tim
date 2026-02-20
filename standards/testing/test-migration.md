@@ -6,7 +6,6 @@ This document defines how to migrate existing tests to TIM standards without bre
 
 Legacy projects often have tests that work but don't comply with TIM standards:
 
-- Non-standard naming (`test_login` instead of `test_login_with_valid_credentials_returns_token`)
 - Missing type hints
 - Print statements instead of logging
 - Inconsistent fixtures
@@ -110,60 +109,19 @@ This standard provides a safe migration path.
    addopts = "-v --tb=short"
    ```
 
-### Phase 3: Naming Migration (Days 4-7)
+### Phase 3: Naming Review (Days 4-7)
 
-**Goal**: Rename all tests to `test_what_when_then` format.
+**Goal**: Improve test names for clarity where they're genuinely unclear.
 
-#### Naming Patterns
+The `test_<what>_<when>_<then>` format is recommended for readability but not enforced. Focus on tests whose names give no indication of what they verify.
 
-| Old Name | New Name |
+| Unclear Name | Better Name |
 |----------|----------|
 | `test_login` | `test_login_with_valid_credentials_returns_token` |
-| `test_login_fail` | `test_login_with_invalid_password_returns_401` |
-| `test_create_user` | `test_create_user_with_valid_data_returns_user` |
-| `test_bad_email` | `test_create_user_with_invalid_email_raises_validation_error` |
+| `test_it_works` | `test_create_user_with_valid_data_returns_user` |
+| `test_user_1` | `test_create_user_with_duplicate_email_raises_conflict` |
 
-#### Safe Rename Process
-
-1. **Rename one test at a time**
-2. **Run tests after each rename** - Ensure nothing broke
-3. **Update any test references** - If tests call each other
-4. **Commit after each file** - Atomic changes
-
-#### Automation Script
-
-```python
-#!/usr/bin/env python3
-"""Suggest test name improvements."""
-
-import re
-import sys
-from pathlib import Path
-
-PATTERNS = [
-    (r"test_(\w+)_fail$", r"test_\1_with_invalid_input_raises_error"),
-    (r"test_(\w+)_success$", r"test_\1_with_valid_input_returns_result"),
-    (r"test_(\w+)_error$", r"test_\1_with_invalid_input_raises_error"),
-]
-
-def suggest_rename(test_name: str) -> str | None:
-    for pattern, replacement in PATTERNS:
-        if re.match(pattern, test_name):
-            return re.sub(pattern, replacement, test_name)
-    return None
-
-def analyze_file(path: Path) -> None:
-    content = path.read_text()
-    for match in re.finditer(r"def (test_\w+)\(", content):
-        old_name = match.group(1)
-        suggestion = suggest_rename(old_name)
-        if suggestion:
-            print(f"{path}:{old_name} → {suggestion}")
-
-if __name__ == "__main__":
-    for path in Path("tests").rglob("test_*.py"):
-        analyze_file(path)
-```
+Names like `test_login_fail` or `test_create_user_success` are fine — they communicate intent even if they don't follow the full pattern.
 
 ### Phase 4: Type Hints (Days 8-10)
 
@@ -231,16 +189,12 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 1. **Run compliance check**
 
    ```bash
-   # Check naming
-   grep -r "def test_" tests/ | grep -v "_with_\|_when_\|_returns_\|_raises_"
-   # Should return empty
-
    # Check type hints
    mypy tests/ --strict
    # Should pass
 
    # Check coverage
-   pytest --cov --cov-fail-under=90
+   pytest --cov --cov-fail-under=70
    # Should pass
    ```
 
@@ -314,7 +268,6 @@ Track progress with these metrics:
 
 | Metric | Target | How to Measure |
 |--------|--------|----------------|
-| Naming compliance | 100% | Grep for non-compliant names |
 | Type hint coverage | 100% | mypy --strict |
 | Print statements | 0 | Grep for print/console.log |
 | Commented tests | 0 | Grep for # def test_ |
@@ -355,8 +308,7 @@ Track progress with these metrics:
 
 ## Verification
 - [ ] All tests pass
-- [ ] Coverage >= 90%
-- [ ] Naming grep returns empty
+- [ ] Coverage >= 70%
 - [ ] mypy --strict passes
 ```
 

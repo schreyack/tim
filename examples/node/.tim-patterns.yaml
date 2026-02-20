@@ -86,5 +86,5 @@ enforcement:
 
   ci:
     - all pre-commit checks
-    - vitest with 90% coverage
+    - vitest with 70% coverage
     - file size check (max 400 lines)

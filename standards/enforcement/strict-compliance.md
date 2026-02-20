@@ -132,7 +132,7 @@ CHECKS=(
 
   # Configuration
   "strict_mode_enabled"     # mypy --strict or tsconfig strict
-  "coverage_threshold_set"  # 90% coverage configured
+  "coverage_threshold_set"  # 70% coverage configured
 
   # Security
   "no_secrets_in_code"      # detect-secrets passes
@@ -162,7 +162,7 @@ Dependencies:
 
 Configuration:
   ✓ Strict mode enabled (tsconfig.json)
-  ✓ Coverage threshold: 90%
+  ✓ Coverage threshold: 70%
 
 Security:
   ✓ No secrets detected

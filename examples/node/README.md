@@ -89,7 +89,7 @@ prisma/
 - `test_what_when_then` naming convention
 - Unit tests in `tests/unit/`
 - Integration tests in `tests/integration/`
-- 90% coverage minimum
+- 70% coverage minimum
 
 ### Security
 - JWT authentication with jsonwebtoken

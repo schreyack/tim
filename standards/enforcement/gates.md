@@ -51,9 +51,8 @@ Runs on every PR creation and update. Blocks merge on any failure.
 |-------|------|-------------------|----------|
 | Gate 1 checks | (see above) | ANY failure | P0 |
 | Unit tests | pytest/jest | ANY test failure | P0 |
-| Line coverage | coverage | < 90% | P0 |
-| Branch coverage | coverage | < 90% | P0 |
-| New code coverage | coverage | < 95% | P0 |
+| Line coverage | coverage | < 70% | P0 |
+| Branch coverage | coverage | < 70% | P0 |
 | Security scan (code) | bandit/eslint-security | HIGH or CRITICAL | P0 |
 | Security scan (deps) | safety/npm audit | HIGH or CRITICAL | P0 |
 | Secrets scan (deep) | trufflehog | ANY detection | P0 |
@@ -65,7 +64,7 @@ Runs on every PR creation and update. Blocks merge on any failure.
 ```yaml
 # pytest-cov configuration
 [tool.coverage.report]
-fail_under = 90
+fail_under = 70
 branch = true
 exclude_lines = [
     "pragma: no cover",
@@ -76,13 +75,13 @@ exclude_lines = [
 # Jest configuration
 coverageThreshold:
   global:
-    lines: 90
-    branches: 90       # Raised from 85% to match line coverage
-    functions: 90
-    statements: 90
+    lines: 70
+    branches: 70
+    functions: 70
+    statements: 70
 ```
 
-**Note**: Branch coverage raised to 90% to eliminate ambiguity. For AI development, consistent thresholds are easier to follow than varied ones.
+**Note**: Coverage at 70% catches under-tested projects without forcing coverage of trivial code. Projects may set higher targets where it makes sense.
 
 ### Security Severity Mapping
 
@@ -250,7 +249,7 @@ For each TIM project:
 
 - [ ] Pre-commit hooks installed (`pre-commit install`)
 - [ ] CI pipeline configured (GitHub Actions)
-- [ ] Coverage thresholds set (90%+)
+- [ ] Coverage thresholds set (70%+)
 - [ ] Security scanning enabled (bandit/eslint-security + trivy)
 - [ ] Secrets scanning enabled (detect-secrets/gitleaks + trufflehog)
 - [ ] Deploy gates configured (health checks, migration dry-run)

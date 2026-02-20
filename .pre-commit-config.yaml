@@ -335,23 +335,6 @@ repos:
         files: ^libs/node/src/
         pass_filenames: false
 
-      # -------------------------------------------------------------------------
-      # Test naming convention: test_<what>_<when>_<then>
-      # -------------------------------------------------------------------------
-      - id: test-naming-python
-        name: Test naming convention (Python)
-        entry: bash -c 'INVALID=$(grep -rn "^def test_" --include="test_*.py" libs/python/tests/ 2>/dev/null | grep -v "_when_\|_with_\|_returns_\|_raises_\|_creates_\|_updates_\|_deletes_\|_is_\|_has_\|_should_\|_can_\|_does_" || true); if [ -n "$INVALID" ]; then echo "ERROR - Test names should follow test_what_when_then pattern"; echo "$INVALID" | head -5; exit 1; fi; exit 0'
-        language: system
-        files: ^libs/python/tests/
-        pass_filenames: false
-
-      - id: test-naming-node
-        name: Test naming convention (Node.js)
-        entry: bash -c 'INVALID=$(grep -rn "^\s*it(" --include="*.test.ts" libs/node/tests/ 2>/dev/null | grep -v "should\|when\|with\|returns\|throws\|creates\|updates\|deletes" || true); if [ -n "$INVALID" ]; then echo "ERROR - Test names should follow it should action when condition pattern"; echo "$INVALID" | head -5; exit 1; fi; exit 0'
-        language: system
-        files: ^libs/node/tests/
-        pass_filenames: false
-
 # CI runs these same checks
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit issues"

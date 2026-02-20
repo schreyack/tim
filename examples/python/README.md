@@ -102,7 +102,7 @@ poetry run pytest --cov --cov-report=term-missing
 - Unit tests in `tests/unit/`
 - Integration tests in `tests/integration/`
 - Async test support with pytest-asyncio
-- 90% coverage minimum
+- 70% coverage minimum
 
 ### Security
 - JWT authentication with python-jose
@@ -251,7 +251,7 @@ poetry run ruff check src/ tests/
 poetry run ruff format src/ tests/
 
 # Tests with coverage
-poetry run pytest --cov=src --cov-fail-under=90
+poetry run pytest --cov=src --cov-fail-under=70
 
 # All checks (what CI runs)
 poetry run pre-commit run --all-files

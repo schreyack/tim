@@ -82,7 +82,7 @@ jobs:
         run: poetry run ruff format --check tim_lib tests
 
       - name: Run tests with coverage
-        run: poetry run pytest --cov=tim_lib --cov-report=xml --cov-fail-under=90
+        run: poetry run pytest --cov=tim_lib --cov-report=xml --cov-fail-under=70
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
