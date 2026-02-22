@@ -8,7 +8,7 @@ repos:
     hooks:
       - id: protect-enforcement-files
         name: LOCKED - enforcement files require human approval to modify
-        entry: "bash -c 'echo ERROR - This file is LOCKED. To modify, get human approval and use --no-verify && exit 1'"
+        entry: "bash -c 'printf \"BLOCKED: These enforcement files require --no-verify (human approval):\\n\"; for f; do printf \"  %s\\n\" \"$f\"; done; exit 1' --"
         language: system
         files: >-
           (?x)^(
