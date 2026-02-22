@@ -69,6 +69,24 @@ class TestBlockBypassFlags(unittest.TestCase):
     def test_git_checkout_when_doubledash_dot_then_denied(self) -> None:
         self.assert_blocked("git checkout -- .")
 
+    def test_git_checkout_when_ref_dot_then_denied(self) -> None:
+        self.assert_blocked("git checkout main -- .")
+
+    def test_git_checkout_when_head_dot_then_denied(self) -> None:
+        self.assert_blocked("git checkout HEAD -- .")
+
+    def test_git_checkout_when_hash_dot_then_denied(self) -> None:
+        self.assert_blocked("git checkout abc123 -- .")
+
+    def test_git_checkout_when_remote_dot_then_denied(self) -> None:
+        self.assert_blocked("git checkout origin/main -- .")
+
+    def test_git_checkout_when_tag_dot_then_denied(self) -> None:
+        self.assert_blocked("git checkout v1.0.0 -- .")
+
+    def test_git_checkout_when_ref_dot_piped_then_denied(self) -> None:
+        self.assert_blocked("git checkout main -- . 2>/dev/null && npm test")
+
     # --- git restore . blocked ---
 
     def test_git_restore_when_dot_then_denied(self) -> None:
@@ -126,6 +144,21 @@ class TestBlockBypassFlags(unittest.TestCase):
 
     def test_git_checkout_when_specific_file_then_allowed(self) -> None:
         self.assert_allowed("git checkout -- src/app.ts")
+
+    def test_git_checkout_when_ref_specific_file_then_allowed(self) -> None:
+        self.assert_allowed("git checkout main -- src/app.ts")
+
+    def test_git_checkout_when_dotenv_then_allowed(self) -> None:
+        self.assert_allowed("git checkout -- .env")
+
+    def test_git_checkout_when_ref_dotenv_then_allowed(self) -> None:
+        self.assert_allowed("git checkout main -- .env")
+
+    def test_git_checkout_when_dotgitignore_then_allowed(self) -> None:
+        self.assert_allowed("git checkout -- .gitignore")
+
+    def test_git_checkout_when_ref_eslintrc_then_allowed(self) -> None:
+        self.assert_allowed("git checkout HEAD -- .eslintrc.json")
 
     def test_git_restore_when_specific_file_then_allowed(self) -> None:
         self.assert_allowed("git restore src/app.ts")

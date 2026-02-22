@@ -88,6 +88,13 @@ assert_allowed test_checkout_branch_allowed checkout main
 assert_blocked test_checkout_force_blocked checkout -f main
 assert_blocked test_checkout_long_force_blocked checkout --force main
 assert_blocked test_checkout_head_dot_blocked checkout HEAD -- .
+assert_blocked test_checkout_main_dot_blocked checkout main -- .
+assert_blocked test_checkout_hash_dot_blocked checkout abc123 -- .
+assert_blocked test_checkout_tag_dot_blocked checkout v1.0.0 -- .
+assert_blocked test_checkout_remote_dot_blocked checkout origin/main -- .
+assert_allowed test_checkout_ref_file_allowed checkout main -- src/app.ts
+assert_allowed test_checkout_dotenv_allowed checkout -- .env
+assert_allowed test_checkout_ref_dotenv_allowed checkout main -- .env
 
 echo ""
 echo "--- restore ---"
