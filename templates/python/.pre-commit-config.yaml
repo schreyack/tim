@@ -25,15 +25,35 @@ repos:
       - id: ruff-format
 
   # MyPy - Type checking (strict mode)
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+  #
+  # Uses a local hook instead of mirrors-mypy because mirrors-mypy runs in an
+  # isolated virtualenv without project dependencies, causing most imports to
+  # resolve as Any and silently hiding real type errors.
+  #
+  # Projects MUST override this hook in .pre-commit-overrides.yaml to set the
+  # correct venv path and source directories. Example:
+  #
+  #   disable: [mypy]
+  #   repos:
+  #     - repo: local
+  #       hooks:
+  #         - id: mypy
+  #           name: mypy (strict, project venv)
+  #           entry: backend/.venv/bin/mypy backend/app/ backend/tests/
+  #           language: system
+  #           pass_filenames: false
+  #           always_run: true
+  #
+  # The default below is a safe fallback that will error clearly if the venv
+  # is not found, rather than silently passing with incomplete type info.
+  - repo: local
     hooks:
       - id: mypy
-        args: [--strict]
-        additional_dependencies:
-          - pydantic>=2.0
-          - types-passlib
-          - types-pyjwt
+        name: mypy (strict, project venv)
+        entry: "bash -c 'if [ ! -f .venv/bin/mypy ]; then echo \"ERROR: .venv/bin/mypy not found. Configure mypy hook in .pre-commit-overrides.yaml with your venv path.\"; exit 1; fi; .venv/bin/mypy .'"
+        language: system
+        pass_filenames: false
+        always_run: true
 
   # Detect secrets - Prevent committing secrets
   - repo: https://github.com/Yelp/detect-secrets
