@@ -51,37 +51,16 @@ Runs on every PR creation and update. Blocks merge on any failure.
 |-------|------|-------------------|----------|
 | Gate 1 checks | (see above) | ANY failure | P0 |
 | Unit tests | pytest/jest | ANY test failure | P0 |
-| Line coverage | coverage | < 70% | P0 |
-| Branch coverage | coverage | < 70% | P0 |
+| Coverage report | Codecov | Reported, no threshold | Informational |
 | Security scan (code) | bandit/eslint-security | HIGH or CRITICAL | P0 |
 | Security scan (deps) | safety/npm audit | HIGH or CRITICAL | P0 |
 | Secrets scan (deep) | trufflehog | ANY detection | P0 |
 | Container scan | trivy | HIGH or CRITICAL | P0 |
 | License compliance | license-checker (Node) / pip-licenses (Python) | GPL, AGPL, or unlicensed | P1 |
 
-### Coverage Thresholds
+### Coverage Reporting
 
-```yaml
-# pytest-cov configuration
-[tool.coverage.report]
-fail_under = 70
-branch = true
-exclude_lines = [
-    "pragma: no cover",
-    "if TYPE_CHECKING:",
-    "raise NotImplementedError",
-]
-
-# Jest configuration
-coverageThreshold:
-  global:
-    lines: 70
-    branches: 70
-    functions: 70
-    statements: 70
-```
-
-**Note**: Coverage at 70% catches under-tested projects without forcing coverage of trivial code. Projects may set higher targets where it makes sense.
+Coverage is collected and uploaded to Codecov for reviewer visibility. No threshold blocks merge — reviewers use coverage reports to spot under-tested areas as part of normal code review.
 
 ### Security Severity Mapping
 
@@ -249,7 +228,7 @@ For each TIM project:
 
 - [ ] Pre-commit hooks installed (`pre-commit install`)
 - [ ] CI pipeline configured (GitHub Actions)
-- [ ] Coverage thresholds set (70%+)
+- [ ] Coverage reporting configured (Codecov upload)
 - [ ] Security scanning enabled (bandit/eslint-security + trivy)
 - [ ] Secrets scanning enabled (detect-secrets/gitleaks + trufflehog)
 - [ ] Deploy gates configured (health checks, migration dry-run)

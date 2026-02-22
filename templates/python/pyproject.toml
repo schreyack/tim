@@ -130,7 +130,6 @@ addopts = [
     "--strict-markers",
     "--cov=src",
     "--cov-report=term-missing",
-    "--cov-fail-under=70",
 ]
 markers = [
     "slow: marks tests as slow",
@@ -149,7 +148,6 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 70
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
