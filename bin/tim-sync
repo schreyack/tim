@@ -1,0 +1,341 @@
+#!/usr/bin/env bash
+#
+# tim-sync - Push TIM standards to all registered projects
+#
+# Updates submodules, regenerates configs, commits, and pushes.
+# Run this after committing and pushing changes to the TIM repo.
+#
+# Usage:
+#   tim-sync                # Sync all projects
+#   tim-sync <project>      # Sync one project by name or path
+#   tim-sync --list         # List projects and sync status
+#   tim-sync --check        # Dry run — show what would change
+#   tim-sync --no-push      # Sync and commit but don't push
+#   tim-sync --help         # Show help
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TIM_ROOT="$(dirname "$SCRIPT_DIR")"
+
+source "$TIM_ROOT/libs/bash/tim-common.sh"
+load_projects
+
+NO_PUSH=false
+USED_SUDO=false
+UNLOCKED=false
+FAILED_PROJECTS=()
+UPDATED_PROJECTS=()
+CURRENT_PROJECTS=()
+
+print_header() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  $1${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# --- Pre-flight ---
+
+preflight() {
+    local status
+    status=$(git -C "$TIM_ROOT" status --porcelain 2>/dev/null)
+    if [[ -n "$status" ]]; then
+        echo -e "${RED}Error: TIM repo has uncommitted changes. Commit or stash first.${NC}"
+        exit 1
+    fi
+
+    local unpushed
+    unpushed=$(git -C "$TIM_ROOT" log @{u}..HEAD --oneline 2>/dev/null || echo "")
+    if [[ -n "$unpushed" ]]; then
+        echo -e "${RED}Error: TIM repo has unpushed commits. Push first.${NC}"
+        exit 1
+    fi
+}
+
+# --- Unlock / relock ---
+
+has_schg_flags() {
+    local test_file="$TIM_ROOT/.tim-enforcement-files"
+    [[ -f "$test_file" ]] || return 1
+    local flags
+    flags=$(stat -f "%f" "$test_file" 2>/dev/null) || return 1
+    [[ $(( flags & 0x00020000 )) -ne 0 ]]
+}
+
+do_unlock() {
+    if has_schg_flags; then
+        USED_SUDO=true
+        echo -e "${YELLOW}System locks detected — unlocking with sudo...${NC}"
+        sudo "$TIM_ROOT/bin/tim-lock-enforcement" --unlock
+    else
+        "$TIM_ROOT/bin/tim-lock-enforcement" --unlock
+    fi
+    UNLOCKED=true
+}
+
+do_relock() {
+    $UNLOCKED || return 0
+    echo ""
+    "$TIM_ROOT/bin/tim-lock-enforcement"
+    if $USED_SUDO; then
+        sudo "$TIM_ROOT/bin/tim-lock-enforcement" --schg
+    fi
+}
+
+# --- Per-project sync ---
+
+sync_project() {
+    local project="$1"
+    local name
+    name=$(basename "$project")
+
+    if [[ ! -d "$project" ]]; then
+        echo -e "  ${RED}✗ directory not found: $project${NC}"
+        return 1
+    fi
+
+    # 1. Update submodule
+    if [[ -d "$project/lib/tim" ]]; then
+        local before after
+        before=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
+        if git -C "$project/lib/tim" pull origin main --quiet 2>/dev/null; then
+            after=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
+            if [[ "$before" != "$after" ]]; then
+                echo -e "  ${GREEN}✓${NC} submodule updated"
+            else
+                echo -e "  ${YELLOW}—${NC} submodule already current"
+            fi
+        else
+            echo -e "  ${RED}✗${NC} submodule pull failed"
+        fi
+    else
+        echo -e "  ${YELLOW}—${NC} no lib/tim submodule"
+    fi
+
+    # 2. Sync pre-commit config
+    if "$TIM_ROOT/bin/sync-pre-commit" "$name" >/dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} pre-commit config synced"
+    else
+        echo -e "  ${RED}✗${NC} pre-commit config sync failed"
+    fi
+
+    # 3. Sync CLAUDE.md
+    if "$TIM_ROOT/bin/sync-claude-md" "$name" >/dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} CLAUDE.md synced"
+    else
+        echo -e "  ${RED}✗${NC} CLAUDE.md sync failed"
+    fi
+
+    # 4. Stage changes
+    git -C "$project" add -f lib/tim .pre-commit-config.yaml CLAUDE.md 2>/dev/null || true
+
+    # 5. Commit if anything staged
+    if git -C "$project" diff --cached --quiet 2>/dev/null; then
+        echo -e "  ${YELLOW}—${NC} nothing to commit"
+        CURRENT_PROJECTS+=("$name")
+        return 0
+    fi
+
+    git -C "$project" commit --no-verify -m "chore: sync TIM standards" --quiet
+    echo -e "  ${GREEN}✓${NC} committed: chore: sync TIM standards"
+    UPDATED_PROJECTS+=("$name")
+
+    # 6. Push
+    if $NO_PUSH; then
+        echo -e "  ${YELLOW}—${NC} push skipped (--no-push)"
+    elif git -C "$project" push --quiet 2>/dev/null; then
+        echo -e "  ${GREEN}✓${NC} pushed"
+    else
+        echo -e "  ${RED}✗${NC} push failed"
+    fi
+}
+
+# --- Summary ---
+
+print_summary() {
+    local total=$1
+    local updated=${#UPDATED_PROJECTS[@]}
+    local current=${#CURRENT_PROJECTS[@]}
+    local failed=${#FAILED_PROJECTS[@]}
+
+    local summary="Synced $total projects ($updated updated, $current current"
+    [[ $failed -gt 0 ]] && summary+=", $failed failed"
+    summary+=")"
+    print_header "$summary"
+
+    if [[ $failed -gt 0 ]]; then
+        echo -e "\n${RED}Failed: ${FAILED_PROJECTS[*]}${NC}"
+    fi
+}
+
+# --- Modes ---
+
+sync_all() {
+    preflight
+    print_header "TIM Sync — Pushing standards to projects"
+    echo ""
+
+    do_unlock
+    trap do_relock EXIT
+    echo ""
+
+    local total=${#PROJECTS[@]}
+    for i in "${!PROJECTS[@]}"; do
+        local project="${PROJECTS[$i]}"
+        local name
+        name=$(basename "$project")
+        local idx=$((i + 1))
+        echo -e "${BOLD}[$idx/$total] $name${NC}"
+        sync_project "$project" || FAILED_PROJECTS+=("$name")
+        echo ""
+    done
+
+    print_summary "$total"
+    [[ ${#FAILED_PROJECTS[@]} -eq 0 ]]
+}
+
+sync_one() {
+    local target="$1"
+
+    for project in "${PROJECTS[@]}"; do
+        local name
+        name=$(basename "$project")
+        if [[ "$name" == "$target" || "$project" == "$target" ]]; then
+            preflight
+            print_header "TIM Sync — $name"
+            echo ""
+
+            do_unlock
+            trap do_relock EXIT
+            echo ""
+
+            echo -e "${BOLD}[1/1] $name${NC}"
+            sync_project "$project" || FAILED_PROJECTS+=("$name")
+            echo ""
+
+            print_summary 1
+            [[ ${#FAILED_PROJECTS[@]} -eq 0 ]]
+            return $?
+        fi
+    done
+
+    echo -e "${RED}Error: Project '$target' not found in registered projects.${NC}"
+    echo "Run 'tim-sync --list' to see registered projects."
+    return 1
+}
+
+check_projects() {
+    print_header "TIM Sync — Dry Run"
+    echo ""
+
+    local tim_head
+    tim_head=$(git -C "$TIM_ROOT" rev-parse HEAD 2>/dev/null)
+    local total=${#PROJECTS[@]}
+    local needs_sync=0
+
+    for i in "${!PROJECTS[@]}"; do
+        local project="${PROJECTS[$i]}"
+        local name
+        name=$(basename "$project")
+        local idx=$((i + 1))
+        echo -e "${BOLD}[$idx/$total] $name${NC}"
+
+        if [[ ! -d "$project" ]]; then
+            echo -e "  ${RED}✗ directory not found${NC}"
+            echo ""
+            continue
+        fi
+
+        local project_needs=false
+
+        if [[ -d "$project/lib/tim" ]]; then
+            local sub_head
+            sub_head=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null || echo "unknown")
+            if [[ "$sub_head" != "$tim_head" ]]; then
+                echo -e "  ${YELLOW}↻${NC} submodule behind (${sub_head:0:7} → ${tim_head:0:7})"
+                project_needs=true
+            else
+                echo -e "  ${GREEN}✓${NC} submodule current"
+            fi
+        else
+            echo -e "  ${RED}!${NC} no lib/tim submodule"
+        fi
+
+        $project_needs && needs_sync=$((needs_sync + 1))
+        echo ""
+    done
+
+    local current=$((total - needs_sync))
+    print_header "$needs_sync need sync, $current current"
+    [[ $needs_sync -eq 0 ]]
+}
+
+list_projects() {
+    print_header "TIM Sync — Registered Projects"
+    echo ""
+
+    local tim_head
+    tim_head=$(git -C "$TIM_ROOT" rev-parse HEAD 2>/dev/null)
+
+    for project in "${PROJECTS[@]}"; do
+        local name
+        name=$(basename "$project")
+
+        if [[ ! -d "$project" ]]; then
+            echo -e "  ${RED}✗${NC} $name — directory not found"
+            continue
+        fi
+
+        if [[ -d "$project/lib/tim" ]]; then
+            local sub_head
+            sub_head=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null || echo "unknown")
+            if [[ "$sub_head" != "$tim_head" ]]; then
+                echo -e "  ${YELLOW}↻${NC} $name — submodule behind"
+            else
+                echo -e "  ${GREEN}✓${NC} $name"
+            fi
+        else
+            echo -e "  ${RED}!${NC} $name — no lib/tim submodule"
+        fi
+    done
+}
+
+# --- Main ---
+
+case "${1:-}" in
+    --list|-l)
+        list_projects
+        ;;
+    --check|-c)
+        check_projects
+        ;;
+    --no-push)
+        NO_PUSH=true
+        sync_all
+        ;;
+    --help|-h)
+        echo "Usage: tim-sync [OPTIONS] [PROJECT]"
+        echo ""
+        echo "Push TIM standards to all registered projects."
+        echo ""
+        echo "Options:"
+        echo "  (none)       Sync all projects"
+        echo "  <project>    Sync one project by name or path"
+        echo "  --list, -l   List projects and sync status"
+        echo "  --check, -c  Dry run — show what would change"
+        echo "  --no-push    Sync and commit but don't push"
+        echo "  --help, -h   Show this help"
+        echo ""
+        echo "Steps per project:"
+        echo "  1. Update lib/tim submodule"
+        echo "  2. Regenerate .pre-commit-config.yaml"
+        echo "  3. Regenerate CLAUDE.md"
+        echo "  4. Commit and push"
+        ;;
+    "")
+        sync_all
+        ;;
+    *)
+        sync_one "$1"
+        ;;
+esac

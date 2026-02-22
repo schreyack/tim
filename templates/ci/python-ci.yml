@@ -5,7 +5,7 @@
 # - Type checking (mypy --strict)
 # - Linting (ruff)
 # - Formatting (ruff format)
-# - Tests with coverage (90% minimum)
+# - Tests with coverage (reported, no gate)
 # - Security scanning (bandit, safety, trivy)
 # - Secrets detection (trufflehog)
 #
@@ -129,7 +129,7 @@ jobs:
             --cov=src \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=70
+            --cov-branch
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

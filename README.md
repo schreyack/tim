@@ -33,7 +33,7 @@ The TIM standards enforce a **Plan → Review → Code → Verify → Test → D
 The TIM standards solve this through **automated enforcement at every layer**:
 
 - **Pre-commit hooks** block commits that fail type checking or contain secrets
-- **CI pipelines** block merges without 90% test coverage
+- **CI pipelines** block merges when tests fail, report coverage for reviewers
 - **Deploy gates** require human approval before production
 - **Real-time behavioral hooks** catch AI making excuses or writing oversized files
 - **Tim Loop** re-injects task prompts until verification passes—there is no "good enough," only 100% complete
@@ -116,7 +116,7 @@ The result: Claude stays focused on your goal even through long sessions, can't 
 | **Review** | Human reviews plan for feasibility and approves | plan-ops `promote`, `ai-ready` approval gates |
 | **Code** | AI implements exactly what the plan specifies | Tim Loop `--implement`, real-time code quality hooks |
 | **Verify** | AI verifies 100% of objectives are met, loops if not | Tim Loop verification phase (no exit until complete) |
-| **Test** | Tests must exist and pass with 70% coverage | Pre-commit hooks, CI pipeline (Gate 2) |
+| **Test** | Tests must exist and pass, coverage reported | Pre-commit hooks, CI pipeline (Gate 2) |
 | **Deploy** | Human approves production deployment | Deploy gates, canary rollout (Gate 3) |
 
 ```text
@@ -384,7 +384,7 @@ The TIM standards require four enforcement gates in all compliant projects:
 │  BLOCKS: git commit                                         │
 ├─────────────────────────────────────────────────────────────┤
 │  GATE 2: CI (Pull Request)                                  │
-│  Gate 1 + Tests + Coverage (90%) + Security scan            │
+│  Gate 1 + Tests + Coverage (reported) + Security scan        │
 │  BLOCKS: PR merge                                           │
 ├─────────────────────────────────────────────────────────────┤
 │  GATE 3: DEPLOY (Pre-deployment)                            │
@@ -413,7 +413,7 @@ The TIM standards require:
 | Requirement | Threshold | Enforcement |
 |-------------|-----------|-------------|
 | Type safety | 100% | Pre-commit + CI |
-| Test coverage | 90% | CI blocks merge |
+| Test coverage | Reported | Reviewer signal |
 | Security vulns | 0 HIGH/CRITICAL | CI blocks merge |
 | Secrets in code | 0 | Pre-commit blocks |
 | File size | 400 lines max | CI + AI behavioral gates |
@@ -508,7 +508,7 @@ tim/
 
 | Document | Summary |
 |----------|---------|
-| [requirements.md](standards/testing/requirements.md) | 70% coverage, value-driven testing |
+| [requirements.md](standards/testing/requirements.md) | Value-driven testing, coverage reporting |
 | [e2e-requirements.md](standards/testing/e2e-requirements.md) | True e2e testing, route discovery |
 | [test-migration.md](standards/testing/test-migration.md) | Convert tests to TIM standards |
 | [dev-server-verification.md](standards/testing/dev-server-verification.md) | Frontend verification during AI development (advisory) |
@@ -589,7 +589,7 @@ This is why the TIM standards enforce:
 
 - **Type checking on every commit** — Catches AI hallucinations about types
 - **Tests must pass before merge** — Catches plausible-sounding but broken logic
-- **70% coverage minimum** — Catches under-tested projects without forcing coverage of trivial code
+- **Coverage reported for reviewers** — Visible on PRs without forcing coverage of trivial code
 - **No bypass flags anywhere** — Removes temptation to skip verification
 - **Real-time behavioral gates** — Catches violations as they happen
 

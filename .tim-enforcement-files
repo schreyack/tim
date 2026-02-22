@@ -5,6 +5,9 @@
 # This config file itself
 .tim-enforcement-files
 
+# Gitignore protection
+.gitignore
+
 # Pre-commit configs and templates
 .pre-commit-config.yaml
 templates/node/.pre-commit-config.yaml

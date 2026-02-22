@@ -5,7 +5,7 @@
 # - Type checking (tsc --noEmit)
 # - Linting (eslint --max-warnings 0)
 # - Formatting (prettier --check)
-# - Tests with coverage (90% minimum)
+# - Tests with coverage (reported, no gate)
 # - Security scanning (npm audit, trivy)
 # - Secrets detection (trufflehog)
 #
@@ -126,7 +126,7 @@ jobs:
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
-        run: npm run test -- --coverage --coverage.thresholds.lines=90 --coverage.thresholds.branches=90 --coverage.thresholds.functions=90
+        run: npm run test -- --coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

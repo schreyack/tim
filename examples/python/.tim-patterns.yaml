@@ -97,5 +97,5 @@ enforcement:
 
   ci:
     - all pre-commit checks
-    - pytest with 70% coverage
+    - pytest with coverage reporting
     - file size check (max 400 lines)

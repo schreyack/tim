@@ -194,7 +194,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
    # Should pass
 
    # Check coverage
-   pytest --cov --cov-fail-under=70
+   pytest --cov
    # Should pass
    ```
 
@@ -308,7 +308,7 @@ Track progress with these metrics:
 
 ## Verification
 - [ ] All tests pass
-- [ ] Coverage >= 70%
+- [ ] Coverage report generated
 - [ ] mypy --strict passes
 ```
 

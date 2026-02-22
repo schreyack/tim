@@ -12,6 +12,7 @@ repos:
         language: system
         files: >-
           (?x)^(
+            \.gitignore|
             \.pre-commit-config\.yaml|
             \.secrets\.baseline
           )$

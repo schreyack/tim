@@ -40,6 +40,8 @@ project_files() {
         [[ -d "$project" ]] || continue
         local config="$project/.pre-commit-config.yaml"
         [[ -f "$config" ]] && echo "$config"
+        local gitignore="$project/.gitignore"
+        [[ -f "$gitignore" ]] && echo "$gitignore"
     done
 }
 

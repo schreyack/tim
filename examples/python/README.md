@@ -1,6 +1,6 @@
 # TIM Example: Python API
 
-A complete reference implementation demonstrating a TIM-compliant Python/FastAPI project. This example shows how all the TIM standards requirements work together: strict type checking, 90% test coverage, file size limits, and proper project structure.
+A complete reference implementation demonstrating a TIM-compliant Python/FastAPI project. This example shows how all the TIM standards requirements work together: strict type checking, coverage reporting, file size limits, and proper project structure.
 
 ## Features Demonstrated
 
@@ -9,7 +9,7 @@ A complete reference implementation demonstrating a TIM-compliant Python/FastAPI
 - **Database** (PostgreSQL with Alembic migrations)
 - **Strict Type Checking** (mypy --strict)
 - **Security** (password hashing, input validation)
-- **Testing** (pytest, 90%+ coverage)
+- **Testing** (pytest, coverage reported)
 
 ## Project Structure
 
@@ -102,7 +102,7 @@ poetry run pytest --cov --cov-report=term-missing
 - Unit tests in `tests/unit/`
 - Integration tests in `tests/integration/`
 - Async test support with pytest-asyncio
-- 70% coverage minimum
+- Coverage reported
 
 ### Security
 - JWT authentication with python-jose
@@ -251,7 +251,7 @@ poetry run ruff check src/ tests/
 poetry run ruff format src/ tests/
 
 # Tests with coverage
-poetry run pytest --cov=src --cov-fail-under=70
+poetry run pytest --cov=src
 
 # All checks (what CI runs)
 poetry run pre-commit run --all-files

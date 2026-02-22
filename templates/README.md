@@ -1,6 +1,6 @@
 # TIM Templates
 
-Ready-to-copy configuration files that implement the TIM standards. These templates enforce the required thresholds (70% coverage, strict type checking, file size limits) and integrate with the four-gate enforcement model.
+Ready-to-copy configuration files that implement the TIM standards. These templates enforce strict type checking, file size limits, and coverage reporting, and integrate with the four-gate enforcement model.
 
 ## Template Index
 
@@ -152,7 +152,7 @@ These hooks run during Claude Code sessions, providing immediate enforcement tha
 ### Gate 2 (CI/Pull Request)
 
 - `*-ci.yml` - All pre-commit checks + tests + security scans
-- Coverage thresholds (90%) enforced
+- Coverage collected and reported
 
 ### Gate 3 (Deploy/Pre-deployment)
 
@@ -164,7 +164,7 @@ These hooks run during Claude Code sessions, providing immediate enforcement tha
 
 When customizing templates, the TIM standards require:
 
-1. **Keep thresholds** - Don't lower coverage from 90%
+1. **Keep coverage reporting** - Don't remove coverage collection
 2. **Keep strictness** - Don't disable type checking rules
 3. **Add, don't remove** - Add project-specific checks, don't remove standard ones
 4. **Update versions** - Keep dependencies current
@@ -249,7 +249,7 @@ All templates enforce strict settings by default:
 
 - `tsconfig.json`: `"strict": true`
 - `eslint`: `--max-warnings 0`
-- Coverage: 90% minimum threshold
+- Coverage: collected and reported for reviewers
 
 These aren't obstacles - they're the quality gates that make AI development reliable.
 

@@ -26,7 +26,7 @@ Understanding the difference helps teams know:
 |----------|-------------------|---------------------|
 | Philosophy | Trust but verify, Human oversight | - |
 | Code Size | Code must be comprehensible | 400 lines max |
-| Testing | Must have coverage threshold | 70% coverage |
+| Testing | Must have coverage reporting | Coverage reported |
 | Tools | Must use a linter | ruff vs. black |
 | Deployment | Human approval for prod | Canary 10% split |
 
@@ -70,7 +70,7 @@ These define what TIM *is*. They will not change.
 | No commented-out code | Clean code principle |
 | No TODO/FIXME placeholders | Implement fully or don't add it |
 | No bare except clauses | Catch specific exceptions |
-| Must have coverage threshold | Testing is required (specific % is contextual) |
+| Must have coverage reporting | Testing is required, coverage is advisory |
 | 100% test pass rate | Non-negotiable quality |
 | Bug fixes require failing test first | Verification principle |
 
@@ -161,15 +161,11 @@ These are calibrations based on current understanding. They may change as AI cap
 | Max function parameters | 5 | Evidence this causes more harm than good |
 | Max nesting depth | 4 | Evidence this causes more harm than good |
 
-## Coverage Thresholds
+## Coverage Reporting
 
-*Current rationale: Experience-based calibration*
+*Current rationale: Coverage is a reviewer signal, not a gate. Thresholds incentivize gaming over meaningful testing.*
 
-| Rule | Current Value | Review Trigger |
-|------|---------------|----------------|
-| Minimum line coverage | 70% | Evidence different threshold is more effective |
-| Minimum branch coverage | 70% | Evidence different threshold is more effective |
-| Minimum function coverage | 70% | Evidence different threshold is more effective |
+Coverage is collected, reported on PRs, and visible in Codecov. No threshold blocks CI or merge.
 
 ## Tool Choices
 

@@ -408,7 +408,7 @@ repos:
   # Remove continue-on-error
 
 - name: Coverage Check
-  run: pytest --cov --cov-fail-under=70
+  run: pytest --cov
   # Remove continue-on-error
 ```
 
@@ -421,7 +421,7 @@ pre-commit run --all-files
 # Gate 2: CI (run locally to verify)
 mypy src --strict
 ruff check src tests
-pytest --cov --cov-fail-under=70
+pytest --cov
 
 # Gate 3: Deploy gates
 ./ops.sh health-check
@@ -478,9 +478,9 @@ During migration, projects may need temporary exceptions:
 ```yaml
 # .tim-patterns.yaml
 exceptions:
-  - rule: "coverage-90"
-    current_value: 75
-    target_value: 90
+  - rule: "coverage-reporting"
+    current_value: "not configured"
+    target_value: "reported"
     reason: "Legacy code migration in progress"
     deadline: "2025-02-28"
     approved_by: "human@example.com"
@@ -494,7 +494,7 @@ See [Gates - Exception Process](../enforcement/gates.md#exception-process) for f
 | Metric | Start | Target | Current |
 |--------|-------|--------|---------|
 | Type coverage | ___% | 100% | ___% |
-| Test coverage | ___% | 70% | ___% |
+| Test coverage | ___% | Reported | ___% |
 | Files > 400 lines | ___ | 0 | ___ |
 | Functions > 50 lines | ___ | 0 | ___ |
 | Pre-commit passing | No | Yes | ___ |

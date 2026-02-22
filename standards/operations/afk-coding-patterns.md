@@ -159,7 +159,7 @@ The reason AFK coding works with TIM:
 │                 ENFORCEMENT GATES                    │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
 │  │ Type     │  │ Lint     │  │ Test Suite       │  │
-│  │ Checking │  │ Rules    │  │ (70% coverage)   │  │
+│  │ Checking │  │ Rules    │  │ (coverage report) │  │
 │  └──────────┘  └──────────┘  └──────────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```

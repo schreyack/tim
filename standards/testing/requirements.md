@@ -2,17 +2,17 @@
 
 All TIM projects must meet these testing standards.
 
-## Coverage Thresholds
+## Coverage Reporting
 
-| Metric | Threshold | Enforcement |
-|--------|-----------|-------------|
-| Line coverage | >= 70% | CI blocks merge |
-| Branch coverage | >= 70% | CI blocks merge |
-| Function coverage | >= 70% | CI blocks merge |
+Coverage is a signal that you're testing the important parts, not a goal in itself. It is collected and reported for reviewer visibility — not gated in CI.
 
-Coverage is a signal that you're testing the important parts, not a goal in itself. The 70% threshold catches projects that are clearly under-tested without forcing coverage of trivial code.
+| Metric | Status | Purpose |
+|--------|--------|---------|
+| Line coverage | Reported | Reviewer signal |
+| Branch coverage | Reported | Reviewer signal |
+| Function coverage | Reported | Reviewer signal |
 
-Projects may set higher targets where it makes sense.
+Coverage reports are uploaded to Codecov and visible on PRs. Reviewers use them to spot under-tested areas, but no threshold blocks merge. Projects may set internal targets where it makes sense.
 
 ## Test Types Required
 
@@ -345,7 +345,6 @@ addopts = [
     "--strict-markers",
     "--cov=src",
     "--cov-report=term-missing",
-    "--cov-fail-under=70",
     "--cov-branch",
 ]
 markers = [
@@ -369,12 +368,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov", "html"],
       exclude: ["node_modules", "tests", "dist"],
-      thresholds: {
-        lines: 70,
-        branches: 70,
-        functions: 70,
-        statements: 70,
-      },
+      // Coverage is reported, not gated — no thresholds block CI
     },
     setupFiles: ["tests/setup.ts"],
   },

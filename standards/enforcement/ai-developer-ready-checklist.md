@@ -30,7 +30,7 @@ Every instruction must have exactly one possible interpretation.
 
 - [ ] **Success criteria are measurable** - Binary pass/fail, not subjective
   - Bad: "The feature should work well"
-  - Good: "All tests in `tests/test_feature.py` pass; coverage >= 70%"
+  - Good: "All tests in `tests/test_feature.py` pass"
 
 ---
 
@@ -95,7 +95,7 @@ Ensure the implementation can be verified.
   - Good: "All tests pass: `pytest tests/test_feature.py -v`"
 
 - [ ] **Test commands are exact** - Copy-paste runnable
-  - Good: `pytest tests/test_auth.py -v --cov=src/auth --cov-fail-under=70`
+  - Good: `pytest tests/test_auth.py -v --cov=src/auth`
   - Bad: "Run the tests"
 
 - [ ] **Expected outputs are specified** - Know what success looks like

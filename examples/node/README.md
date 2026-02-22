@@ -1,6 +1,6 @@
 # TIM Example: Node.js API
 
-A complete reference implementation demonstrating a TIM-compliant Node.js/Express project. This example shows how all the TIM standards requirements work together: strict TypeScript, 90% test coverage, file size limits, and proper project structure.
+A complete reference implementation demonstrating a TIM-compliant Node.js/Express project. This example shows how all the TIM standards requirements work together: strict TypeScript, coverage reporting, file size limits, and proper project structure.
 
 ## Stack
 
@@ -89,7 +89,7 @@ prisma/
 - `test_what_when_then` naming convention
 - Unit tests in `tests/unit/`
 - Integration tests in `tests/integration/`
-- 70% coverage minimum
+- Coverage reported
 
 ### Security
 - JWT authentication with jsonwebtoken
