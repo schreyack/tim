@@ -56,19 +56,27 @@ read_from_tty() {
     read -r "$var_name" </dev/tty
 }
 
-# Copy text to clipboard (cross-platform)
+# Copy text to clipboard (cross-platform, SSH-aware)
+# Uses OSC 52 escape sequence when in an SSH session so the text
+# reaches the *local* terminal's clipboard, not the remote machine's.
 copy_to_clipboard() {
     local text="$1"
+    # In an SSH session, local pbcopy/xclip talk to the remote display,
+    # not the user's machine. Use OSC 52 to reach the real clipboard.
+    if [[ -n "${SSH_TTY:-}" || -n "${SSH_CONNECTION:-}" ]]; then
+        local encoded
+        encoded=$(echo -n "$text" | base64 | tr -d '\n')
+        # OSC 52: \e]52;c;<base64>\a — sets the clipboard in the terminal
+        printf '\e]52;c;%s\a' "$encoded" >/dev/tty 2>/dev/null
+        return 0
+    fi
     if command -v pbcopy &>/dev/null; then
-        # macOS
         echo -n "$text" | pbcopy
         return 0
     elif command -v xclip &>/dev/null; then
-        # Linux with xclip
         echo -n "$text" | xclip -selection clipboard
         return 0
     elif command -v xsel &>/dev/null; then
-        # Linux with xsel
         echo -n "$text" | xsel --clipboard --input
         return 0
     fi
