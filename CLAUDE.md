@@ -23,7 +23,7 @@ Test naming: `test_<what>_<when>_<then>` (guidance, not enforced at pre-commit).
 - `mypy --strict` (Python) / `tsc strict` (Node). Zero warnings.
 - Coverage reported, not gated. Tests must prove business logic, error handling, and data integrity work.
 - Secrets never committed. All input validated (Pydantic/Zod).
-- Migrations only — no sync(), create_all(), manual DDL. Every migration has tested rollback.
+- Migrations only — no sync(), create_all(), manual DDL.
 - No TODO/FIXME/XXX, no print debugging, no bare except.
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 
