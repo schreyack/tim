@@ -100,7 +100,7 @@ repos:
     hooks:
       - id: no-hardcoded-settings
         name: No hardcoded settings (SOT enforcement)
-        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language python
+        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language python --tier block
         language: system
         types: [python]
 

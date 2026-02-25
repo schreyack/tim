@@ -77,7 +77,7 @@ repos:
     hooks:
       - id: no-hardcoded-settings
         name: No hardcoded settings (SOT enforcement)
-        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language typescript
+        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language typescript --tier block
         language: system
         types_or: [ts, tsx]
 

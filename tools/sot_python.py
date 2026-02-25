@@ -65,8 +65,9 @@ def _has_nonempty_string_fallback(node: ast.Call) -> bool:
 class SettingsSOTVisitor(ast.NodeVisitor):
     """AST visitor that detects hardcoded settings patterns in Python."""
 
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: str, tier: str = "block"):
         self.filepath = filepath
+        self.tier = tier
         self.violations: list[str] = []
         self._module_level = True
 
@@ -78,7 +79,7 @@ class SettingsSOTVisitor(ast.NodeVisitor):
             self._module_level = True
             self.visit(child)
 
-    # -- Rule 1: DEFAULT_* constants at module level --
+    # -- Rule 1 (Tier 1): DEFAULT_* constants at module level --
 
     def visit_Assign(self, node: ast.Assign) -> None:
         if self._module_level:
@@ -97,24 +98,6 @@ class SettingsSOTVisitor(ast.NodeVisitor):
         self._module_level = False
         self.generic_visit(node)
 
-    # -- Rule 2: if settings is None / if not settings --
-
-    def visit_If(self, node: ast.If) -> None:
-        self._module_level = False
-        self._check_settings_none_guard(node)
-        self.generic_visit(node)
-
-    def _check_settings_none_guard(self, node: ast.If) -> None:
-        test = node.test
-        if _is_none_check(test) and isinstance(test, ast.Compare):
-            name = _get_name(test.left)
-            if name and is_settings_name(name):
-                self._add(node.lineno, f"None guard on '{name}' — settings must not be optional")
-        if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
-            name = _get_name(test.operand)
-            if name and is_settings_name(name):
-                self._add(node.lineno, f"Falsy guard on '{name}' — settings must not be optional")
-
     # -- Rules 3-5, 9-10: Call-based patterns --
 
     def visit_Call(self, node: ast.Call) -> None:
@@ -126,93 +109,92 @@ class SettingsSOTVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def _check_dict_get(self, node: ast.Call) -> None:
-        """Rules 3/9: x.get("key", fallback) with non-None fallback."""
+        """Rules 3/9 (Tier 2): x.get("key", fallback) — only on settings-named objects."""
+        if self.tier != "warn":
+            return
         if not isinstance(node.func, ast.Attribute) or node.func.attr != "get":
             return
         if len(node.args) >= 2 and _is_non_none_literal(node.args[1]):
-            self._add(node.lineno, ".get() with hardcoded fallback — use settings SOT")
+            obj_name = _get_name(node.func.value)
+            if obj_name and is_settings_name(obj_name):
+                self._add(node.lineno, ".get() with hardcoded fallback — use settings SOT")
 
     def _check_getattr(self, node: ast.Call) -> None:
-        """Rule 4: getattr(obj, "attr", fallback) with non-None fallback."""
+        """Rule 4 (Tier 2): getattr(obj, "attr", fallback) — only on settings-named first arg."""
+        if self.tier != "warn":
+            return
         if not (isinstance(node.func, ast.Name) and node.func.id == "getattr"):
             return
         if len(node.args) >= 3 and _is_non_none_literal(node.args[2]):
-            self._add(node.lineno, "getattr() with hardcoded fallback — use settings SOT")
+            obj_name = _get_name(node.args[0])
+            if obj_name and is_settings_name(obj_name):
+                self._add(node.lineno, "getattr() with hardcoded fallback — use settings SOT")
 
     def _check_os_environ_get(self, node: ast.Call) -> None:
-        """Rule 5: os.environ.get("KEY", "default") with non-empty string."""
+        """Rule 5 (Tier 1): os.environ.get("KEY", "default") with non-empty string."""
         if _is_os_environ_get(node) and _has_nonempty_string_fallback(node):
             self._add(node.lineno, "os.environ.get() with hardcoded default — use settings SOT")
 
     def _check_setdefault(self, node: ast.Call) -> None:
-        """Rule 10: dict.setdefault("key", literal)."""
+        """Rule 10 (Tier 2): dict.setdefault("key", literal) — only on settings-named objects."""
+        if self.tier != "warn":
+            return
         if not isinstance(node.func, ast.Attribute) or node.func.attr != "setdefault":
             return
         if len(node.args) >= 2 and _is_non_none_literal(node.args[1]):
-            self._add(node.lineno, ".setdefault() with hardcoded default — use settings SOT")
+            obj_name = _get_name(node.func.value)
+            if obj_name and is_settings_name(obj_name):
+                self._add(node.lineno, ".setdefault() with hardcoded default — use settings SOT")
 
-    # -- Rule 6: x or <literal> --
+    # -- Rule 6 (Tier 2): x or <literal> — only on settings-named left operand --
 
     def visit_BoolOp(self, node: ast.BoolOp) -> None:
         self._module_level = False
-        if isinstance(node.op, ast.Or):
-            for value in node.values[1:]:
-                if _is_non_none_literal(value):
-                    self._add(node.lineno, "'or <literal>' fallback — use settings SOT")
-                    break
+        if self.tier == "warn" and isinstance(node.op, ast.Or):
+            first_name = _get_name(node.values[0]) if node.values else None
+            if first_name and is_settings_name(first_name):
+                for value in node.values[1:]:
+                    if _is_non_none_literal(value):
+                        self._add(node.lineno, "'or <literal>' fallback — use settings SOT")
+                        break
         self.generic_visit(node)
 
-    # -- Rule 7: x if x else <literal> --
+    # -- Rule 7 (Tier 2): x if x else <literal> — only when orelse references settings-named --
 
     def visit_IfExp(self, node: ast.IfExp) -> None:
         self._module_level = False
-        if _is_non_none_literal(node.orelse):
-            self._add(node.lineno, "Ternary with hardcoded fallback — use settings SOT")
+        if self.tier == "warn" and _is_non_none_literal(node.orelse):
+            orelse_name = _get_name(node.orelse)
+            test_name = _get_name(node.test) if isinstance(node.test, (ast.Name, ast.Attribute)) else None
+            body_name = _get_name(node.body) if isinstance(node.body, (ast.Name, ast.Attribute)) else None
+            # Fire if test or body references a settings-named variable
+            if (test_name and is_settings_name(test_name)) or (body_name and is_settings_name(body_name)):
+                self._add(node.lineno, "Ternary with hardcoded fallback — use settings SOT")
         self.generic_visit(node)
 
-    # -- Rule 8: def func(settings=None) --
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self._module_level = False
-        self._check_optional_settings_param(node)
-        self.generic_visit(node)
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        self._module_level = False
-        self._check_optional_settings_param(node)
-        self.generic_visit(node)
-
-    def _check_optional_settings_param(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> None:
-        defaults = node.args.defaults
-        num_args = len(node.args.args)
-        offset = num_args - len(defaults)
-        for i, default in enumerate(defaults):
-            if not (isinstance(default, ast.Constant) and default.value is None):
-                continue
-            arg_name = node.args.args[offset + i].arg
-            if is_settings_name(arg_name):
-                self._add(
-                    node.lineno,
-                    f"Optional settings parameter '{arg_name}=None' — settings must be required",
-                )
-
-    # -- Rule 11: val := x or default --
+    # -- Rule 11 (Tier 2): val := x or default — only on settings-named target --
 
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self._module_level = False
+        if self.tier != "warn":
+            self.generic_visit(node)
+            return
         if isinstance(node.value, ast.BoolOp) and isinstance(node.value.op, ast.Or):
-            for value in node.value.values[1:]:
-                if _is_non_none_literal(value):
-                    self._add(node.lineno, "Walrus with 'or <literal>' fallback — use settings SOT")
-                    break
+            target_name = _get_name(node.target)
+            if target_name and is_settings_name(target_name):
+                for value in node.value.values[1:]:
+                    if _is_non_none_literal(value):
+                        self._add(node.lineno, "Walrus with 'or <literal>' fallback — use settings SOT")
+                        break
         self.generic_visit(node)
 
-    # -- Rule 12: except block with hardcoded config fallback --
+    # -- Rule 12 (Tier 2): except block with hardcoded config fallback --
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         self._module_level = False
+        if self.tier != "warn":
+            self.generic_visit(node)
+            return
         for child in ast.walk(node):
             if not isinstance(child, ast.Assign):
                 continue
@@ -225,8 +207,22 @@ class SettingsSOTVisitor(ast.NodeVisitor):
                     )
         self.generic_visit(node)
 
+    # -- Traversal for non-rule nodes --
 
-def check_python_file(filepath: Path) -> list[str]:
+    def visit_If(self, node: ast.If) -> None:
+        self._module_level = False
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._module_level = False
+        self.generic_visit(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._module_level = False
+        self.generic_visit(node)
+
+
+def check_python_file(filepath: Path, tier: str = "block") -> list[str]:
     """Run AST-based checks on a Python file."""
     try:
         source = filepath.read_text()
@@ -234,6 +230,6 @@ def check_python_file(filepath: Path) -> list[str]:
     except (SyntaxError, OSError, UnicodeDecodeError):
         return []
 
-    visitor = SettingsSOTVisitor(str(filepath))
+    visitor = SettingsSOTVisitor(str(filepath), tier=tier)
     visitor.visit(tree)
     return visitor.violations
