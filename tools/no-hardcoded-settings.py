@@ -25,9 +25,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sot_common import (
+    BlockedPattern,
+    check_blocked_patterns,
     find_project_root,
     is_exempt,
     load_config,
+    parse_blocked_patterns,
     should_skip_path,
 )
 from sot_python import check_python_file
@@ -40,6 +43,7 @@ def collect_violations(
     tier: str,
     project_root: Path,
     exempt_patterns: list[str],
+    blocked_patterns: list[BlockedPattern],
 ) -> list[str]:
     """Check all given file paths and return violations."""
     violations: list[str] = []
@@ -56,6 +60,9 @@ def collect_violations(
             violations.extend(check_python_file(filepath, tier=tier))
         else:
             violations.extend(check_typescript_file(filepath, tier=tier))
+        violations.extend(
+            check_blocked_patterns(filepath, project_root, blocked_patterns)
+        )
     return violations
 
 
@@ -85,9 +92,10 @@ def main() -> int:
         return 0
 
     exempt_patterns: list[str] = config.get("exempt_files", []) or []
+    blocked = parse_blocked_patterns(config)
 
     violations = collect_violations(
-        args.paths, args.language, args.tier, project_root, exempt_patterns,
+        args.paths, args.language, args.tier, project_root, exempt_patterns, blocked,
     )
 
     if not violations:

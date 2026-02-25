@@ -2,6 +2,7 @@
 
 import fnmatch
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -121,6 +122,55 @@ def should_skip_path(filepath: Path) -> bool:
     """Check if path is in a directory we always skip."""
     return any(skip_dir in filepath.parts for skip_dir in SKIP_DIRS)
 
+
+
+@dataclass(frozen=True)
+class BlockedPattern:
+    """A project-specific regex pattern that blocks on match."""
+
+    regex: re.Pattern[str]
+    message: str
+    exempt_files: list[str] = field(default_factory=list)
+
+
+def parse_blocked_patterns(config: dict) -> list[BlockedPattern]:
+    """Parse blocked_patterns from config into BlockedPattern objects."""
+    raw = config.get("blocked_patterns", [])
+    if not raw:
+        return []
+    patterns: list[BlockedPattern] = []
+    for entry in raw:
+        if not isinstance(entry, dict) or "pattern" not in entry:
+            continue
+        patterns.append(BlockedPattern(
+            regex=re.compile(entry["pattern"]),
+            message=entry.get("message", "Blocked pattern match"),
+            exempt_files=entry.get("exempt_files", []) or [],
+        ))
+    return patterns
+
+
+def check_blocked_patterns(
+    filepath: Path,
+    project_root: Path,
+    patterns: list[BlockedPattern],
+) -> list[str]:
+    """Check a file against project-specific blocked patterns."""
+    if not patterns:
+        return []
+    try:
+        lines = filepath.read_text().splitlines()
+    except (OSError, UnicodeDecodeError):
+        return []
+
+    violations: list[str] = []
+    for bp in patterns:
+        if is_exempt(filepath, project_root, bp.exempt_files):
+            continue
+        for lineno, line in enumerate(lines, 1):
+            if bp.regex.search(line):
+                violations.append(f"{filepath}:{lineno}: {bp.message}")
+    return violations
 
 
 def default_name_pattern() -> re.Pattern[str]:
