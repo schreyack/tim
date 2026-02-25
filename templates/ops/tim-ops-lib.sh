@@ -1183,12 +1183,14 @@ cmd_db_migrate() {
         return 4
     fi
 
+    local db_service="${CONFIG[database_app_service]:-backend}"
+
     if [[ "$dry_run" == "true" ]]; then
         log_info "Migration dry-run:"
-        ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec backend $migration_cmd --sql"
+        ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec $db_service $migration_cmd --sql"
     else
         log_info "Running migrations..."
-        ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec backend $migration_cmd"
+        ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec $db_service $migration_cmd"
         audit_log "db:migrate" "SUCCESS" "0"
         log_success "Migrations complete"
     fi
@@ -1202,8 +1204,10 @@ cmd_db_rollback() {
         return 4
     fi
 
+    local db_service="${CONFIG[database_app_service]:-backend}"
+
     log_info "Rolling back last migration..."
-    ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec backend $rollback_cmd"
+    ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec $db_service $rollback_cmd"
     audit_log "db:rollback" "SUCCESS" "0"
     log_success "Rollback complete"
 }
@@ -1230,7 +1234,7 @@ cmd_db_restore() {
 }
 
 cmd_shell() {
-    local service="${1:-backend}"
+    local service="${1:-${CONFIG[database_app_service]:-backend}}"
     log_info "Opening shell in $service..."
     ssh_cmd "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE exec $service /bin/bash"
 }
