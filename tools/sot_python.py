@@ -65,9 +65,8 @@ def _has_nonempty_string_fallback(node: ast.Call) -> bool:
 class SettingsSOTVisitor(ast.NodeVisitor):
     """AST visitor that detects hardcoded settings patterns in Python."""
 
-    def __init__(self, filepath: str, extra_names: set[str]):
+    def __init__(self, filepath: str):
         self.filepath = filepath
-        self.extra_names = extra_names
         self.violations: list[str] = []
         self._module_level = True
 
@@ -109,11 +108,11 @@ class SettingsSOTVisitor(ast.NodeVisitor):
         test = node.test
         if _is_none_check(test) and isinstance(test, ast.Compare):
             name = _get_name(test.left)
-            if name and is_settings_name(name, self.extra_names):
+            if name and is_settings_name(name):
                 self._add(node.lineno, f"None guard on '{name}' — settings must not be optional")
         if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
             name = _get_name(test.operand)
-            if name and is_settings_name(name, self.extra_names):
+            if name and is_settings_name(name):
                 self._add(node.lineno, f"Falsy guard on '{name}' — settings must not be optional")
 
     # -- Rules 3-5, 9-10: Call-based patterns --
@@ -193,7 +192,7 @@ class SettingsSOTVisitor(ast.NodeVisitor):
             if not (isinstance(default, ast.Constant) and default.value is None):
                 continue
             arg_name = node.args.args[offset + i].arg
-            if is_settings_name(arg_name, self.extra_names):
+            if is_settings_name(arg_name):
                 self._add(
                     node.lineno,
                     f"Optional settings parameter '{arg_name}=None' — settings must be required",
@@ -227,7 +226,7 @@ class SettingsSOTVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def check_python_file(filepath: Path, extra_names: set[str]) -> list[str]:
+def check_python_file(filepath: Path) -> list[str]:
     """Run AST-based checks on a Python file."""
     try:
         source = filepath.read_text()
@@ -235,6 +234,6 @@ def check_python_file(filepath: Path, extra_names: set[str]) -> list[str]:
     except (SyntaxError, OSError, UnicodeDecodeError):
         return []
 
-    visitor = SettingsSOTVisitor(str(filepath), extra_names)
+    visitor = SettingsSOTVisitor(str(filepath))
     visitor.visit(tree)
     return visitor.violations

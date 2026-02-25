@@ -96,10 +96,10 @@ def _parse_simple_yaml(text: str) -> dict:
     return result
 
 
-def is_settings_name(name: str, extra_names: set[str]) -> bool:
+def is_settings_name(name: str) -> bool:
     """Check if a name refers to a settings/config object."""
     lower = name.lower()
-    if lower in SETTINGS_NAMES or lower in extra_names:
+    if lower in SETTINGS_NAMES:
         return True
     return any(lower.endswith(suffix) for suffix in SETTINGS_SUFFIXES)
 
@@ -121,10 +121,6 @@ def should_skip_path(filepath: Path) -> bool:
     """Check if path is in a directory we always skip."""
     return any(skip_dir in filepath.parts for skip_dir in SKIP_DIRS)
 
-
-def build_extra_names(config: dict) -> set[str]:
-    """Extract lowercased settings_models from config."""
-    return {name.lower() for name in (config.get("settings_models") or [])}
 
 
 def default_name_pattern() -> re.Pattern[str]:

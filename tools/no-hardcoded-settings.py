@@ -21,7 +21,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sot_common import (
-    build_extra_names,
     find_project_root,
     is_exempt,
     load_config,
@@ -36,7 +35,6 @@ def collect_violations(
     language: str,
     project_root: Path,
     exempt_patterns: list[str],
-    extra_names: set[str],
 ) -> list[str]:
     """Check all given file paths and return violations."""
     violations: list[str] = []
@@ -50,7 +48,7 @@ def collect_violations(
             continue
 
         if language == "python":
-            violations.extend(check_python_file(filepath, extra_names))
+            violations.extend(check_python_file(filepath))
         else:
             violations.extend(check_typescript_file(filepath))
     return violations
@@ -76,10 +74,9 @@ def main() -> int:
         return 0
 
     exempt_patterns: list[str] = config.get("exempt_files", []) or []
-    extra_names = build_extra_names(config)
 
     violations = collect_violations(
-        args.paths, args.language, project_root, exempt_patterns, extra_names,
+        args.paths, args.language, project_root, exempt_patterns,
     )
 
     if not violations:
