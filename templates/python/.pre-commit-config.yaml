@@ -14,7 +14,8 @@ repos:
           (?x)^(
             \.gitignore|
             \.pre-commit-config\.yaml|
-            \.secrets\.baseline
+            \.secrets\.baseline|
+            \.tim-settings-sot\.yaml
           )$
 
   # Ruff - Fast linting and formatting
@@ -93,6 +94,15 @@ repos:
     hooks:
       - id: bandit
         args: [-ll]
+
+  # Settings SOT enforcement - No hardcoded defaults or fallbacks
+  - repo: local
+    hooks:
+      - id: no-hardcoded-settings
+        name: No hardcoded settings (SOT enforcement)
+        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language python
+        language: system
+        types: [python]
 
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local

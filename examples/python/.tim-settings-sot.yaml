@@ -1,0 +1,11 @@
+# TIM Settings SOT Configuration
+# Presence of this file enables no-hardcoded-settings enforcement.
+# Only a human can create/modify/delete this file (protected by pre-commit).
+
+settings_models:     # Additional names to match (beyond built-in defaults)
+  - AppSettings
+  - DspSettings
+
+exempt_files:        # Glob patterns to skip (files that structurally can't use DB)
+  - "alembic/"
+  - "tests/fixtures/"

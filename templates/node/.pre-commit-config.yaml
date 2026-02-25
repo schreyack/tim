@@ -14,7 +14,8 @@ repos:
           (?x)^(
             \.gitignore|
             \.pre-commit-config\.yaml|
-            \.secrets\.baseline
+            \.secrets\.baseline|
+            \.tim-settings-sot\.yaml
           )$
 
   # Local hooks for Node.js tooling
@@ -70,6 +71,15 @@ repos:
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: detect-private-key
+
+  # Settings SOT enforcement - No hardcoded defaults or fallbacks
+  - repo: local
+    hooks:
+      - id: no-hardcoded-settings
+        name: No hardcoded settings (SOT enforcement)
+        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language typescript
+        language: system
+        types_or: [ts, tsx]
 
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
