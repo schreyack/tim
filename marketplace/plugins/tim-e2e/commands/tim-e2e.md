@@ -21,7 +21,7 @@ Parse `$ARGUMENTS` to determine the flow, mode, and base URL.
 - `--mode headed` (default) → Claude drives a visible browser, user watches
 - `--mode watch` → User drives the browser, Claude observes and generates tests
 - `--mode headless` → No visible browser, Claude navigates autonomously
-- `--base-url URL` → App URL to test against
+- `--base-url URL` → App URL to test against. **Save this URL** to `playwright.config.ts` baseURL so future runs use it automatically.
 
 If no `FLOW` argument is provided → stop. Print: "Usage: /tim-e2e FLOW [--mode headed|watch|headless] [--base-url URL]"
 
