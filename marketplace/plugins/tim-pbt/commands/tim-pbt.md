@@ -32,10 +32,10 @@ Parse `$ARGUMENTS` to determine the target and language.
 
 **If no source files found → stop.** Print: "No source files found in [target]. Nothing to test."
 
-**Verify test framework is available:**
+**Verify test framework is available (install if missing):**
 
-- Python: Run `python -c "import hypothesis"`. If missing, print "Install hypothesis first: pip install hypothesis" and stop.
-- TypeScript: Run `npx fast-check --version 2>/dev/null || echo missing`. If missing, print "Install fast-check first: npm install -D fast-check" and stop.
+- Python: Run `python -c "import hypothesis"`. If missing, run `pip install hypothesis` and continue.
+- TypeScript: Check for `fast-check` in package.json devDependencies. If missing, run `npm install -D fast-check` and continue.
 
 ---
 
