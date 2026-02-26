@@ -32,7 +32,7 @@
     {
       "name": "tim-e2e",
       "description": "E2E testing with Playwright MCP: Claude drives a real browser, writes tests from what it sees.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "author": {
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"

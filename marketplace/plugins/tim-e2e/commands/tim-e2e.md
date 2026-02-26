@@ -32,7 +32,6 @@ You need Playwright MCP tools to drive the browser. These are tools like `mcp__p
 **If you do NOT have `mcp__playwright__*` tools**, run these commands immediately:
 
 ```bash
-npm install -g @playwright/mcp@latest
 npx playwright install chromium
 claude mcp add playwright -- npx -y @playwright/mcp@latest
 ```
