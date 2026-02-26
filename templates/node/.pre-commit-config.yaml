@@ -81,6 +81,15 @@ repos:
         language: system
         types_or: [ts, tsx]
 
+  # No fallback defaults - Ban all silent default values
+  - repo: local
+    hooks:
+      - id: no-fallback-defaults
+        name: No fallback defaults (fail loudly)
+        entry: python3 lib/tim/tools/no-fallback-defaults.py --language typescript
+        language: system
+        types_or: [ts, tsx]
+
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
     hooks:

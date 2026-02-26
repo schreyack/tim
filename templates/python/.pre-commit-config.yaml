@@ -122,6 +122,15 @@ repos:
         language: system
         types: [python]
 
+  # No fallback defaults - Ban all silent default values
+  - repo: local
+    hooks:
+      - id: no-fallback-defaults
+        name: No fallback defaults (fail loudly)
+        entry: python3 lib/tim/tools/no-fallback-defaults.py --language python
+        language: system
+        types: [python]
+
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
     hooks:

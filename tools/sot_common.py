@@ -73,7 +73,7 @@ def load_config(project_root: Path) -> dict | None:
     try:
         import yaml
 
-        return yaml.safe_load(config_path.read_text()) or {}
+        return yaml.safe_load(config_path.read_text()) or {}  # noqa: no-fallback
     except ImportError:
         pass
 
@@ -135,7 +135,7 @@ class BlockedPattern:
 
 def parse_blocked_patterns(config: dict) -> list[BlockedPattern]:
     """Parse blocked_patterns from config into BlockedPattern objects."""
-    raw = config.get("blocked_patterns", [])
+    raw = config.get("blocked_patterns", [])  # noqa: no-fallback
     if not raw:
         return []
     patterns: list[BlockedPattern] = []
@@ -144,8 +144,8 @@ def parse_blocked_patterns(config: dict) -> list[BlockedPattern]:
             continue
         patterns.append(BlockedPattern(
             regex=re.compile(entry["pattern"]),
-            message=entry.get("message", "Blocked pattern match"),
-            exempt_files=entry.get("exempt_files", []) or [],
+            message=entry.get("message", "Blocked pattern match"),  # noqa: no-fallback
+            exempt_files=entry.get("exempt_files", []) or [],  # noqa: no-fallback
         ))
     return patterns
 
