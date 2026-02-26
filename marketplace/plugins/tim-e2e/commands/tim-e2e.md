@@ -25,11 +25,12 @@ Parse `$ARGUMENTS` to determine the flow, mode, and base URL.
 
 If no `FLOW` argument is provided → stop. Print: "Usage: /tim-e2e FLOW [--mode headed|watch|headless] [--base-url URL]"
 
-**Detect base URL** (if `--base-url` not provided):
+**Detect base URL** (if `--base-url` not provided, check in this order):
 
-1. Read `package.json` — look for `scripts.dev`, `scripts.start`, or `scripts.serve` for a port number (e.g., `--port 3001`, `:3001`)
-2. If found, use `http://localhost:<port>`
-3. Otherwise, default to `http://localhost:3000`
+1. Read existing `playwright.config.ts` — if it has a `baseURL` value, use it
+2. Check `TIM_E2E_BASE_URL` environment variable
+3. Read `package.json` — look for `scripts.dev`, `scripts.start`, or `scripts.serve` for a port number (e.g., `--port 3001`, `:3001`). If found, use `http://localhost:<port>`
+4. Default to `http://localhost:3000`
 
 **Check and install dependencies:**
 
