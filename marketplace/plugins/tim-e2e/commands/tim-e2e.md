@@ -83,12 +83,12 @@ curl -s -o /dev/null -w "%{http_code}" <base-url> 2>/dev/null || echo "unreachab
 ```
 
 - If the response is a 2xx or 3xx status → proceed.
-- If unreachable or 4xx/5xx → print the following and **stop** (do not proceed without a running app):
-
-  ```text
-  App is not running at <base-url>.
-  Start your app and run /tim-e2e again, or use --base-url to specify a different URL.
-  ```
+- If unreachable or 4xx/5xx → **ask the user** what to do. Present these options:
+  1. A different URL (let them type it, then re-check that URL)
+  2. They'll start the app and tell you when it's ready (wait for them, then re-check)
+- If the base URL was auto-detected (not from `--base-url` flag or `playwright.config.ts`), mention what was detected and that it may be wrong.
+- After getting a working URL from the user, save it to `playwright.config.ts` baseURL so future runs use it automatically.
+- Do not proceed until you have a reachable URL.
 
 ---
 
