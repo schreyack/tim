@@ -1,6 +1,6 @@
 {
   "name": "tim-e2e",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "E2E testing with Playwright MCP: Claude drives a real browser, writes tests from what it sees.",
   "author": {
     "name": "Tim Schreyack",
