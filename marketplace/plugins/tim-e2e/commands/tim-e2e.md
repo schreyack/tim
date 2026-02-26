@@ -27,23 +27,23 @@ If no `FLOW` argument is provided → stop. Print: "Usage: /tim-e2e FLOW [--mode
 
 **FIRST — Check for Playwright MCP (MANDATORY, do this before anything else):**
 
-Check if Playwright MCP tools are available in your current tool list. Look for tools named `browser_navigate`, `browser_snapshot`, `browser_click`, etc. These are MCP-provided tools, not shell commands.
+You need Playwright MCP tools to drive the browser. These are tools like `mcp__playwright__browser_navigate`, `mcp__playwright__browser_snapshot`, `mcp__playwright__browser_click` that appear in your available tool list — the same way you have `Bash`, `Read`, `Grep`, etc. They are NOT shell commands. Do NOT run bash commands to look for them. Just check: can you call a tool named `mcp__playwright__browser_navigate`? If you have never seen tools with the `mcp__playwright__` prefix in this session, they are not available.
 
-If these tools are NOT in your available tool list → install it automatically:
+**If you do NOT have `mcp__playwright__*` tools**, run this command immediately:
 
 ```bash
 claude mcp add playwright -- npx @playwright/mcp@latest
 ```
 
-Then tell the user:
+Then print this message and **STOP** (do not continue to any other phase):
 
 ```text
-Playwright MCP server has been added. Please restart Claude Code and run /tim-e2e again so the new MCP tools become available.
+Playwright MCP server has been installed. Restart Claude Code and run /tim-e2e again.
 ```
 
-**STOP after printing this message.** MCP tools only become available after a restart — there is no way to continue in the current session.
+MCP tools only load on startup — there is no way to use them in the current session after adding them.
 
-If the tools ARE available → continue with setup below.
+**If you DO have `mcp__playwright__*` tools** → continue with setup below.
 
 **Detect base URL** (if `--base-url` not provided, check in this order):
 
