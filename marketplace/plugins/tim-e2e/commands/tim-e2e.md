@@ -25,6 +25,22 @@ Parse `$ARGUMENTS` to determine the flow, mode, and base URL.
 
 If no `FLOW` argument is provided → stop. Print: "Usage: /tim-e2e FLOW [--mode headed|watch|headless] [--base-url URL]"
 
+**FIRST — Check for Playwright MCP (MANDATORY, do this before anything else):**
+
+Check if Playwright MCP tools are available in your current tool list. Look for tools named `browser_navigate`, `browser_snapshot`, `browser_click`, etc. These are MCP-provided tools, not shell commands.
+
+If these tools are NOT in your available tool list → print the following and **STOP IMMEDIATELY**. Do not check dependencies, detect URLs, or do any other setup work:
+
+```text
+Playwright MCP server is not configured. To add it, run:
+
+  claude mcp add playwright -- npx @playwright/mcp@latest
+
+Then restart Claude Code and run /tim-e2e again.
+```
+
+If the tools ARE available → continue with setup below.
+
 **Detect base URL** (if `--base-url` not provided, check in this order):
 
 1. Read existing `playwright.config.ts` — if it has a `baseURL` value, use it
@@ -36,19 +52,7 @@ If no `FLOW` argument is provided → stop. Print: "Usage: /tim-e2e FLOW [--mode
 
 1. Check if `@playwright/test` is in `package.json` devDependencies. If missing, run `npm install -D @playwright/test && npx playwright install chromium`.
 
-2. Check if the Playwright MCP server is available by looking for it in the available MCP tools. If Playwright MCP tools (like `browser_navigate`, `browser_snapshot`) are NOT available, print the following message and **stop**:
-
-   ```text
-   Playwright MCP server is not configured. To add it, run:
-
-     claude mcp add playwright -- npx @playwright/mcp@latest
-
-   Then restart Claude Code and run /tim-e2e again.
-   ```
-
-   Do NOT proceed without the MCP server — it is essential for all modes.
-
-3. Check if `playwright.config.ts` exists at the project root. If missing, create a minimal one:
+2. Check if `playwright.config.ts` exists at the project root. If missing, create a minimal one:
 
    ```typescript
    import { defineConfig } from "@playwright/test";
