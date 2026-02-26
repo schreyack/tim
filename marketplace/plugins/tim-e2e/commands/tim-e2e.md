@@ -29,10 +29,12 @@ If no `FLOW` argument is provided → stop. Print: "Usage: /tim-e2e FLOW [--mode
 
 You need Playwright MCP tools to drive the browser. These are tools like `mcp__playwright__browser_navigate`, `mcp__playwright__browser_snapshot`, `mcp__playwright__browser_click` that appear in your available tool list — the same way you have `Bash`, `Read`, `Grep`, etc. They are NOT shell commands. Do NOT run bash commands to look for them. Just check: can you call a tool named `mcp__playwright__browser_navigate`? If you have never seen tools with the `mcp__playwright__` prefix in this session, they are not available.
 
-**If you do NOT have `mcp__playwright__*` tools**, run this command immediately:
+**If you do NOT have `mcp__playwright__*` tools**, run these commands immediately:
 
 ```bash
-claude mcp add playwright -- npx @playwright/mcp@latest
+npm install -g @playwright/mcp@latest
+npx playwright install chromium
+claude mcp add playwright -- npx -y @playwright/mcp@latest
 ```
 
 Then print this message and **STOP** (do not continue to any other phase):
