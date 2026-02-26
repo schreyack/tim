@@ -29,15 +29,19 @@ If no `FLOW` argument is provided → stop. Print: "Usage: /tim-e2e FLOW [--mode
 
 Check if Playwright MCP tools are available in your current tool list. Look for tools named `browser_navigate`, `browser_snapshot`, `browser_click`, etc. These are MCP-provided tools, not shell commands.
 
-If these tools are NOT in your available tool list → print the following and **STOP IMMEDIATELY**. Do not check dependencies, detect URLs, or do any other setup work:
+If these tools are NOT in your available tool list → install it automatically:
+
+```bash
+claude mcp add playwright -- npx @playwright/mcp@latest
+```
+
+Then tell the user:
 
 ```text
-Playwright MCP server is not configured. To add it, run:
-
-  claude mcp add playwright -- npx @playwright/mcp@latest
-
-Then restart Claude Code and run /tim-e2e again.
+Playwright MCP server has been added. Please restart Claude Code and run /tim-e2e again so the new MCP tools become available.
 ```
+
+**STOP after printing this message.** MCP tools only become available after a restart — there is no way to continue in the current session.
 
 If the tools ARE available → continue with setup below.
 
