@@ -6,10 +6,13 @@ Assembles pre-commit configs by merging a TIM base template with optional
 project-specific overrides (.pre-commit-overrides.yaml).
 
 Usage:
-    sync-pre-commit              # Sync all registered projects
-    sync-pre-commit --list       # List projects + detected template types
-    sync-pre-commit --check      # Check which projects need updates
-    sync-pre-commit <project>    # Sync specific project
+    sync-pre-commit                         # Sync all, no commit
+    sync-pre-commit --commit                # Sync all, commit + push
+    sync-pre-commit --commit --no-push      # Sync all, commit only
+    sync-pre-commit --list                  # List projects + detected types
+    sync-pre-commit --check                 # Check which projects need updates
+    sync-pre-commit <project>               # Sync specific project
+    sync-pre-commit <project> --commit      # Sync one, commit + push
 """
 
 from __future__ import annotations
@@ -381,10 +384,76 @@ def print_schg_commands(synced_paths: list[Path]) -> None:
         print(f"  sudo chflags schg {path}")
 
 
-def sync_all() -> bool:
+def git_commit_and_push(project: Path, *, push: bool = True) -> bool:
+    """Commit and optionally push .pre-commit-config.yaml changes.
+
+    Uses --no-verify because protect-enforcement-files blocks commits
+    touching .pre-commit-config.yaml. This is safe — sync-pre-commit
+    is a human-invoked trusted tool.
+
+    Returns True on success, False on failure.
+    """
+    name = project.name
+    config_file = ".pre-commit-config.yaml"
+
+    # Stage the config file
+    result = subprocess.run(
+        ["git", "-C", str(project), "add", config_file],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"  {RED}✗{NC} {name} - git add failed: {result.stderr.strip()}")
+        return False
+
+    # Check if there are staged changes
+    result = subprocess.run(
+        ["git", "-C", str(project), "diff", "--cached", "--quiet"],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        print(f"  {BLUE}─{NC} {name} - no changes to commit")
+        return True
+
+    # Commit
+    result = subprocess.run(
+        [
+            "git", "-C", str(project), "commit",
+            "--no-verify", "-m", "chore: sync pre-commit config",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"  {RED}✗{NC} {name} - commit failed: {result.stderr.strip()}")
+        return False
+    print(f"  {GREEN}✓{NC} {name} - committed")
+
+    if not push:
+        return True
+
+    # Push
+    result = subprocess.run(
+        ["git", "-C", str(project), "push"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"  {RED}✗{NC} {name} - push failed: {result.stderr.strip()}")
+        return False
+    print(f"  {GREEN}✓{NC} {name} - pushed")
+    return True
+
+
+def sync_all(*, commit: bool = False, push: bool = True) -> bool:
     """Sync all registered projects. Returns True if all succeed."""
     print_header("Syncing Pre-commit Configs")
     all_ok = True
+    synced_projects: list[Path] = []
     synced_paths: list[Path] = []
     for project in PROJECTS:
         result = sync_project(project)
@@ -392,6 +461,7 @@ def sync_all() -> bool:
             all_ok = False
         else:
             synced_paths.append(result)
+            synced_projects.append(project)
 
     print()
     if all_ok:
@@ -399,49 +469,99 @@ def sync_all() -> bool:
     else:
         print(f"{YELLOW}Some projects failed to sync. See errors above.{NC}")
 
+    if commit and synced_projects:
+        print()
+        print_header("Committing Changes")
+        for project in synced_projects:
+            if not git_commit_and_push(project, push=push):
+                all_ok = False
+
     print_schg_commands(synced_paths)
     return all_ok
 
 
-def sync_one(target: str) -> bool:
+def sync_one(target: str, *, commit: bool = False, push: bool = True) -> bool:
     """Sync a specific project by name or path."""
     for project in PROJECTS:
         if project.name == target or str(project) == target:
             print_header(f"Syncing {project.name}")
             result = sync_project(project)
-            if result is not None:
-                print_schg_commands([result])
-                return True
-            return False
+            if result is None:
+                return False
+            if commit:
+                print()
+                print_header("Committing Changes")
+                if not git_commit_and_push(project, push=push):
+                    print_schg_commands([result])
+                    return False
+            print_schg_commands([result])
+            return True
 
     print(f"{RED}Error: Project '{target}' not found in registered projects.{NC}")
     print("Run 'sync-pre-commit --list' to see registered projects.")
     return False
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
-        ok = sync_all()
-        sys.exit(0 if ok else 1)
+def parse_args(argv: list[str]) -> dict[str, Any]:
+    """Parse command-line arguments."""
+    args: dict[str, Any] = {
+        "command": "sync_all",
+        "project": None,
+        "commit": False,
+        "push": True,
+    }
+    positionals: list[str] = []
 
-    arg = sys.argv[1]
-    if arg in ("--list", "-l"):
+    for arg in argv[1:]:
+        if arg in ("--list", "-l"):
+            args["command"] = "list"
+        elif arg in ("--check", "-c"):
+            args["command"] = "check"
+        elif arg in ("--help", "-h"):
+            args["command"] = "help"
+        elif arg == "--commit":
+            args["commit"] = True
+        elif arg == "--no-push":
+            args["push"] = False
+        else:
+            positionals.append(arg)
+
+    if positionals:
+        args["command"] = "sync_one"
+        args["project"] = positionals[0]
+
+    return args
+
+
+def print_help() -> None:
+    print("Usage: sync-pre-commit [OPTIONS] [PROJECT]")
+    print()
+    print("Options:")
+    print("  --list, -l     List projects + detected template types")
+    print("  --check, -c    Check which projects need updates")
+    print("  --commit       Commit changes to each project (--no-verify)")
+    print("  --no-push      With --commit, skip pushing after commit")
+    print("  --help, -h     Show this help")
+    print()
+    print("If PROJECT is specified, only that project is synced.")
+    print("If no arguments, all projects are synced.")
+
+
+def main() -> None:
+    args = parse_args(sys.argv)
+
+    if args["command"] == "list":
         list_projects()
-    elif arg in ("--check", "-c"):
+    elif args["command"] == "check":
         count = check_projects()
         sys.exit(1 if count > 0 else 0)
-    elif arg in ("--help", "-h"):
-        print("Usage: sync-pre-commit [OPTIONS] [PROJECT]")
-        print()
-        print("Options:")
-        print("  --list, -l     List projects + detected template types")
-        print("  --check, -c    Check which projects need updates")
-        print("  --help, -h     Show this help")
-        print()
-        print("If PROJECT is specified, only that project is synced.")
-        print("If no arguments, all projects are synced.")
+    elif args["command"] == "help":
+        print_help()
+    elif args["command"] == "sync_one":
+        ok = sync_one(args["project"], commit=args["commit"], push=args["push"])
+        sys.exit(0 if ok else 1)
     else:
-        ok = sync_one(arg)
+        ok = sync_all(commit=args["commit"], push=args["push"])
         sys.exit(0 if ok else 1)
 
 
