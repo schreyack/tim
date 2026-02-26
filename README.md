@@ -44,9 +44,12 @@ A complete enforcement framework:
 
 - Standards documentation for coding, testing, security, and deployment
 - Ready-to-copy templates for CI pipelines, pre-commit hooks, and configuration
-- Shared libraries (tim-lib for Python, @tim/lib for Node.js)
-- The **Tim Loop** plugin for guaranteed task completion
+- Shared libraries (tim-lib for Python, @tim/lib for Node.js, tim-common.sh for Bash)
+- **Tim Loop** plugin for guaranteed task completion with AI behavioral enforcement
+- **Tim PBT** plugin for property-based bug hunting with Hypothesis/fast-check
+- **Tim E2E** plugin for Playwright MCP-driven end-to-end testing
 - The **plan-ops** CLI for human-gated plan management
+- Enforcement tools: compliance checker, settings SOT enforcement, git-guard
 
 Adopt the full framework for new projects, or install Tim Loop standalone for immediate benefit.
 
@@ -59,6 +62,8 @@ Adopt the full framework for new projects, or install Tim Loop standalone for im
 | **See a complete example** | [Recommended Workflow](#recommended-workflow) |
 | **Set up a full TIM project** | [New Project Setup](#new-project-setup) |
 | **Browse all standards** | [Standards Index](#standards-index) |
+| **Hunt bugs with PBT** | [Tim PBT](#other-plugins) |
+| **Generate E2E tests** | [Tim E2E](#other-plugins) |
 
 ### The Tools
 
@@ -296,6 +301,8 @@ plan-ops adds human approval gates to the workflow. Use it when:
 |------|---------------|
 | **Install Tim Loop plugin** | [Just Want Tim Loop?](#just-want-tim-loop) (above) |
 | **Understand Tim Loop in depth** | [marketplace/plugins/tim-loop/README.md](marketplace/plugins/tim-loop/README.md) |
+| **Hunt bugs with property-based testing** | [marketplace/plugins/tim-pbt/commands/tim-pbt.md](marketplace/plugins/tim-pbt/commands/tim-pbt.md) |
+| **Generate E2E tests with a real browser** | [marketplace/plugins/tim-e2e/commands/tim-e2e.md](marketplace/plugins/tim-e2e/commands/tim-e2e.md) |
 | **Set up a new TIM-compliant project** | [New Project Setup](#new-project-setup) (below) |
 | **Migrate an existing project to TIM** | [Existing Project Migration](#existing-project-migration) (below) |
 | **Use the Python shared library** | [libs/python/README.md](libs/python/README.md) |
@@ -450,23 +457,37 @@ The TIM standards are **language-agnostic**, but we provide first-class support 
 
 ```text
 tim/
-├── CLAUDE.md              # Copy to TIM-compliant projects
+├── CLAUDE.md              # AI behavioral instructions (copy to projects)
 ├── README.md              # This file
 ├── LICENSE                # Apache 2.0
-├── standards/             # All standards documentation
+├── standards/             # All standards documentation (41 documents)
 ├── libs/                  # Shared libraries (required by TIM)
 │   ├── python/            # tim-lib Python package
-│   └── node/              # @tim/lib Node.js package
-├── marketplace/            # Claude Code plugins
+│   ├── node/              # @tim/lib Node.js package
+│   └── bash/              # tim-common.sh shared utilities
+├── bin/                   # Core CLI tools
+│   ├── sync-claude-md     # Propagate TIM standards to projects
+│   ├── sync-pre-commit    # Generate pre-commit configs from templates
+│   ├── tim-lock-enforcement # Lock/unlock enforcement files
+│   ├── tim-sync           # Sync submodule updates across projects
+│   ├── tim-test           # Unified test wrapper
+│   └── plan-ops           # Plan lifecycle CLI (wrapper)
+├── marketplace/           # Claude Code plugins
 │   └── plugins/
-│       └── tim-loop/      # Tim Loop plugin
+│       ├── tim-loop/      # Task completion with verification loop
+│       ├── tim-pbt/       # Property-based bug hunting
+│       └── tim-e2e/       # Playwright MCP E2E testing
 ├── examples/              # Reference implementations
 │   ├── python/            # Python/FastAPI example
 │   └── node/              # Node.js/Express example
 ├── templates/             # Ready-to-copy configs
-├── scripts/               # Setup and helper scripts
-│   └── quickstart.sh      # Quick start installer
-└── tools/                 # Enforcement tools
+├── tools/                 # Enforcement and compliance tools
+│   ├── tim-compliance-check.sh  # Project compliance checker
+│   ├── no-hardcoded-settings.py # Settings SOT enforcement
+│   ├── sot_*.py           # Settings source-of-truth validators
+│   └── tim-test/          # Modular test wrapper
+└── scripts/               # Setup scripts
+    └── quickstart.sh      # Quick start installer
 ```
 
 ---
@@ -643,6 +664,34 @@ This verifies:
 - No secrets in code
 - All patterns are registered
 - CUSTOM patterns have human approval
+
+---
+
+## Other Plugins
+
+Tim Loop is the core plugin, but TIM also includes two testing plugins:
+
+### Tim PBT — Property-Based Bug Hunting
+
+Discovers invariants in your code and uses Hypothesis (Python) or fast-check (TypeScript) to find violations. Unlike traditional test suites, PBT generates thousands of random inputs to find edge cases.
+
+```text
+/tim-pbt src/auth.py
+/tim-pbt src/services/ --language typescript
+```
+
+Outputs bug reports to `bugs/` with reproduction scripts. Install: `/plugin install tim-pbt@tim`
+
+### Tim E2E — Playwright MCP E2E Testing
+
+Claude drives a real browser via the Playwright MCP server, observes the application, and generates E2E tests from what it actually sees — not from source code.
+
+```text
+/tim-e2e "login flow" --base-url http://localhost:3000
+/tim-e2e "checkout flow" --mode watch
+```
+
+Generates Playwright test files in `tests/e2e/` using accessibility-based locators only. Install: `/plugin install tim-e2e@tim`
 
 ---
 

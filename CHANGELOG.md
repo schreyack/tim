@@ -5,6 +5,165 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.85.0] - 2026-02-26
+
+### Added
+
+- **tim-pbt plugin** (v1.0.0) — Property-based bug hunting with Hypothesis (Python) and fast-check (TypeScript)
+- **tim-e2e plugin** (v1.2.2) — Playwright MCP-driven E2E testing where Claude drives a real browser
+  - Auto-installs Playwright MCP server when missing
+  - Detects base URL from `playwright.config.ts`, env vars, and `package.json`
+  - Prompts user when app is unreachable; persists `--base-url` to config
+- **tim-sync** script for syncing submodule updates across projects
+- **git-guard** wrapper blocking destructive git commands (PreToolUse hook + standalone)
+- **no-hardcoded-settings** pre-commit hook enforcing settings source-of-truth
+- **Settings SOT checker** (`sot_common.py`, `sot_python.py`, `sot_typescript.py`) with two-tier enforcement and blocked-pattern support
+- `database_app_service` config key to `tim-ops-lib`
+- OSC 52 clipboard copy for SSH sessions in plan-ops
+
+### Changed
+
+- tim-loop plugin: 2.15.0 → 2.80.0 (see detailed history below)
+- Marketplace plugin versions now tracked independently (tim-loop, tim-pbt, tim-e2e)
+- Documentation overhaul: cross-reference matrix, dependency graph, 7-phase review of all docs
+- Testing standards rewritten for value-driven testing
+- Coverage thresholds removed from enforcement (reported only)
+- Migration rollback testing requirement removed
+
+### Fixed
+
+- Destructive git command patterns in PreToolUse hook (`git checkout <ref> -- .`)
+- Staged-files-only scanning in bandit and code-quality hooks
+- Correct `identify` type tags in node template
+
+## [2.80.0] - 2026-02-22
+
+### Added
+
+- Comprehensive pre-commit enforcement with industry best practices
+- Enforcement file locking (`chflags uchg` + `schg`)
+- Path-agnostic templates for symlink distribution
+- **LLM judge** for semantic evasion detection (`--llm-loop` flag)
+  - Task-context-aware criteria with original task in prompt
+  - Hard stop on FAIL verdict with human options
+  - Config file support for judge settings
+- **LLM-based task type classification** replacing regex detection
+- **Context-efficient full review** for large plans (delegates to subagents)
+- **Sticky system halt** (`continue:false`) persists across turns and agents
+- **Interactive plan picker** in plan-ops wizard when no args given
+- **Behavioral directives** moved from CLAUDE.md into tim-loop prompt (v2.77.0)
+- Per-phase iteration tracking for full-review mode
+- 7-phase full review: Tech, Devil's Advocate, Security, AI-Ready, Goal Alignment, PM, User Advocate
+- Unilateral decision detection and User Advocate review phase
+- Mode violation detector for wrong task execution
+- Task drift detection with option expander for stop hooks
+- `--team` flag for parallel implementation with agent teams (experimental)
+- PreToolUse hook blocking `--no-verify` and `chflags` bypass attempts
+- Fast pattern detector for PostToolUse hook
+- Verification failure recovery with `<!-- VERIFIED: FAILED -->` markers
+
+### Changed
+
+- Hooks moved from `settings.local.json` to `hooks.json` (v2.73.0)
+- Code quality violations now warn instead of halting (configurable)
+- Review passes reframed to prevent work-pacing behavior
+- Excuse detection skipped when user is interacting or in implement/full-review mode
+- Stop hook no longer burns iterations on agent-coordination turns
+- Setup instructions updated for submodule + symlink approach
+- `mirrors-mypy` replaced with local hook in Python template
+
+### Fixed
+
+- Full-review phase tracking survives context compaction
+- Multi-project support with PID-based state lookup
+- Cross-session staleness cleanup prevention
+- Hook accumulation in long sessions
+- False positives in task drift, excuse patterns, and LLM judge
+- Plan-ops status header detection, wizard stage/folder mismatches
+
+## [2.70.4] - 2026-02-12
+
+### Added
+
+- **Shared bash library** (`libs/bash/tim-common.sh`) for colors and project loading
+- **sync-claude-md** and **sync-pre-commit** scripts for propagating TIM standards
+- `protect-enforcement-files` pre-commit hook for sub-project templates
+- "No optional work in plans" principle added to standards
+
+### Changed
+
+- **tim-loop-setup.sh** split from 983 lines into 6 modular files: `setup-core.sh`, `setup-help.sh`, `setup-hooks.sh`, `setup-prompts.sh`, `setup-prompts-review.sh`
+- **tim-loop-prompt-manager.sh** split into 3 modules: `prompt-manager-commands.sh`, `prompt-manager-core.sh`, `prompt-manager-security.sh`
+- Python transcript utilities deduplicated with shared helpers
+- Test validation scripts split into modular test files
+- `tim-lock-enforcement` refactored to use `tim-common.sh` and `.tim-enforcement-files`
+- Plan-ops helpers deduplicated; dead code removed across codebase
+- Plugins moved from top-level to `marketplace/` directory
+- Pre-commit symlinks replaced with generated configs (`sync-pre-commit`)
+
+### Fixed
+
+- Enforcement file bitmask values in flag detection
+- ANSI color variable ordering (module-level dependency)
+- Plan-ops path resolution after marketplace move
+
+## [2.51.0] - 2026-02-07
+
+### Added
+
+- True system halt using `continue:false` response
+- Session isolation with global excuse detection
+- Hard stop after full-review completion
+- Plan-ops full review option for any plan state
+- Structured verification of "already done" plan items
+
+### Changed
+
+- Excuse detector only runs when tim-loop is active
+- Skip task drift detection in full-review and implement modes
+
+### Fixed
+
+- Plan-ops auto-repair for invalid Stage fields
+- Excuse detection scans stop at human turn boundary
+- Bypass attempts hardened in stop hooks
+
+## [2.43.0] - 2026-02-04
+
+### Added
+
+- YAML-based excuse patterns with optional LLM-as-judge
+- Config file support for LLM judge and auto-pattern feedback
+- Two-phase persona-switching for tech review
+- Per-phase iteration tracking for full-review
+- 6-phase full-review with complexity enforcement and hook health check
+- Staleness detection for tim-loop sessions
+
+### Changed
+
+- LLM judge uses original task instead of guessing context
+- Instruction-following made primary LLM judge check
+- Mode/task checks limited to last 10 assistant messages
+
+### Fixed
+
+- LLM verdict parsing handles markdown formatting
+- Reduced false positives in excuse patterns and LLM judge
+- Cross-session staleness cleanup prevention
+
+## [2.27.0] - 2026-02-01
+
+### Added
+
+- Verification gate vulnerability fixes
+
+### Fixed
+
+- Plan-ops package prompt buffering issue
+- Send prompt output to `/dev/tty`
+
+---
+
 ## [2.5.6] - 2025-01-29
 
 ### Added

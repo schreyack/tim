@@ -864,24 +864,101 @@ Tim Loop automatically cleans up:
 ```text
 plugins/tim-loop/
 ├── .claude-plugin/
-│   └── plugin.json           # Plugin metadata (name, description, author, version)
+│   └── plugin.json                  # Plugin metadata (version 2.80.0)
 ├── commands/
-│   ├── tim-loop.md           # Skill definition (command syntax, allowed tools)
-│   └── cancel-tim-loop.md    # Cancel command (cleanup state files)
-├── config.yaml               # Default plugin settings (LLM judge config)
-├── scripts/
-│   ├── tim-loop-setup.sh     # Main setup script (parses args, creates state, registers hooks)
-│   ├── tim_loop_hook.py      # Stop hook (checks completion, re-injects prompt)
-│   ├── tim-loop-permission-hook.sh  # PreToolUse hook (auto-approve when enabled)
-│   ├── tim-loop-prompt-manager.sh   # SessionStart hook (preserves prompt across compaction)
-│   ├── code-quality-validator.py    # PostToolUse hook (file/function size limits)
-│   ├── excuse_detector_v2.py # Stop hook (catches deflection patterns)
-│   ├── fast_pattern_detector.py     # PostToolUse hook (fast pattern detection)
-│   ├── block_bypass_flags.py # PreToolUse hook (blocks --no-verify and similar flags)
-│   └── option_expander.py    # UserPromptSubmit hook (expands shorthand options)
+│   ├── tim-loop.md                  # Skill definition (command syntax, allowed tools)
+│   └── cancel-tim-loop.md           # Cancel command (cleanup state files)
+├── config.yaml                      # Default plugin settings (LLM judge config)
 ├── hooks/
-│   └── hooks.json            # Hook configuration (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop)
-└── README.md                 # This file
+│   └── hooks.json                   # Hook configuration (all 6 hook types)
+├── scripts/
+│   │
+│   │── # ─── Setup (modular) ───
+│   ├── tim-loop-setup.sh            # Main entry point (dispatches to modules)
+│   ├── setup-core.sh                # Argument parsing, state initialization
+│   ├── setup-help.sh                # Help text and usage output
+│   ├── setup-hooks.sh               # Hook registration and cleanup
+│   ├── setup-prompts.sh             # Prompt generation for standard modes
+│   ├── setup-prompts-review.sh      # Prompt generation for review modes
+│   │
+│   │── # ─── Hooks ───
+│   ├── tim_loop_hook.py             # Stop: completion check, prompt re-injection
+│   ├── excuse_detector_v2.py        # Stop: deflection pattern detection
+│   ├── code-quality-validator.py    # PostToolUse: file/function size limits
+│   ├── fast_pattern_detector.py     # PostToolUse: behavioral pattern detection
+│   ├── block_bypass_flags.py        # PreToolUse: blocks --no-verify, chflags bypass
+│   ├── tim-loop-permission-hook.sh  # PreToolUse: auto-approve when enabled
+│   ├── option_expander.py           # UserPromptSubmit: expands shorthand options
+│   │
+│   │── # ─── Prompt Manager (modular) ───
+│   ├── tim-loop-prompt-manager.sh   # SessionStart: dispatcher for prompt preservation
+│   ├── prompt-manager-core.sh       # Core save/get/clear operations
+│   ├── prompt-manager-commands.sh   # Command routing
+│   ├── prompt-manager-security.sh   # Security validation
+│   │
+│   │── # ─── Tim Loop Core ───
+│   ├── tim_loop_state.py            # Session state management
+│   ├── tim_loop_verification.py     # Verification logic
+│   ├── tim_loop_responses.py        # Response generation
+│   ├── tim_loop_halt.py             # System halt (continue:false)
+│   ├── tim_loop_staleness.py        # Staleness detection
+│   ├── tim_loop_context_pressure.py # Context pressure handling
+│   ├── tim_loop_full_review.py      # Full review phase tracking
+│   ├── tim_loop_phase_prompts.py    # Phase-specific prompts
+│   ├── tim_loop_phase_responses.py  # Phase-specific responses
+│   ├── tim-loop-session.sh          # Session lifecycle
+│   ├── tim-loop-cleanup.sh          # Cleanup operations
+│   ├── transcript_utils.py          # Shared transcript extraction helpers
+│   │
+│   │── # ─── Excuse Patterns ───
+│   ├── excuse_pattern_loader.py     # YAML pattern loader
+│   ├── excuse_patterns.yaml         # Pattern definitions
+│   ├── patterns_core.py             # Core deflection patterns
+│   ├── patterns_extended.py         # Extended patterns
+│   ├── patterns_failure_dismissal.py # Failure dismissal patterns
+│   ├── patterns_mode_violation.py   # Mode violation detection
+│   ├── patterns_posthook.py         # Post-hook patterns
+│   ├── patterns_shortcut.py         # Shortcut reasoning patterns
+│   ├── patterns_task_drift.py       # Task drift detection
+│   ├── patterns_test_manipulation.py # Test manipulation patterns
+│   ├── patterns_unilateral_decision.py # Unilateral decision detection
+│   │
+│   │── # ─── LLM Judge ───
+│   ├── guardrails_judge.py          # LLM judge orchestrator
+│   ├── judge_config.py              # Judge configuration
+│   ├── judge_criteria.py            # Task-context-aware criteria
+│   ├── review_quality_judge.py      # Review quality evaluation
+│   │
+│   │── # ─── Git Guard ───
+│   ├── git-guard                    # Wrapper blocking destructive git commands
+│   │
+│   │── # ─── Plan-Ops (modular) ───
+│   ├── plan-ops.sh                  # Main plan-ops entry point
+│   ├── plan-ops/                    # Plan-ops modules
+│   │   ├── core.sh                  # Core utilities
+│   │   ├── search.sh               # Plan search
+│   │   ├── status.sh               # Status management
+│   │   ├── security.sh             # Security checks
+│   │   ├── approval.sh             # Approval workflows
+│   │   ├── verification.sh         # Plan verification
+│   │   ├── wizard.sh               # Interactive wizard
+│   │   ├── wizard-steps.sh         # Wizard step definitions
+│   │   ├── reset.sh                # Plan reset
+│   │   ├── commands-approval.sh    # Approval commands
+│   │   ├── commands-execution.sh   # Execution commands
+│   │   ├── commands-lifecycle.sh   # Lifecycle commands
+│   │   ├── commands-package.sh     # Package commands
+│   │   └── commands-utility.sh     # Utility commands
+│   │
+│   │── # ─── Utilities ───
+│   ├── pending_options.py           # Pending option tracking
+│   ├── hook-health-check.sh         # Hook health verification
+│   │
+│   │── # ─── Tests ───
+│   ├── test_*.py / test-*.sh        # Test files for hooks and core logic
+│   └── .benchmarks/                 # Performance benchmarks
+│
+└── README.md                        # This file
 ```
 
 ### State Files

@@ -39,6 +39,19 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - **Improved enforcement** tools or hooks
 - **Better documentation** and examples
 - **Bug fixes** in shared libraries or templates
+- **Plugin improvements** for Tim Loop, Tim PBT, or Tim E2E
+
+### Project Structure
+
+| Directory | What Goes Here |
+|-----------|----------------|
+| `standards/` | Standards documentation (coding, testing, security, deployment, enforcement) |
+| `libs/` | Shared libraries — `python/` (tim-lib), `node/` (@tim/lib), `bash/` (tim-common.sh) |
+| `marketplace/plugins/` | Claude Code plugins — `tim-loop/`, `tim-pbt/`, `tim-e2e/` |
+| `templates/` | Ready-to-copy configs for new projects |
+| `tools/` | Enforcement and compliance tools |
+| `bin/` | Core CLI scripts (`sync-claude-md`, `sync-pre-commit`, `tim-sync`, etc.) |
+| `examples/` | Reference implementations (Python/FastAPI, Node.js/Express) |
 
 ### Code Style
 
@@ -46,12 +59,14 @@ This repository follows its own standards:
 
 - Python: `ruff` for linting and formatting
 - TypeScript: `eslint` + `prettier`
+- Bash: shellcheck-compliant, source `tim-common.sh` for shared utilities
 - Markdown: Clear, concise, scannable
 
 ### Testing
 
 - Run `pre-commit run --all-files` before submitting
 - For shared library changes, run the test suite in `libs/python` or `libs/node`
+- For tim-loop changes, run the tests in `marketplace/plugins/tim-loop/scripts/`
 
 ## Questions?
 
