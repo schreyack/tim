@@ -1,6 +1,6 @@
 # Promotion Gates
 
-Code promotion through environments is controlled by automated testing gates. No code moves without passing tests. Human approval required for production only.
+Code promotion through environments is controlled by automated gates. If a project has tests, they must pass — but tests are not required. Human approval required for production.
 
 ## Promotion Flow
 

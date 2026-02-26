@@ -1,6 +1,6 @@
-# Testing Requirements
+# Testing Reference
 
-All TIM projects must meet these testing standards.
+Testing is optional and human-driven. AI must not write tests unless explicitly asked. These guidelines apply when humans choose to write tests.
 
 ## Coverage Reporting
 

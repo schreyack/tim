@@ -1,0 +1,9 @@
+{
+  "name": "tim-pbt",
+  "version": "1.0.0",
+  "description": "Property-based bug hunting: discover invariants in your code, find real bugs with Hypothesis/fast-check.",
+  "author": {
+    "name": "Tim Schreyack",
+    "email": "schreyack@users.noreply.github.com"
+  }
+}

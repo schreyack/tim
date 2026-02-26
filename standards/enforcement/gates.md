@@ -50,8 +50,8 @@ Runs on every PR creation and update. Blocks merge on any failure.
 | Check | Tool | Failure Condition | Priority |
 |-------|------|-------------------|----------|
 | Gate 1 checks | (see above) | ANY failure | P0 |
-| Unit tests | pytest/jest | ANY test failure | P0 |
-| Coverage report | Codecov | Reported, no threshold | Informational |
+| Unit tests (if present) | pytest/jest | ANY test failure | P0 |
+| Coverage report (if tests) | Codecov | Reported, no threshold | Informational |
 | Security scan (code) | bandit/eslint-security | HIGH or CRITICAL | P0 |
 | Security scan (deps) | safety/npm audit | HIGH or CRITICAL | P0 |
 | Secrets scan (deep) | trufflehog | ANY detection | P0 |
@@ -60,7 +60,7 @@ Runs on every PR creation and update. Blocks merge on any failure.
 
 ### Coverage Reporting
 
-Coverage is collected and uploaded to Codecov for reviewer visibility. No threshold blocks merge — reviewers use coverage reports to spot under-tested areas as part of normal code review.
+If a project has tests, coverage is collected and uploaded to Codecov for reviewer visibility. No threshold blocks merge. Tests are not required — writing tests is a human decision, not an AI mandate.
 
 ### Security Severity Mapping
 

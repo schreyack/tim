@@ -17,6 +17,17 @@
       },
       "source": "./marketplace/plugins/tim-loop",
       "category": "development"
+    },
+    {
+      "name": "tim-pbt",
+      "description": "Property-based bug hunting: discover invariants in your code, find real bugs with Hypothesis/fast-check.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Tim Schreyack",
+        "email": "schreyack@users.noreply.github.com"
+      },
+      "source": "./marketplace/plugins/tim-pbt",
+      "category": "testing"
     }
   ]
 }

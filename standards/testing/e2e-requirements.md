@@ -1,6 +1,6 @@
-# End-to-End Testing Requirements
+# End-to-End Testing Reference
 
-All TIM applications require e2e testing for critical user journeys. No code deploys without passing tests. Zero tolerance for flaky tests.
+E2E testing guidelines for projects that choose to implement them. Tests are not required for deployment — but if they exist, they must pass (no flaky tests, no skipped tests in promotion).
 
 ## Core Principles
 

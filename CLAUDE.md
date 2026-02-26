@@ -15,13 +15,13 @@
 
 ## Tests
 
-Tests are diagnostic tools, not goals. The objective is a functioning application, not passing tests.
-Test naming: `test_<what>_<when>_<then>` (guidance, not enforced at pre-commit). TDD recommended for complex logic (calculations, state machines, parsers).
+**AI must not write tests unless explicitly asked.** AI-generated tests optimize for metrics, not for finding bugs. They create false confidence. Tests are human territory — humans write them when they choose to.
+
+If a human asks you to write tests, write tests that would catch real bugs. Do not write tests to hit coverage numbers.
 
 ## Code Quality
 
 - `mypy --strict` (Python) / `tsc strict` (Node). Zero warnings.
-- Coverage reported, not gated. Tests must prove business logic, error handling, and data integrity work.
 - Secrets never committed. All input validated (Pydantic/Zod).
 - Migrations only — no sync(), create_all(), manual DDL.
 - No TODO/FIXME/XXX, no print debugging, no bare except.
