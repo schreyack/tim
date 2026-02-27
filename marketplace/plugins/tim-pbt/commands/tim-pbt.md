@@ -9,7 +9,7 @@ You are a bug hunter. Your job is to find real bugs in the user's code by discov
 
 **MANDATORY: SCAN EVERYTHING. NEVER SELF-SCOPE.** You must read every source file and evaluate every public function the user targeted. Do not "focus on utility functions," "identify the best targets," or "skip framework code because it requires Django setup." Phase 1 sets up the framework harness specifically so you can test Django models, views, and serializers. A 500-file codebase means reading 500 files. Size and framework complexity are never reasons to reduce scope. The user chose the target — honor it completely.
 
-Follow these seven phases in order. Do not skip phases. **Phases 2–7 loop in batches until every source file has been scanned** — see Phase 7 "Loop" step. Exit early only if a phase produces nothing to work with.
+Follow these seven phases in order. Do not skip phases. **Phases 2–7 loop until every module has full property-type coverage** — see Phase 7 "Loop" step. Exit early only if a phase produces nothing to work with.
 
 ---
 
@@ -105,9 +105,13 @@ Then run `/tim-pbt` in any project to start hunting.
 
 *Status: scanning...*
 
-## Files Scanned
+## Coverage
 
-<list of source file paths analyzed in this and prior runs, or "*None yet.*">
+| Module | Files | Classic (1–6) | Bug-Pattern (7–13) | Done |
+|--------|-------|---------------|--------------------|------|
+| <e.g. core/models/> | 12 | 1,2,3,5,6 | 7,10,12 | No |
+
+*Track by top-level module/directory. "Complete" = all 13 types evaluated (not all need tests — just evaluated).*
 
 ## Bugs
 
@@ -379,11 +383,11 @@ Full report: bugs/PBT-REPORT.md
 
 Remove all generated `pbt_test_*` and `pbt_conftest_*` files. The bug reports in `bugs/` and `PBT-REPORT.md` are the deliverables, not the tests.
 
-### Loop: check for unscanned files
+### Loop: check coverage
 
-Compare the source files from Phase 1b against the "Files Scanned" section in the report. If there are source files not yet listed as scanned, **go back to Phase 2** with the next batch of unscanned files. Process files in batches (scanning order: framework code → utilities → everything else). Update the report after each batch completes.
+Read the Coverage table in the report. If any module has "Complete" = No (unapplied property types remain), or if any source file directories from Phase 1b are missing from the table entirely, **go back to Phase 2** with the uncovered modules/types.
 
-**Keep looping until every source file has been scanned.** Only proceed to the final print-to-conversation step when no unscanned files remain. Each loop iteration: mine properties → generate tests → execute → triage → update report → clean up test files → next batch.
+**Keep looping until every module shows Complete = Yes.** Each iteration: mine unapplied property types → test → triage → update report → clean up test files → next module. Only print the final summary when coverage is complete.
 
 ---
 
@@ -392,6 +396,5 @@ Compare the source files from Phase 1b against the "Files Scanned" section in th
 - You are hunting bugs, not writing a test suite. Quality of findings over quantity of tests.
 - If a function has no testable properties, skip it. Do not force properties onto code that doesn't claim them (classic 1–6) or that doesn't exhibit anti-patterns (bug-pattern 7–13).
 - If all properties hold, that is a good outcome. Do not manufacture findings.
-- Keep generated test files minimal. They exist to run, not to read.
-- Never modify the user's source code. Only create `pbt_test_*` files, `pbt_conftest_*` files, `bugs/PBT-REPORT.md`, and `bugs/` individual bug reports.
+- Never modify the user's source code. Only create `pbt_test_*`, `pbt_conftest_*`, and `bugs/` files. Keep generated test files minimal.
 - If the project's virtual environment or node_modules cannot be located, stop and explain. Do not create environments from scratch.
