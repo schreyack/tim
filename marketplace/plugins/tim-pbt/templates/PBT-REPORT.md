@@ -13,6 +13,18 @@ tim-pbt is part of the [**TIM**](https://github.com/schreyack/tim) standards fra
 
 Then run `/tim-pbt` in any project to start hunting.
 
+### How it works
+
+A stop hook keeps Claude in a loop — after each turn, the hook checks coverage progress in `bugs/.pbt-state.json` and blocks exit until every module has all 13 property types evaluated. On large codebases this can take multiple context windows. When context runs low, the hook saves state and lets Claude exit gracefully. To resume, run `/clear` then `/tim-pbt` again — it picks up where it left off.
+
+For unattended scanning, run Claude with `--dangerously-skip-permissions` so the loop can execute tests and install dependencies without prompts:
+
+```bash
+claude --dangerously-skip-permissions
+```
+
+Then start the hunt with `/tim-pbt`.
+
 ---
 
 ## Project Details
