@@ -15,57 +15,46 @@ Follow these seven phases in order. Do not skip phases. Exit early if a phase pr
 
 ## Phase 1: Discovery + Environment Setup
 
-Parse `$ARGUMENTS` to determine the target and language.
+### 1a. Check for existing report
 
-**Target resolution:**
+Create `bugs/` if it doesn't exist. If `bugs/PBT-REPORT.md` exists, read it and extract cached environment info (language, frameworks, venv path, settings module, installed deps). Also read headings/metadata from any existing `pbt_*.md` bug reports — these are known bugs from prior runs.
 
-- No argument → scan project for source files
-- File path (e.g., `src/auth.py`) → analyze that file
-- Directory path (e.g., `src/services/`) → analyze all source files in it
-- `--language python` or `--language typescript` → override auto-detection
+If the report has a populated Environment section, **reuse those values** for steps 1b–1f instead of re-detecting. Only re-detect if the report is missing or the cached info is empty.
 
-**Auto-detect language:**
+### 1b. Resolve target and language
 
-- `pyproject.toml` or `setup.py` or `requirements.txt` exists → Python
-- `package.json` or `tsconfig.json` exists → TypeScript
-- Fall back to file extensions in the target
+Parse `$ARGUMENTS`. No argument → full project. File/directory path → that scope. `--language python|typescript` → override. Auto-detect from `pyproject.toml`/`setup.py`/`requirements.txt` (Python) or `package.json`/`tsconfig.json` (TypeScript).
 
 **Find source files** using Glob. Exclude: `tests/`, `test/`, `__tests__/`, `node_modules/`, `.venv/`, `venv/`, `__pycache__/`, `dist/`, `build/`, `*.test.*`, `*.spec.*`, `pbt_test_*`, `migrations/`, `*_generated*`.
 
-**If no source files found → stop.** Print: "No source files found in [target]. Nothing to test."
+**If no source files found → stop.**
 
-### 1a. Locate project environment
+### 1c. Locate project environment
 
-- Python: find active venv (`$VIRTUAL_ENV`, `.venv/`, `venv/`, `poetry env info -p`, `conda info --envs`)
-- TypeScript: check for `node_modules/` in the project root
-- **If no environment found → stop.** Print: "No virtual environment or node_modules found. Cannot install test dependencies into a non-existent environment."
+Skip if cached in report. Python: find active venv (`$VIRTUAL_ENV`, `.venv/`, `venv/`, `poetry env info -p`). TypeScript: check for `node_modules/`. **If none found → stop.**
 
-### 1b. Install PBT framework
+### 1d. Install PBT framework
 
-- Python: Run `python -c "import hypothesis"`. If missing, run `pip install hypothesis` and continue.
-- TypeScript: Check for `fast-check` in package.json devDependencies. If missing, run `npm install -D fast-check` and continue.
+Skip if cached in report. Python: `pip install hypothesis` if missing. TypeScript: `npm install -D fast-check` if missing.
 
-### 1c. Detect project framework
+### 1e. Detect project framework + install test infrastructure
 
-Scan `pyproject.toml`, `requirements*.txt`, `setup.py`, `package.json`, and a sample of source file imports for:
+Skip if cached in report. Scan `pyproject.toml`, `requirements*.txt`, `setup.py`, `package.json`, and imports for Django/FastAPI/Flask/SQLAlchemy/Express/NestJS/Prisma. Install test-only packages: Django → `pytest-django`, FastAPI → `httpx`, Flask → `pytest-flask`, Express → `supertest`. Only test deps, never production.
 
-- **Python:** Django, FastAPI, Flask, SQLAlchemy, Pydantic, Celery
-- **TypeScript:** Express, NestJS, Next.js, Prisma
+### 1f. Set up test harness
 
-Record which frameworks are detected. Print: "Detected frameworks: <list or 'none (pure library code)'>"
+If a framework was detected, you **must** set up its harness. "Framework code is complex" is not a reason to skip — it is the reason this step exists. Create `pbt_conftest_*.py` files in the project root:
 
-### 1d. Install test infrastructure
-
-Install **test-only** packages into the existing environment based on detected frameworks: Django → `pytest-django`, FastAPI → `httpx`, Flask → `pytest-flask`, SQLAlchemy → no extra (in-memory SQLite), Express → `supertest`. Skip if already installed. Only test packages, never production deps. Print what was installed.
-
-### 1e. Set up test harness
-
-If a framework was detected in 1c, you **must** set up its test harness. "Framework code is complex" is not a reason to skip — it is the reason this step exists. Create framework-specific `pbt_conftest_*.py` files in the project root:
-
-- **Django:** Create `pbt_conftest_django.py` — find the real `DJANGO_SETTINGS_MODULE` by scanning `manage.py` or `wsgi.py`, call `django.setup()`, add an autouse fixture wrapping `@pytest.mark.django_db`. Do not guess the settings module path. If Django setup fails, debug it — check for missing env vars, database config, or required settings. Do not silently fall back to "just test utility functions."
+- **Django:** Create `pbt_conftest_django.py` — find the real `DJANGO_SETTINGS_MODULE` by scanning `manage.py` or `wsgi.py`, call `django.setup()`, add autouse `@pytest.mark.django_db` fixture. If setup fails, debug it — do not silently fall back to "just test utility functions."
 - **FastAPI:** No conftest needed — tests import `TestClient` directly.
-- **SQLAlchemy:** Create `pbt_conftest_sqlalchemy.py` with an in-memory SQLite engine bound to the project's `Base` metadata.
+- **SQLAlchemy:** Create `pbt_conftest_sqlalchemy.py` with in-memory SQLite engine.
 - **Pure library code (no framework detected):** No harness needed.
+
+### 1g. Write the report
+
+Create or update `bugs/PBT-REPORT.md`. Carry forward Project Details and known bugs from prior report. The report template has these sections: (1) intro explaining PBT, (2) Project Details table (project name, language, frameworks, deps installed, first/last scanned dates, total runs), (3) Environment table (**venv path, settings module, test harness files, installed test deps** — cached for future runs), (4) Scan Summary table (source files, KLOC, maturity, budget, functions/properties/bugs — filled in as phases complete), (5) Bugs table (carried forward from prior runs or empty).
+
+Update this report after **every subsequent phase:** Phase 2 → fill in function/property counts, status "testing...". Phase 4 → status "triaging...". Phase 5+6 → final bug count, status "complete", replace Bugs section (see Phase 7).
 
 ---
 
@@ -110,58 +99,6 @@ If findings are significantly below the low estimate:
 - Never split a single bug into multiple reports (e.g., "fails on 0" and "fails on False" for the same `if not value` check is ONE bug, not two).
 - Never reclassify a discarded finding as a bug to close the gap.
 - If the gap remains after re-scan, report: "Budget gap: expected X–Y, found Z. Remaining gap likely in [untestable areas: DB-specific logic, async code, integration boundaries, etc.]." This is a valid outcome.
-
-### 5. Initialize the summary report
-
-Create `bugs/` if it doesn't exist. Then check for existing state:
-
-**If `bugs/PBT-REPORT.md` exists:** read it. Extract the Project Details section and any previously found bugs. Note them — you will carry them forward into the updated report and avoid re-reporting known bugs during triage.
-
-**If `pbt_*.md` bug reports exist in `bugs/`:** read their headings and metadata. These are known bugs from prior runs. They stay. The final report (Phase 7) will include them alongside new findings.
-
-**Create or overwrite `bugs/PBT-REPORT.md`** with the template below. Carry forward any Project Details from the previous report and merge with current scan info:
-
-```markdown
-# PBT Bug Hunt Report
-
-> Property-based testing uses randomized inputs to discover bugs that
-> hand-written tests miss. Instead of testing specific examples, PBT
-> generates thousands of inputs guided by properties — invariants the
-> code should satisfy. When an input violates a property, it shrinks to
-> the minimal failing case, producing a precise, reproducible bug report.
-
-## Project Details
-
-| Detail | Value |
-|--------|-------|
-| Project | <project name from pyproject.toml, package.json, or directory> |
-| Language | <Python\|TypeScript> |
-| Frameworks | <detected list or "none"> |
-| Dependencies installed | <list or "none"> |
-| First scanned | <date of first PBT run, carried forward> |
-| Last scanned | <today's date> |
-| Total runs | <incremented count, or 1 if new> |
-
-## Scan Summary
-
-| Metric | Value |
-|--------|-------|
-| Source files | <Z> |
-| Lines of code | <N> KLOC |
-| Project maturity | <mature\|average\|young> |
-| Bug budget | <low>–<high> expected |
-| Functions scanned | — |
-| Properties tested | — |
-| Bugs found | <N previously known> + — new |
-
-*Status: scanning...*
-
-## Bugs
-
-<table of previously known bugs carried forward, or "*No bugs found yet.*">
-```
-
-Update this report after **every subsequent phase:** Phase 2 → fill in function/property counts, status "testing...". Phase 4 → status "triaging...". Phase 5+6 → fill in final bug count, status "complete", replace Bugs section (see Phase 7).
 
 ---
 
