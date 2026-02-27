@@ -121,7 +121,14 @@ If findings are significantly below the low estimate:
 
 ### 5. Create the summary report
 
-Create `bugs/PBT-REPORT.md` (create `bugs/` if it doesn't exist). This is a living document updated after every phase. Initialize it with:
+Create `bugs/` if it doesn't exist. If it already exists:
+
+- **Previous `pbt_*.md` bug reports:** leave them. They may be unresolved bugs from prior runs.
+- **Previous `PBT-REPORT.md`:** overwrite it — the report always reflects the full current state.
+
+When writing the final report (Phase 7), include **all** `pbt_*.md` files in `bugs/`, not just this run's findings. Mark new bugs from this run vs previously found. This way the report is always a complete inventory.
+
+Create `bugs/PBT-REPORT.md`. This is a living document updated after every phase. Initialize it with:
 
 ```markdown
 # PBT Bug Hunt Report
@@ -157,11 +164,7 @@ Create `bugs/PBT-REPORT.md` (create `bugs/` if it doesn't exist). This is a livi
 *No bugs found yet.*
 ```
 
-Update this report at the end of **every subsequent phase:**
-
-- **After Phase 2:** fill in "Functions scanned" and "Properties tested" counts. Update status to "testing..."
-- **After Phase 4:** update status to "triaging..."
-- **After Phase 5 + 6:** fill in "Bugs found", update status to "complete", and replace the Bugs section with the findings table (see Phase 7 below).
+Update this report after **every subsequent phase:** Phase 2 → fill in function/property counts, status "testing...". Phase 4 → status "triaging...". Phase 5+6 → fill in bugs found, status "complete", replace Bugs section (see Phase 7).
 
 ---
 
@@ -349,15 +352,15 @@ For each confirmed bug, create a report file in `bugs/` (create the directory if
 
 ### Update the report
 
-Write the final version of `bugs/PBT-REPORT.md`. Fill in all Scan Summary metrics. Set status to "complete". Replace the Bugs section with the findings table sorted by severity (High → Medium → Low):
+Write the final version of `bugs/PBT-REPORT.md`. Fill in all Scan Summary metrics. Set status to "complete". Read **all** `pbt_*.md` files in `bugs/` and build the findings table sorted by severity (High → Medium → Low). Mark which bugs are new from this run:
 
 ```markdown
 ## Bugs
 
-| # | Severity | Function | Description | Report |
-|---|----------|----------|-------------|--------|
-| 1 | HIGH | `module.func` | Brief description | [link](pbt_target_2026-01-01_a1b2.md) |
-| 2 | MED | `module.func` | Brief description | [link](pbt_target_2026-01-01_c3d4.md) |
+| # | Severity | Function | Description | Found | Report |
+|---|----------|----------|-------------|-------|--------|
+| 1 | HIGH | `module.func` | Brief description | **new** | [link](pbt_target_2026-02-27_a1b2.md) |
+| 2 | MED | `module.func` | Brief description | 2026-02-20 | [link](pbt_target_2026-02-20_c3d4.md) |
 ```
 
 If no bugs found, replace with: "No bugs found. All <Y> properties held across <X> functions."
