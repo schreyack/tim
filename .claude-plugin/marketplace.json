@@ -21,7 +21,7 @@
     {
       "name": "tim-pbt",
       "description": "Property-based bug hunting: discover invariants in your code, find real bugs with Hypothesis/fast-check.",
-      "version": "2.1.1",
+      "version": "2.2.0",
       "author": {
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"

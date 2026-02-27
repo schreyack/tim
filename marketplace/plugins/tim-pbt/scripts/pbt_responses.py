@@ -18,19 +18,19 @@ from pbt_context_pressure import (
 from pbt_state import get_progress_summary, get_remaining_work, log_stderr
 
 
-def _format_remaining_work(remaining: list[tuple[str, list[int]]]) -> str:
+def _format_remaining_work(remaining: list[tuple[str, list[str]]]) -> str:
     """Format remaining modules and property types as a compact string."""
     parts = []
     for module, missing_types in remaining:
         if missing_types:
-            types_str = ",".join(str(t) for t in missing_types)
+            types_str = ",".join(missing_types)
             parts.append(f"{module} (types {types_str})")
         else:
             parts.append(f"{module} (mark complete)")
     return "; ".join(parts)
 
 
-def _format_remaining_minimal(remaining: list[tuple[str, list[int]]]) -> str:
+def _format_remaining_minimal(remaining: list[tuple[str, list[str]]]) -> str:
     """Ultra-compact remaining work for critical pressure."""
     count = len(remaining)
     total_types = sum(len(types) for _, types in remaining)

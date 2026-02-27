@@ -18,7 +18,13 @@ STATE_FILENAME = ".pbt-state.json"
 STATE_DIR = "bugs"
 STATE_VERSION = 1
 
-PROPERTY_TYPES = list(range(1, 14))  # 1–13
+PROPERTY_TYPES = [
+    "RT", "ID", "OI", "CA", "CC", "CF",  # Classic 1–6
+    "FV", "BO", "TC", "NP", "SV", "CO", "SM",  # Bug-Pattern 7–13
+]
+# Legacy: accept integer codes (1–13) from older state files
+_LEGACY_INT_CODES = set(range(1, 14))
+_INT_TO_CODE = dict(zip(range(1, 14), PROPERTY_TYPES))
 
 
 def log_stderr(msg: str) -> None:
@@ -188,6 +194,17 @@ def cleanup_state(project_dir: str) -> None:
 # Coverage analysis
 # ---------------------------------------------------------------------------
 
+def _normalize_evaluated(evaluated: list) -> set[str]:
+    """Normalize evaluated list to string codes, handling legacy int format."""
+    result: set[str] = set()
+    for item in evaluated:
+        if isinstance(item, int) and item in _LEGACY_INT_CODES:
+            result.add(_INT_TO_CODE[item])
+        elif isinstance(item, str) and item in PROPERTY_TYPES:
+            result.add(item)
+    return result
+
+
 def is_coverage_complete(state: dict) -> bool:
     """Returns True only when ALL modules have complete: true AND all 13 property types evaluated."""
     modules = state.get("modules", {})
@@ -197,19 +214,19 @@ def is_coverage_complete(state: dict) -> bool:
     for m in modules.values():
         if not m.get("complete", False):
             return False
-        if set(m.get("evaluated", [])) != required:
+        if _normalize_evaluated(m.get("evaluated", [])) != required:
             return False
     return True
 
 
-def get_remaining_work(state: dict) -> list[tuple[str, list[int]]]:
+def get_remaining_work(state: dict) -> list[tuple[str, list[str]]]:
     """Returns list of (module_name, missing_property_types) for incomplete modules.
 
     Also catches modules marked complete but with missing property types.
     """
     remaining = []
     for name, mod in state.get("modules", {}).items():
-        evaluated = set(mod.get("evaluated", []))
+        evaluated = _normalize_evaluated(mod.get("evaluated", []))
         missing = [t for t in PROPERTY_TYPES if t not in evaluated]
         if missing:
             remaining.append((name, missing))
