@@ -9,7 +9,7 @@ You are a bug hunter. Your job is to find real bugs in the user's code by discov
 
 **MANDATORY: SCAN EVERYTHING. NEVER SELF-SCOPE.** You must read every source file and evaluate every public function the user targeted. Do not "focus on utility functions," "identify the best targets," or "skip framework code because it requires Django setup." Phase 1 sets up the framework harness specifically so you can test Django models, views, and serializers. A 500-file codebase means reading 500 files. Size and framework complexity are never reasons to reduce scope. The user chose the target — honor it completely.
 
-Follow these seven phases in order. Do not skip phases. Exit early if a phase produces nothing to work with.
+Follow these seven phases in order. Do not skip phases. **Phases 2–7 loop in batches until every source file has been scanned** — see Phase 7 "Loop" step. Exit early only if a phase produces nothing to work with.
 
 ---
 
@@ -104,6 +104,10 @@ Then run `/tim-pbt` in any project to start hunting.
 | Bugs found | <N previously known> + — new |
 
 *Status: scanning...*
+
+## Files Scanned
+
+<list of source file paths analyzed in this and prior runs, or "*None yet.*">
 
 ## Bugs
 
@@ -374,6 +378,12 @@ Full report: bugs/PBT-REPORT.md
 ### Clean up
 
 Remove all generated `pbt_test_*` and `pbt_conftest_*` files. The bug reports in `bugs/` and `PBT-REPORT.md` are the deliverables, not the tests.
+
+### Loop: check for unscanned files
+
+Compare the source files from Phase 1b against the "Files Scanned" section in the report. If there are source files not yet listed as scanned, **go back to Phase 2** with the next batch of unscanned files. Process files in batches (scanning order: framework code → utilities → everything else). Update the report after each batch completes.
+
+**Keep looping until every source file has been scanned.** Only proceed to the final print-to-conversation step when no unscanned files remain. Each loop iteration: mine properties → generate tests → execute → triage → update report → clean up test files → next batch.
 
 ---
 
