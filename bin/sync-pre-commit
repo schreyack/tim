@@ -5,14 +5,17 @@ sync-pre-commit - Generate .pre-commit-config.yaml for TIM projects.
 Assembles pre-commit configs by merging a TIM base template with optional
 project-specific overrides (.pre-commit-overrides.yaml).
 
+Auto-commits by default (--no-verify) because .pre-commit-config.yaml is a
+locked enforcement file that blocks normal commits via protect-enforcement-files.
+
 Usage:
-    sync-pre-commit                         # Sync all, no commit
-    sync-pre-commit --commit                # Sync all, commit + push
-    sync-pre-commit --commit --no-push      # Sync all, commit only
+    sync-pre-commit                         # Sync all, commit locally
+    sync-pre-commit --push                  # Sync all, commit + push
+    sync-pre-commit --no-commit             # Sync all, skip commit
     sync-pre-commit --list                  # List projects + detected types
     sync-pre-commit --check                 # Check which projects need updates
-    sync-pre-commit <project>               # Sync specific project
-    sync-pre-commit <project> --commit      # Sync one, commit + push
+    sync-pre-commit <project>               # Sync specific project, commit locally
+    sync-pre-commit <project> --push        # Sync one, commit + push
 """
 
 from __future__ import annotations
@@ -507,8 +510,8 @@ def parse_args(argv: list[str]) -> dict[str, Any]:
     args: dict[str, Any] = {
         "command": "sync_all",
         "project": None,
-        "commit": False,
-        "push": True,
+        "commit": True,
+        "push": False,
     }
     positionals: list[str] = []
 
@@ -521,6 +524,10 @@ def parse_args(argv: list[str]) -> dict[str, Any]:
             args["command"] = "help"
         elif arg == "--commit":
             args["commit"] = True
+        elif arg == "--no-commit":
+            args["commit"] = False
+        elif arg == "--push":
+            args["push"] = True
         elif arg == "--no-push":
             args["push"] = False
         else:
@@ -539,12 +546,15 @@ def print_help() -> None:
     print("Options:")
     print("  --list, -l     List projects + detected template types")
     print("  --check, -c    Check which projects need updates")
-    print("  --commit       Commit changes to each project (--no-verify)")
-    print("  --no-push      With --commit, skip pushing after commit")
+    print("  --no-commit    Skip auto-commit (default: commit locally)")
+    print("  --push         Commit and push (default: commit only)")
     print("  --help, -h     Show this help")
     print()
     print("If PROJECT is specified, only that project is synced.")
     print("If no arguments, all projects are synced.")
+    print()
+    print("Auto-commits with --no-verify because .pre-commit-config.yaml")
+    print("is a locked enforcement file.")
 
 
 def main() -> None:
