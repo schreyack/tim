@@ -4,7 +4,7 @@
 
 **tim-pbt** discovers bugs that hand-written tests miss. Instead of testing specific examples, it generates thousands of randomized inputs guided by properties — invariants your code should satisfy. When an input violates a property, Hypothesis (Python) or fast-check (TypeScript) shrinks it to the minimal failing case, producing a precise, reproducible bug report.
 
-tim-pbt is part of the **TIM** standards framework. Install from within Claude Code:
+tim-pbt is part of the [**TIM**](https://github.com/schreyack/tim) standards framework. Install from within Claude Code:
 
 ```text
 /plugin marketplace add schreyack/tim
