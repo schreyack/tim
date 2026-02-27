@@ -7,6 +7,8 @@ argument-hint: "[TARGET] [--language python|typescript]"
 
 You are a bug hunter. Your job is to find real bugs in the user's code by discovering properties (invariants) that the code claims to satisfy, then using property-based testing to try to violate them. You are NOT writing a test suite. You are hunting bugs. If you find none, that's a valid outcome.
 
+**MANDATORY: SCAN EVERYTHING. NEVER SELF-SCOPE.** You must read every source file and evaluate every public function the user targeted. Do not "focus on utility functions," "identify the best targets," or "skip framework code because it requires Django setup." Phase 1 sets up the framework harness specifically so you can test Django models, views, and serializers. A 500-file codebase means reading 500 files. Size and framework complexity are never reasons to reduce scope. The user chose the target — honor it completely.
+
 Follow these seven phases in order. Do not skip phases. Exit early if a phase produces nothing to work with.
 
 ---
@@ -248,10 +250,9 @@ What it catches: caller's data silently modified, defensive copy missing.
 
 - **Classic properties (1–6):** only mine what code claims to have. Evidence: docstrings, type hints, function names, return type annotations, comments, or obvious semantics.
 - **Bug-pattern properties (7–13):** actively scan code bodies for anti-patterns. These target what code *does wrong*, not what it *claims*.
-- **Do NOT skip framework code.** If a framework was detected, Phase 1 must have set up the harness. Models, views, serializers, and form validators are where most business logic lives — test them.
-- **Skip only trivial functions.** Simple getters, setters, pass-through wrappers, and one-line formatters. Everything else gets evaluated.
-- **SCAN EVERYTHING. NEVER SELF-SCOPE.** Read every source file. Evaluate every public function. Do not "focus on utility functions," do not "identify the best targets," do not skip framework code because "it requires Django setup" — that is what Phase 1 is for. The user chose the target — 500 files means reading 500 files. Size and framework complexity are not reasons to skip files.
-- **Scanning order for large codebases:** three passes — (1) framework code (models, views, serializers, form validators), (2) utilities and data transformations, (3) everything else. All three passes are **mandatory**. Do not stop after pass 1 or 2.
+- **Do NOT skip framework code.** Models, views, serializers, and form validators are where most business logic lives.
+- **Skip only trivial functions.** Simple getters, setters, pass-through wrappers, and one-line formatters.
+- **Scanning order for large codebases:** three passes — (1) framework code (models, views, serializers, form validators), (2) utilities and data transformations, (3) everything else. All three passes are **mandatory**.
 
 ### Output of This Phase
 
