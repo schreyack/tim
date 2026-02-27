@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **tim-pbt plugin** v2.0.1 → v2.1.0 — Blocker resolution loop: when budget gap has resolvable blockers (missing test DB, framework deps, config), Claude pauses and asks the user instead of silently exiting. New Phase 7.5 in prompt, `<pbt-blockers>` signal, blocker state tracking with pending/accepted/resolved/rescanned/declined lifecycle.
+- **tim-pbt plugin** v2.0.1 → v2.1.1 — Blocker resolution loop: when budget gap has resolvable blockers (missing test DB, framework deps, config), Claude pauses and asks the user instead of silently exiting. New Phase 7.5 in prompt, `<pbt-blockers>` signal, blocker state tracking with pending/accepted/resolved/rescanned/declined lifecycle. Anti-self-scoping prompt reinforcement: behavioral bias warning at top + guardrail in Phase 1a preventing prior report from narrowing scope.
 
 ### Fixed
 
