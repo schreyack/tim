@@ -56,17 +56,7 @@ Record which frameworks are detected. Print: "Detected frameworks: <list or 'non
 
 ### 1d. Install test infrastructure
 
-Based on detected frameworks, install **test-only** packages into the existing environment:
-
-| Framework | Install |
-|-----------|---------|
-| Django | `pip install pytest-django` (if not already installed) |
-| FastAPI | `pip install httpx` (if not already installed) |
-| Flask | `pip install pytest-flask` (if not already installed) |
-| SQLAlchemy | (no extra install — use in-memory SQLite) |
-| Express | `npm install -D supertest` (if not already installed) |
-
-Only install into the existing environment. Only test packages, never production dependencies. Print what was installed.
+Install **test-only** packages into the existing environment based on detected frameworks: Django → `pytest-django`, FastAPI → `httpx`, Flask → `pytest-flask`, SQLAlchemy → no extra (in-memory SQLite), Express → `supertest`. Skip if already installed. Only test packages, never production deps. Print what was installed.
 
 ### 1e. Set up test harness
 
@@ -121,16 +111,15 @@ If findings are significantly below the low estimate:
 - Never reclassify a discarded finding as a bug to close the gap.
 - If the gap remains after re-scan, report: "Budget gap: expected X–Y, found Z. Remaining gap likely in [untestable areas: DB-specific logic, async code, integration boundaries, etc.]." This is a valid outcome.
 
-### 5. Create the summary report
+### 5. Initialize the summary report
 
-Create `bugs/` if it doesn't exist. If it already exists:
+Create `bugs/` if it doesn't exist. Then check for existing state:
 
-- **Previous `pbt_*.md` bug reports:** leave them. They may be unresolved bugs from prior runs.
-- **Previous `PBT-REPORT.md`:** overwrite it — the report always reflects the full current state.
+**If `bugs/PBT-REPORT.md` exists:** read it. Extract the Project Details section and any previously found bugs. Note them — you will carry them forward into the updated report and avoid re-reporting known bugs during triage.
 
-When writing the final report (Phase 7), include **all** `pbt_*.md` files in `bugs/`, not just this run's findings. Mark new bugs from this run vs previously found. This way the report is always a complete inventory.
+**If `pbt_*.md` bug reports exist in `bugs/`:** read their headings and metadata. These are known bugs from prior runs. They stay. The final report (Phase 7) will include them alongside new findings.
 
-Create `bugs/PBT-REPORT.md`. This is a living document updated after every phase. Initialize it with:
+**Create or overwrite `bugs/PBT-REPORT.md`** with the template below. Carry forward any Project Details from the previous report and merge with current scan info:
 
 ```markdown
 # PBT Bug Hunt Report
@@ -141,11 +130,17 @@ Create `bugs/PBT-REPORT.md`. This is a living document updated after every phase
 > code should satisfy. When an input violates a property, it shrinks to
 > the minimal failing case, producing a precise, reproducible bug report.
 
-**Target:** <target path or "full project">
-**Date:** <YYYY-MM-DD>
-**Language:** <Python|TypeScript>
-**Frameworks:** <detected list or "none">
-**Dependencies installed:** <list or "none">
+## Project Details
+
+| Detail | Value |
+|--------|-------|
+| Project | <project name from pyproject.toml, package.json, or directory> |
+| Language | <Python\|TypeScript> |
+| Frameworks | <detected list or "none"> |
+| Dependencies installed | <list or "none"> |
+| First scanned | <date of first PBT run, carried forward> |
+| Last scanned | <today's date> |
+| Total runs | <incremented count, or 1 if new> |
 
 ## Scan Summary
 
@@ -157,16 +152,16 @@ Create `bugs/PBT-REPORT.md`. This is a living document updated after every phase
 | Bug budget | <low>–<high> expected |
 | Functions scanned | — |
 | Properties tested | — |
-| Bugs found | — |
+| Bugs found | <N previously known> + — new |
 
 *Status: scanning...*
 
 ## Bugs
 
-*No bugs found yet.*
+<table of previously known bugs carried forward, or "*No bugs found yet.*">
 ```
 
-Update this report after **every subsequent phase:** Phase 2 → fill in function/property counts, status "testing...". Phase 4 → status "triaging...". Phase 5+6 → fill in bugs found, status "complete", replace Bugs section (see Phase 7).
+Update this report after **every subsequent phase:** Phase 2 → fill in function/property counts, status "testing...". Phase 4 → status "triaging...". Phase 5+6 → fill in final bug count, status "complete", replace Bugs section (see Phase 7).
 
 ---
 
