@@ -103,7 +103,10 @@ export default tseslint.config(
           varsIgnorePattern: "^_",
         },
       ],
-      "@typescript-eslint/prefer-nullish-coalescing": "error",
+      // Disabled: conflicts with no-fallback-defaults hook.
+      // no-fallback-defaults is the substantive rule (fail loudly on missing values);
+      // prefer-nullish-coalescing is style that forces the exact syntax it bans.
+      "@typescript-eslint/prefer-nullish-coalescing": "off",
       "@typescript-eslint/prefer-optional-chain": "error",
       "@typescript-eslint/no-unnecessary-condition": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
