@@ -1,0 +1,16 @@
+{
+  "description": "PBT loop enforcement: blocks exit until all modules have full property-type coverage",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pbt_hook.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

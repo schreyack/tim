@@ -9,7 +9,7 @@ hide-from-slash-command-tool: "true"
 Clean up any generated property-based test files and conftest files:
 
 ```bash
-find . \( -name "pbt_test_*" -o -name "pbt_conftest_*" \) -not -path "./.venv/*" -not -path "./node_modules/*" -delete 2>/dev/null && echo "PBT files removed" || echo "No PBT files found"
+find . \( -name "pbt_test_*" -o -name "pbt_conftest_*" -o -name ".pbt-state.json" \) -not -path "./.venv/*" -not -path "./node_modules/*" -delete 2>/dev/null && echo "PBT files removed" || echo "No PBT files found"
 ```
 
 Report what was cleaned up.

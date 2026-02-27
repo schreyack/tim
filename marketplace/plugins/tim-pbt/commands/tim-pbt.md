@@ -15,9 +15,11 @@ Follow these seven phases in order. Do not skip phases. **Phases 2–7 loop unti
 
 ## Phase 1: Discovery + Environment Setup
 
-### 1a. Check for existing report
+### 1a. Check for existing report and state
 
-Create `bugs/` if it doesn't exist. If `bugs/PBT-REPORT.md` exists, read it and extract cached environment info (language, frameworks, venv path, settings module, installed deps). Also read headings/metadata from any existing `pbt_*.md` bug reports — these are known bugs from prior runs.
+Create `bugs/` if it doesn't exist. If `bugs/.pbt-state.json` exists and has incomplete modules, **RESUME from where you left off.** Read the state to find which modules and property types are remaining, then jump directly to Phase 2 for those modules. Skip environment setup — the state file means the environment is already configured.
+
+If no state file exists but `bugs/PBT-REPORT.md` exists, read it and extract cached environment info (language, frameworks, venv path, settings module, installed deps). Also read headings/metadata from any existing `pbt_*.md` bug reports — these are known bugs from prior runs.
 
 If the report has a populated Environment section, **reuse those values** for steps 1b–1f instead of re-detecting. Only re-detect if the report is missing or the cached info is empty.
 
@@ -61,10 +63,11 @@ Create or overwrite `bugs/PBT-REPORT.md`. Carry forward Project Details, Environ
 
 **tim-pbt** discovers bugs that hand-written tests miss. Instead of testing specific examples, it generates thousands of randomized inputs guided by properties — invariants your code should satisfy. When an input violates a property, Hypothesis (Python) or fast-check (TypeScript) shrinks it to the minimal failing case, producing a precise, reproducible bug report.
 
-tim-pbt is part of the **TIM** standards framework. Install it from the Claude Code marketplace:
+tim-pbt is part of the **TIM** standards framework. Install from within Claude Code:
 
 \`\`\`
-claude install-plugin tim/tim-pbt
+/plugin marketplace add schreyack/tim
+/plugin install tim-pbt@tim
 \`\`\`
 
 Then run `/tim-pbt` in any project to start hunting.
@@ -119,6 +122,42 @@ Then run `/tim-pbt` in any project to start hunting.
 ```
 
 Update this report after **every subsequent phase:** Phase 2 → fill in function/property counts, status "testing...". Phase 4 → status "triaging...". Phase 5+6 → final bug count, status "complete", replace Bugs section (see Phase 7).
+
+### State file management
+
+Also write `bugs/.pbt-state.json` with the initial state: modules discovered (from file discovery grouping), all property type arrays empty, iteration 1, your PID, language, target, and source file count. **Update this file after EVERY phase completion** — the stop hook reads it to track your real progress and enforce the loop.
+
+After completing each module's property evaluation, update `bugs/.pbt-state.json`: add the property type number to that module's `evaluated` array, increment `properties_tested`, and set `complete: true` when all 13 types have been evaluated for that module. Also update `bugs` array and `total_bugs_found` when filing bug reports.
+
+State file schema:
+
+```json
+{
+  "version": 1,
+  "session_pid": <your PID>,
+  "started": "<ISO timestamp>",
+  "last_updated": "<ISO timestamp>",
+  "iteration": 1,
+  "phase": "discovery",
+  "language": "python",
+  "target": ".",
+  "source_files": 42,
+  "modules": {
+    "core/models": {
+      "files": 8,
+      "evaluated": [],
+      "properties_tested": 0,
+      "bugs_found": 0,
+      "complete": false
+    }
+  },
+  "bugs": [],
+  "total_properties_tested": 0,
+  "total_bugs_found": 0,
+  "compaction_count": 0,
+  "response_lengths": []
+}
+```
 
 ---
 
@@ -387,7 +426,21 @@ Remove all generated `pbt_test_*` and `pbt_conftest_*` files. The bug reports in
 
 Read the Coverage table in the report. If any module has "Complete" = No (unapplied property types remain), or if any source file directories from Phase 1b are missing from the table entirely, **go back to Phase 2** with the uncovered modules/types.
 
-**Keep looping until every module shows Complete = Yes.** Each iteration: mine unapplied property types → test → triage → update report → clean up test files → next module. Only print the final summary when coverage is complete.
+**Keep looping until every module shows Complete = Yes.** Each iteration: mine unapplied property types → test → triage → update report → update `bugs/.pbt-state.json` → clean up test files → next module.
+
+### Completion signal
+
+When ALL modules show Complete = Yes in both the report and the state file, output this exact signal:
+
+```text
+<pbt-complete>DONE</pbt-complete>
+```
+
+The stop hook watches for this signal. If you output it but the state file still has incomplete modules, you will be blocked and told what remains. Only output it when you are truly done.
+
+### Context exhaustion
+
+If the stop hook tells you context is running low, prioritize: finish the current module, save state (update `bugs/.pbt-state.json`), then continue with remaining modules. The state file preserves your progress across sessions — if context is fully exhausted, the hook will save state and allow exit. Re-running `/tim-pbt` will resume from the saved state.
 
 ---
 
