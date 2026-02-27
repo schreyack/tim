@@ -24,6 +24,8 @@ Any alternative solutions or features you've considered.
 - [ ] Python shared library (tim-lib)
 - [ ] Node.js shared library (@tim/lib)
 - [ ] Tim Loop plugin
+- [ ] Tim PBT plugin
+- [ ] Tim E2E plugin
 - [ ] Plan management (plan-ops)
 - [ ] CI/CD templates
 - [ ] Pre-commit hooks

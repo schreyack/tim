@@ -8,7 +8,7 @@ The TIM standards require all Python projects to use this shared library. It pro
 
 ```bash
 # Add tim as submodule
-git submodule add https://github.com/your-org/tim lib/tim
+git submodule add https://github.com/schreyack/tim lib/tim
 
 # Install the library
 pip install -e lib/tim/libs/python
@@ -20,7 +20,7 @@ poetry add ./lib/tim/libs/python
 ### Option 2: Direct Install
 
 ```bash
-pip install git+https://github.com/your-org/tim#subdirectory=libs/python
+pip install git+https://github.com/schreyack/tim#subdirectory=libs/python
 ```
 
 ## Modules

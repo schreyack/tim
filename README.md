@@ -49,7 +49,7 @@ A complete enforcement framework:
 - **Tim PBT** plugin for property-based bug hunting with Hypothesis/fast-check
 - **Tim E2E** plugin for Playwright MCP-driven end-to-end testing
 - The **plan-ops** CLI for human-gated plan management
-- Enforcement tools: compliance checker, settings SOT enforcement, git-guard
+- Enforcement tools: compliance checker, settings SOT enforcement
 
 Adopt the full framework for new projects, or install Tim Loop standalone for immediate benefit.
 
@@ -460,7 +460,7 @@ tim/
 ├── CLAUDE.md              # AI behavioral instructions (copy to projects)
 ├── README.md              # This file
 ├── LICENSE                # Apache 2.0
-├── standards/             # All standards documentation (41 documents)
+├── standards/             # All standards documentation (40 documents)
 ├── libs/                  # Shared libraries (required by TIM)
 │   ├── python/            # tim-lib Python package
 │   ├── node/              # @tim/lib Node.js package
@@ -483,9 +483,15 @@ tim/
 ├── templates/             # Ready-to-copy configs
 ├── tools/                 # Enforcement and compliance tools
 │   ├── tim-compliance-check.sh  # Project compliance checker
+│   ├── check-code-quality.py    # Code quality pre-commit hook
 │   ├── no-hardcoded-settings.py # Settings SOT enforcement
-│   ├── sot_*.py           # Settings source-of-truth validators
-│   └── tim-test/          # Modular test wrapper
+│   ├── no-fallback-defaults.py  # No fallback defaults enforcement
+│   ├── sot_*.py                 # Settings source-of-truth validators
+│   ├── fallback_*.py            # Fallback detection (Python/TypeScript)
+│   ├── tim-local-dev-enable     # Enable local dev mode
+│   ├── tim-ops-approve          # Ops approval helper
+│   ├── ollama-server-setup.sh   # Ollama LLM judge server setup
+│   └── tim-test/                # Modular test wrapper
 └── scripts/               # Setup scripts
     └── quickstart.sh      # Quick start installer
 ```

@@ -9,7 +9,7 @@ The TIM standards require all Node.js projects to use this shared library. It pr
 npm install @tim/lib
 
 # Or from git submodule
-git submodule add https://github.com/your-org/tim.git lib/tim
+git submodule add https://github.com/schreyack/tim.git lib/tim
 npm install ./lib/tim/libs/node
 ```
 
@@ -297,4 +297,4 @@ npm install -D @types/express @types/bcrypt @types/jsonwebtoken
 
 ## License
 
-Internal use only - TIM Organization.
+Apache 2.0 — see [LICENSE](../../LICENSE).

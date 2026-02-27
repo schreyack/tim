@@ -31,7 +31,7 @@ This security policy applies to:
 - The TIM Standards documentation and templates
 - The shared libraries (`tim-lib` for Python, `@tim/lib` for Node.js, `tim-common.sh` for Bash)
 - All marketplace plugins: Tim Loop (task completion), Tim PBT (property-based testing), Tim E2E (E2E testing)
-- The plan-ops CLI and enforcement tools (`tim-sync`, `tim-lock-enforcement`, `git-guard`)
+- The plan-ops CLI and enforcement tools (`tim-sync`, `tim-lock-enforcement`)
 - Example implementations
 
 ## What to Report

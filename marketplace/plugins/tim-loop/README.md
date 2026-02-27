@@ -397,7 +397,7 @@ Then paste your tim-loop command:
 1. When you run `/tim-loop "task"`, it:
    - Creates a session with unique ID
    - Saves the prompt to a state file
-   - Registers a stop hook in `~/.claude/settings.local.json`
+   - Registers hooks via `hooks/hooks.json`
 
 2. The stop hook intercepts when Claude tries to exit the conversation
 
@@ -1004,10 +1004,10 @@ plan-ops promote plans/drafts/my-plan.md --approver "Your Name"
 
 ### Hooks not being unregistered
 
-Check `~/.claude/settings.local.json` for stale hooks:
+Check for stale hooks in the plugin's `hooks/hooks.json`:
 
 ```bash
-cat ~/.claude/settings.local.json | grep tim-loop
+cat ~/.claude/plugins/marketplaces/tim/tim-loop/*/hooks/hooks.json
 ```
 
 Clean them manually or run:
@@ -1089,11 +1089,11 @@ which python3
 Check the hooks are registered:
 
 ```bash
-cat ~/.claude/settings.local.json | grep -A5 PostToolUse
+cat ~/.claude/plugins/marketplaces/tim/tim-loop/*/hooks/hooks.json
 ```
 
 Verify scripts are executable:
 
 ```bash
-ls -la ~/.claude/plugins/cache/tim/tim-loop/*/scripts/*.py
+ls -la ~/.claude/plugins/marketplaces/tim/tim-loop/*/scripts/*.py
 ```

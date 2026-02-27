@@ -5,6 +5,22 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.86.0] - 2026-02-27
+
+### Changed
+
+- **tim-pbt plugin** v1.5.0 → v2.0.0 — Hook-enforced autonomous loop with module+property-type coverage tracking
+
+### Fixed
+
+- Standards count corrected from 41 to 40 across README and rules
+- `git-guard` removed from standalone tools lists (lives in tim-loop plugin, not `tools/`)
+- `your-org/tim` placeholder URLs → `schreyack/tim` in both library READMEs
+- Node.js library license corrected from "Internal use only" to Apache 2.0
+- tim-loop README: `settings.local.json` → `hooks/hooks.json`, `plugins/cache/` → `plugins/marketplaces/`
+- `tools/` tree in README expanded to reflect all files on disk
+- Added Tim PBT/E2E to feature request template and plugin update type to PR template
+
 ## [2.85.0] - 2026-02-26
 
 ### Added

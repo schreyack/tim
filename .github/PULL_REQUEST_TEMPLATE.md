@@ -10,6 +10,7 @@ Brief description of the changes in this PR.
 - [ ] Documentation update
 - [ ] Standard addition/modification
 - [ ] Library update (tim-lib or @tim/lib)
+- [ ] Plugin update (Tim Loop, Tim PBT, or Tim E2E)
 
 ## Related Issues
 
