@@ -52,7 +52,55 @@ If a framework was detected, you **must** set up its harness. "Framework code is
 
 ### 1g. Write the report
 
-Create or update `bugs/PBT-REPORT.md`. Carry forward Project Details and known bugs from prior report. The report template has these sections: (1) intro explaining PBT, (2) Project Details table (project name, language, frameworks, deps installed, first/last scanned dates, total runs), (3) Environment table (**venv path, settings module, test harness files, installed test deps** — cached for future runs), (4) Scan Summary table (source files, KLOC, maturity, budget, functions/properties/bugs — filled in as phases complete), (5) Bugs table (carried forward from prior runs or empty).
+Create or overwrite `bugs/PBT-REPORT.md`. Carry forward Project Details, Environment, and known bugs from prior report. Merge with current scan info:
+
+```markdown
+# PBT Bug Hunt Report
+
+> Property-based testing uses randomized inputs to discover bugs that
+> hand-written tests miss. Instead of testing specific examples, PBT
+> generates thousands of inputs guided by properties — invariants the
+> code should satisfy. When an input violates a property, it shrinks to
+> the minimal failing case, producing a precise, reproducible bug report.
+
+## Project Details
+
+| Detail | Value |
+|--------|-------|
+| Project | <name from pyproject.toml, package.json, or directory> |
+| Language | <Python\|TypeScript> |
+| Frameworks | <detected list or "none"> |
+| First scanned | <date of first run, carried forward> |
+| Last scanned | <today's date> |
+| Total runs | <incremented count, or 1 if new> |
+
+## Environment
+
+| Setting | Value |
+|---------|-------|
+| Venv path | <absolute path to venv or node_modules> |
+| Settings module | <e.g. nautobot_config, or "n/a"> |
+| Test harness files | <e.g. pbt_conftest_django.py, or "none"> |
+| Installed test deps | <e.g. hypothesis, pytest-django, or "none"> |
+
+## Scan Summary
+
+| Metric | Value |
+|--------|-------|
+| Source files | <Z> |
+| Lines of code | <N> KLOC |
+| Project maturity | <mature\|average\|young> |
+| Bug budget | <low>–<high> expected |
+| Functions scanned | — |
+| Properties tested | — |
+| Bugs found | <N previously known> + — new |
+
+*Status: scanning...*
+
+## Bugs
+
+<table of previously known bugs carried forward, or "*No bugs found yet.*">
+```
 
 Update this report after **every subsequent phase:** Phase 2 → fill in function/property counts, status "testing...". Phase 4 → status "triaging...". Phase 5+6 → final bug count, status "complete", replace Bugs section (see Phase 7).
 
