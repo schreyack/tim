@@ -10,9 +10,11 @@ Logic flow:
 1. Load state — no file or PID mismatch → allow exit
 2. Extract assistant text from transcript
 3. Short/empty output → block with "continue scanning"
-4. Check for <pbt-complete>DONE</pbt-complete>
-   - Not found → block, re-inject remaining work
-   - Found → verify coverage (step 5)
+4. Signal dispatch (in priority order):
+   a. <pbt-blockers> → enter blocker resolution phase
+   b. blocker_resolution_phase active → check blocker status
+   c. <pbt-complete>DONE → verify coverage
+   d. No signal → block, re-inject remaining work
 5. Verify all modules complete: true
    - Incomplete → block with specific remaining work
    - Complete → allow exit, cleanup state
@@ -36,12 +38,16 @@ from pbt_context_pressure import (
     track_response_length,
 )
 from pbt_responses import (
+    build_blocker_resolution_response,
     build_continue_response,
+    build_continue_to_completion,
     build_force_stop,
     build_verification_failure,
 )
 from pbt_state import (
+    all_blockers_resolved_or_declined,
     cleanup_state,
+    has_pending_blockers,
     is_coverage_complete,
     load_state,
     log_stderr,
@@ -49,6 +55,9 @@ from pbt_state import (
 )
 
 COMPLETION_SIGNAL = re.compile(r"<pbt-complete>\s*DONE\s*</pbt-complete>")
+BLOCKERS_SIGNAL = re.compile(
+    r"<pbt-blockers>\s*(\[.*?\])\s*</pbt-blockers>", re.DOTALL
+)
 COMPACTION_MARKER = "compressed prior conversation"
 
 
@@ -174,6 +183,66 @@ def _handle_completion_signal(state: dict, project_dir: str) -> dict | None:
     return response
 
 
+def _handle_blockers_signal(state: dict, blocker_ids_json: str) -> dict:
+    """Process <pbt-blockers> signal — enter blocker resolution phase."""
+    try:
+        blocker_ids = json.loads(blocker_ids_json)
+    except json.JSONDecodeError:
+        blocker_ids = []
+
+    log_stderr(
+        f"Tim PBT: Blockers signal received — {len(blocker_ids)} blocker(s)"
+    )
+    state["blocker_resolution_phase"] = True
+    save_state(state)
+
+    pending = [
+        b for b in state.get("blockers", [])
+        if b.get("status") in ("pending", "accepted")
+    ]
+    return build_blocker_resolution_response(state, pending)
+
+
+def _handle_blocker_phase(state: dict) -> dict | None:
+    """Check blocker resolution progress; return response or None."""
+    if not state.get("blocker_resolution_phase"):
+        return None
+
+    if all_blockers_resolved_or_declined(state):
+        log_stderr("Tim PBT: All blockers resolved/declined — continuing")
+        state["blocker_resolution_phase"] = False
+        save_state(state)
+        return build_continue_to_completion(state)
+
+    if has_pending_blockers(state):
+        pending = [
+            b for b in state.get("blockers", [])
+            if b.get("status") in ("pending", "accepted")
+        ]
+        return build_blocker_resolution_response(state, pending)
+
+    return None
+
+
+def _dispatch_signal(
+    state: dict, assistant_text: str, project_dir: str,
+) -> dict:
+    """Route based on signal in assistant text."""
+    blockers_match = BLOCKERS_SIGNAL.search(assistant_text)
+    if blockers_match:
+        return _handle_blockers_signal(state, blockers_match.group(1))
+
+    blocker_response = _handle_blocker_phase(state)
+    if blocker_response:
+        return blocker_response
+
+    if COMPLETION_SIGNAL.search(assistant_text):
+        log_stderr("Tim PBT: Completion signal found — verifying coverage")
+        return _handle_completion_signal(state, project_dir)
+
+    return _handle_no_signal(state, assistant_text)
+
+
 def _handle_no_signal(state: dict, assistant_text: str) -> dict:
     """Block exit when no completion signal — re-inject remaining work."""
     if detect_response_degradation(state):
@@ -184,6 +253,26 @@ def _handle_no_signal(state: dict, assistant_text: str) -> dict:
     response = build_continue_response(state, iteration)
     save_state(state)
     return response
+
+
+def _extract_and_track(state: dict, transcript: list[dict]) -> str:
+    """Extract assistant text and track response length. Returns text."""
+    assistant_text = extract_assistant_text(transcript)
+    if assistant_text:
+        track_response_length(state, assistant_text)
+        save_state(state)
+    return assistant_text
+
+
+def _check_short_output(state: dict, assistant_text: str) -> dict | None:
+    """Block exit on short/empty output. Returns response or None."""
+    if not assistant_text or len(assistant_text.strip()) < 20:
+        log_stderr("Tim PBT: Short/empty output — blocking exit")
+        iteration = state.get("iteration", 1)
+        response = build_continue_response(state, iteration)
+        save_state(state)
+        return response
+    return None
 
 
 def main() -> None:
@@ -203,23 +292,13 @@ def main() -> None:
     if force:
         _emit(force)
 
-    assistant_text = extract_assistant_text(transcript)
-    if assistant_text:
-        track_response_length(state, assistant_text)
-        save_state(state)
+    assistant_text = _extract_and_track(state, transcript)
 
-    iteration = state.get("iteration", 1)
-    if not assistant_text or len(assistant_text.strip()) < 20:
-        log_stderr("Tim PBT: Short/empty output — blocking exit")
-        response = build_continue_response(state, iteration)
-        save_state(state)
-        _emit(response)
+    short = _check_short_output(state, assistant_text)
+    if short:
+        _emit(short)
 
-    if COMPLETION_SIGNAL.search(assistant_text):
-        log_stderr("Tim PBT: Completion signal found — verifying coverage")
-        _emit(_handle_completion_signal(state, project_dir))
-
-    _emit(_handle_no_signal(state, assistant_text))
+    _emit(_dispatch_signal(state, assistant_text, project_dir))
 
 
 if __name__ == "__main__":

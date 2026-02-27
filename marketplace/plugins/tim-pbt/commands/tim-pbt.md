@@ -17,7 +17,7 @@ Follow these seven phases in order. Do not skip phases. **Phases 2–7 loop unti
 
 ### 1a. Check for existing report and state
 
-Create `bugs/` if it doesn't exist. If `bugs/.pbt-state.json` exists and has incomplete modules, **RESUME from where you left off.** Read the state to find which modules and property types are remaining, then jump directly to Phase 2 for those modules. Skip environment setup — the state file means the environment is already configured.
+Create `bugs/` if it doesn't exist. If `bugs/.pbt-state.json` exists and has incomplete modules, **RESUME from where you left off.** Read the state to find which modules and property types are remaining, then jump directly to Phase 2 for those modules. Skip environment setup — the state file means the environment is already configured. If `blocker_resolution_phase` is true in the state, resume the blocker resolution flow (Phase 7.5) instead of Phase 2.
 
 If no state file exists but `bugs/PBT-REPORT.md` exists, read it and extract cached environment info (language, frameworks, venv path, settings module, installed deps). Also read headings/metadata from any existing `pbt_*.md` bug reports — these are known bugs from prior runs.
 
@@ -155,7 +155,9 @@ State file schema:
   "total_properties_tested": 0,
   "total_bugs_found": 0,
   "compaction_count": 0,
-  "response_lengths": []
+  "response_lengths": [],
+  "blockers": [],
+  "blocker_resolution_phase": false
 }
 ```
 
@@ -427,6 +429,24 @@ Remove all generated `pbt_test_*` and `pbt_conftest_*` files. The bug reports in
 Read the Coverage table in the report. If any module has "Complete" = No (unapplied property types remain), or if any source file directories from Phase 1b are missing from the table entirely, **go back to Phase 2** with the uncovered modules/types.
 
 **Keep looping until every module shows Complete = Yes.** Each iteration: mine unapplied property types → test → triage → update report → update `bugs/.pbt-state.json` → clean up test files → next module.
+
+### Phase 7.5: Blocker Resolution
+
+After the coverage loop completes (all modules show Complete = Yes), if the bug budget comparison shows a gap with resolvable blockers, enter the blocker resolution phase instead of emitting the completion signal.
+
+**Blocker categories:** `framework-setup` (test DB, app server), `dependency-missing` (missing test package), `config-missing` (settings module, env vars), `infra-required` (external service, message broker).
+
+**Flow:**
+
+1. Identify blockers — for each untestable area in the budget gap, determine if setup could unlock it. Create a blocker object with: `id` (short slug), `category`, `description`, `setup_action` (what to install/configure), `modules_unlocked` (which modules benefit), `status: "pending"`.
+2. Write the `blockers` array to `bugs/.pbt-state.json` and set `blocker_resolution_phase: true`.
+3. Emit `<pbt-blockers>["id1","id2"]</pbt-blockers>` — the hook will block exit and instruct you to ask the user.
+4. Ask the user about all pending blockers in a single message. For each, explain the blocker, what setup is needed, and which modules it unlocks.
+5. **User says yes:** Perform the setup, set blocker status to `accepted` → `resolved`. Re-scan the unlocked modules through Phases 2–6. Set status to `rescanned`. If setup fails after 2 attempts, set status to `declined` with a note.
+6. **User says no:** Set blocker status to `declined`.
+7. When all blockers are `resolved`, `rescanned`, or `declined`, update the report with any new findings, then emit `<pbt-complete>DONE</pbt-complete>`.
+
+**Skip this phase entirely** if the budget gap is only in truly untestable code (no actionable blockers). Go straight to the completion signal — the budget analysis in the report is sufficient.
 
 ### Completion signal
 

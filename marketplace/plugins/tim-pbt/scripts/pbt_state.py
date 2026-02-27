@@ -99,6 +99,8 @@ def _empty_state(project_dir: str) -> dict:
         "total_bugs_found": 0,
         "compaction_count": 0,
         "response_lengths": [],
+        "blockers": [],
+        "blocker_resolution_phase": False,
         "project_dir": project_dir,
     }
 
@@ -187,28 +189,51 @@ def cleanup_state(project_dir: str) -> None:
 # ---------------------------------------------------------------------------
 
 def is_coverage_complete(state: dict) -> bool:
-    """Returns True only when ALL modules have complete: true."""
+    """Returns True only when ALL modules have complete: true AND all 13 property types evaluated."""
     modules = state.get("modules", {})
     if not modules:
         return False
-    return all(m.get("complete", False) for m in modules.values())
+    required = set(PROPERTY_TYPES)
+    for m in modules.values():
+        if not m.get("complete", False):
+            return False
+        if set(m.get("evaluated", [])) != required:
+            return False
+    return True
 
 
 def get_remaining_work(state: dict) -> list[tuple[str, list[int]]]:
-    """Returns list of (module_name, missing_property_types) for incomplete modules."""
+    """Returns list of (module_name, missing_property_types) for incomplete modules.
+
+    Also catches modules marked complete but with missing property types.
+    """
     remaining = []
     for name, mod in state.get("modules", {}).items():
-        if mod.get("complete", False):
-            continue
         evaluated = set(mod.get("evaluated", []))
         missing = [t for t in PROPERTY_TYPES if t not in evaluated]
         if missing:
             remaining.append((name, missing))
-        else:
-            # All types evaluated but not marked complete — shouldn't happen
-            # but treat as incomplete
+        elif not mod.get("complete", False):
             remaining.append((name, []))
     return remaining
+
+
+def has_pending_blockers(state: dict) -> bool:
+    """Returns True if any blocker has status pending or accepted."""
+    for b in state.get("blockers", []):
+        if b.get("status") in ("pending", "accepted"):
+            return True
+    return False
+
+
+def all_blockers_resolved_or_declined(state: dict) -> bool:
+    """Returns True when every blocker is declined or rescanned."""
+    blockers = state.get("blockers", [])
+    if not blockers:
+        return True
+    return all(
+        b.get("status") in ("declined", "rescanned") for b in blockers
+    )
 
 
 def get_progress_summary(state: dict) -> str:

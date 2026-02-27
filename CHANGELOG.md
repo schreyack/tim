@@ -5,6 +5,16 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.87.0] - 2026-02-27
+
+### Added
+
+- **tim-pbt plugin** v2.0.1 → v2.1.0 — Blocker resolution loop: when budget gap has resolvable blockers (missing test DB, framework deps, config), Claude pauses and asks the user instead of silently exiting. New Phase 7.5 in prompt, `<pbt-blockers>` signal, blocker state tracking with pending/accepted/resolved/rescanned/declined lifecycle.
+
+### Fixed
+
+- **tim-pbt plugin** v2.0.0 → v2.0.1 — `is_coverage_complete()` now validates evaluated arrays contain all 13 property types, not just the `complete` flag. `get_remaining_work()` catches modules marked complete but with missing types.
+
 ## [2.86.0] - 2026-02-27
 
 ### Changed

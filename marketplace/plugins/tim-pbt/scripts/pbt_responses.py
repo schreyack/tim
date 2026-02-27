@@ -1,9 +1,11 @@
 """Response builders for the PBT stop hook.
 
-Three response types:
+Five response types:
 - continue: Claude stopped without completion signal
 - verification_failure: Claude claims done but coverage is incomplete
 - force_stop: context exhausted, save and exit gracefully
+- blocker_resolution: blockers identified, ask user about each
+- continue_to_completion: all blockers handled, finish up
 """
 
 from __future__ import annotations
@@ -95,6 +97,69 @@ def build_verification_failure(state: dict, reason: str) -> dict:
             f"**Remaining:** {work}\n\n"
             f"Continue scanning. When truly complete, output "
             f"`<pbt-complete>DONE</pbt-complete>` again."
+        ),
+    }
+
+
+def _format_blocker(blocker: dict) -> str:
+    """Format a single blocker for the resolution prompt."""
+    modules = ", ".join(blocker.get("modules_unlocked", []))
+    return (
+        f"- **{blocker['id']}** ({blocker.get('category', 'unknown')}): "
+        f"{blocker.get('description', '')}. "
+        f"Setup: {blocker.get('setup_action', 'unknown')}. "
+        f"Unlocks: {modules or 'unknown'}"
+    )
+
+
+def build_blocker_resolution_response(
+    state: dict, pending_blockers: list[dict],
+) -> dict:
+    """Block exit and instruct Claude to ask user about each blocker."""
+    progress = get_progress_summary(state)
+    blocker_lines = "\n".join(_format_blocker(b) for b in pending_blockers)
+
+    log_stderr(
+        f"Tim PBT: Blocker resolution — {len(pending_blockers)} pending"
+    )
+
+    return {
+        "decision": "block",
+        "reason": (
+            f"PBT found resolvable blockers that may unlock additional "
+            f"bugs. Do NOT emit the completion signal yet.\n\n"
+            f"**Progress:** {progress}\n\n"
+            f"**Pending blockers:**\n{blocker_lines}\n\n"
+            f"Ask the user about each pending blocker in a single "
+            f"message. For each one, explain what it is, what setup is "
+            f"needed, and which modules it unlocks. Let the user accept "
+            f"or decline each.\n\n"
+            f"For accepted blockers: perform the setup, re-scan the "
+            f"unlocked modules, update `bugs/.pbt-state.json` (set "
+            f"blocker status to `resolved` then `rescanned`). If setup "
+            f"fails after 2 attempts, mark as `declined` with a failure "
+            f"note.\n\n"
+            f"For declined blockers: set status to `declined` in state.\n\n"
+            f"When all blockers are resolved or declined, update the "
+            f"report and emit `<pbt-complete>DONE</pbt-complete>`."
+        ),
+    }
+
+
+def build_continue_to_completion(state: dict) -> dict:
+    """All blockers handled — instruct Claude to finish up."""
+    progress = get_progress_summary(state)
+
+    log_stderr("Tim PBT: All blockers handled — continuing to completion")
+
+    return {
+        "decision": "block",
+        "reason": (
+            f"All blockers have been resolved or declined. "
+            f"**Progress:** {progress}\n\n"
+            f"Update `bugs/PBT-REPORT.md` with final results "
+            f"(including any new bugs from re-scanned modules). "
+            f"Then emit `<pbt-complete>DONE</pbt-complete>` to finish."
         ),
     }
 
