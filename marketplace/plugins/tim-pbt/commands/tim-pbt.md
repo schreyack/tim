@@ -119,6 +119,50 @@ If findings are significantly below the low estimate:
 - Never reclassify a discarded finding as a bug to close the gap.
 - If the gap remains after re-scan, report: "Budget gap: expected X–Y, found Z. Remaining gap likely in [untestable areas: DB-specific logic, async code, integration boundaries, etc.]." This is a valid outcome.
 
+### 5. Create the summary report
+
+Create `bugs/PBT-REPORT.md` (create `bugs/` if it doesn't exist). This is a living document updated after every phase. Initialize it with:
+
+```markdown
+# PBT Bug Hunt Report
+
+> Property-based testing uses randomized inputs to discover bugs that
+> hand-written tests miss. Instead of testing specific examples, PBT
+> generates thousands of inputs guided by properties — invariants the
+> code should satisfy. When an input violates a property, it shrinks to
+> the minimal failing case, producing a precise, reproducible bug report.
+
+**Target:** <target path or "full project">
+**Date:** <YYYY-MM-DD>
+**Language:** <Python|TypeScript>
+**Frameworks:** <detected list or "none">
+**Dependencies installed:** <list or "none">
+
+## Scan Summary
+
+| Metric | Value |
+|--------|-------|
+| Source files | <Z> |
+| Lines of code | <N> KLOC |
+| Project maturity | <mature\|average\|young> |
+| Bug budget | <low>–<high> expected |
+| Functions scanned | — |
+| Properties tested | — |
+| Bugs found | — |
+
+*Status: scanning...*
+
+## Bugs
+
+*No bugs found yet.*
+```
+
+Update this report at the end of **every subsequent phase:**
+
+- **After Phase 2:** fill in "Functions scanned" and "Properties tested" counts. Update status to "testing..."
+- **After Phase 4:** update status to "triaging..."
+- **After Phase 5 + 6:** fill in "Bugs found", update status to "complete", and replace the Bugs section with the findings table (see Phase 7 below).
+
 ---
 
 ## Phase 2: Property Mining
@@ -303,32 +347,42 @@ For each confirmed bug, create a report file in `bugs/` (create the directory if
 
 ## Phase 7: Summary
 
-Print results to the conversation:
+### Update the report
 
-**If bugs found:**
+Write the final version of `bugs/PBT-REPORT.md`. Fill in all Scan Summary metrics. Set status to "complete". Replace the Bugs section with the findings table sorted by severity (High → Medium → Low):
+
+```markdown
+## Bugs
+
+| # | Severity | Function | Description | Report |
+|---|----------|----------|-------------|--------|
+| 1 | HIGH | `module.func` | Brief description | [link](pbt_target_2026-01-01_a1b2.md) |
+| 2 | MED | `module.func` | Brief description | [link](pbt_target_2026-01-01_c3d4.md) |
+```
+
+If no bugs found, replace with: "No bugs found. All <Y> properties held across <X> functions."
+
+If there is a budget gap after re-scan, add a Budget Analysis section:
+
+```markdown
+## Budget Analysis
+
+Expected <low>–<high> bugs, found <actual>.
+Remaining gap likely in: <untestable areas>.
+```
+
+### Print to conversation
+
+Print a brief summary (same as before):
 
 ```text
 PBT Results: <N> bug(s) found in <target>
-
-  HIGH  <function> — <description> → bugs/<filename>.md
-  MED   <function> — <description> → bugs/<filename>.md
-
-Scanned <Z> source files (<N> KLOC). Installed dependencies: <list or "none">.
-Bug budget: <low>–<high> expected, <actual> found.
-Analyzed <X> functions, tested <Y> properties.
+Full report: bugs/PBT-REPORT.md
 ```
 
-**If no bugs:**
+### Clean up
 
-```text
-PBT Results: <target> clean
-
-Scanned <Z> source files (<N> KLOC). Installed dependencies: <list or "none">.
-Bug budget: <low>–<high> expected, <actual> found.
-Tested <Y> properties on <X> functions — all held.
-```
-
-**Clean up:** Remove all generated `pbt_test_*` and `pbt_conftest_*` files. The bug reports in `bugs/` are the deliverable, not the tests.
+Remove all generated `pbt_test_*` and `pbt_conftest_*` files. The bug reports in `bugs/` and `PBT-REPORT.md` are the deliverables, not the tests.
 
 ---
 
@@ -338,5 +392,5 @@ Tested <Y> properties on <X> functions — all held.
 - If a function has no testable properties, skip it. Do not force properties onto code that doesn't claim them (classic 1–6) or that doesn't exhibit anti-patterns (bug-pattern 7–13).
 - If all properties hold, that is a good outcome. Do not manufacture findings.
 - Keep generated test files minimal. They exist to run, not to read.
-- Never modify the user's source code. Only create `pbt_test_*` files, `pbt_conftest_*` files, and `bugs/` reports.
+- Never modify the user's source code. Only create `pbt_test_*` files, `pbt_conftest_*` files, `bugs/PBT-REPORT.md`, and `bugs/` individual bug reports.
 - If the project's virtual environment or node_modules cannot be located, stop and explain. Do not create environments from scratch.
