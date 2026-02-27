@@ -249,10 +249,9 @@ What it catches: caller's data silently modified, defensive copy missing.
 - **Classic properties (1–6):** only mine what code claims to have. Evidence: docstrings, type hints, function names, return type annotations, comments, or obvious semantics.
 - **Bug-pattern properties (7–13):** actively scan code bodies for anti-patterns. These target what code *does wrong*, not what it *claims*.
 - **Do NOT skip framework code** if Phase 1 set up the test harness. Models, views, serializers, and form validators are high-value targets.
-- **Skip trivial functions.** Simple getters, setters, pass-through wrappers, and one-line formatters are not worth testing.
-- **Prioritize high-value targets.** Business logic, data transformations, and anything where a bug costs money or corrupts data.
-- **Breadth mandate:** scan every public function in every source file. Apply bug-patterns (7–13) broadly. A large codebase should yield hundreds of properties, not dozens. **Never self-scope.** Do not reduce the scan to "high-value targets" or "most bug-prone areas." The user chose the target — scan all of it. A 500-file codebase means reading 500 files.
-- **Scanning strategy for large codebases:** three passes — (1) framework code first (models, views, serializers, form validators), (2) utilities and data transformations, (3) everything else. All three passes are mandatory. Do not stop after pass 1.
+- **Skip only trivial functions.** Simple getters, setters, pass-through wrappers, and one-line formatters. Everything else gets evaluated.
+- **SCAN EVERYTHING. NEVER SELF-SCOPE.** Read every source file. Evaluate every public function. Do not "focus on high-value targets," do not "identify the most bug-prone areas," do not reduce scope because the codebase is large. The user chose the target — 500 files means reading 500 files, 133K lines means scanning 133K lines. Size is not a reason to skip files.
+- **Scanning order for large codebases:** three passes — (1) framework code (models, views, serializers, form validators), (2) utilities and data transformations, (3) everything else. All three passes are **mandatory**. Do not stop after pass 1 or 2.
 
 ### Output of This Phase
 
