@@ -11,7 +11,7 @@ Follow these seven phases in order. Do not skip phases. Exit early if a phase pr
 
 ---
 
-## Phase 1: Discovery
+## Phase 1: Discovery + Environment Setup
 
 Parse `$ARGUMENTS` to determine the target and language.
 
@@ -28,14 +28,96 @@ Parse `$ARGUMENTS` to determine the target and language.
 - `package.json` or `tsconfig.json` exists → TypeScript
 - Fall back to file extensions in the target
 
-**Find source files** using Glob. Exclude: `tests/`, `test/`, `__tests__/`, `node_modules/`, `.venv/`, `venv/`, `__pycache__/`, `dist/`, `build/`, `*.test.*`, `*.spec.*`, `pbt_test_*`.
+**Find source files** using Glob. Exclude: `tests/`, `test/`, `__tests__/`, `node_modules/`, `.venv/`, `venv/`, `__pycache__/`, `dist/`, `build/`, `*.test.*`, `*.spec.*`, `pbt_test_*`, `migrations/`, `*_generated*`.
 
 **If no source files found → stop.** Print: "No source files found in [target]. Nothing to test."
 
-**Verify test framework is available (install if missing):**
+### 1a. Locate project environment
+
+- Python: find active venv (`$VIRTUAL_ENV`, `.venv/`, `venv/`, `poetry env info -p`, `conda info --envs`)
+- TypeScript: check for `node_modules/` in the project root
+- **If no environment found → stop.** Print: "No virtual environment or node_modules found. Cannot install test dependencies into a non-existent environment."
+
+### 1b. Install PBT framework
 
 - Python: Run `python -c "import hypothesis"`. If missing, run `pip install hypothesis` and continue.
 - TypeScript: Check for `fast-check` in package.json devDependencies. If missing, run `npm install -D fast-check` and continue.
+
+### 1c. Detect project framework
+
+Scan `pyproject.toml`, `requirements*.txt`, `setup.py`, `package.json`, and a sample of source file imports for:
+
+- **Python:** Django, FastAPI, Flask, SQLAlchemy, Pydantic, Celery
+- **TypeScript:** Express, NestJS, Next.js, Prisma
+
+Record which frameworks are detected. Print: "Detected frameworks: <list or 'none (pure library code)'>"
+
+### 1d. Install test infrastructure
+
+Based on detected frameworks, install **test-only** packages into the existing environment:
+
+| Framework | Install |
+|-----------|---------|
+| Django | `pip install pytest-django` (if not already installed) |
+| FastAPI | `pip install httpx` (if not already installed) |
+| Flask | `pip install pytest-flask` (if not already installed) |
+| SQLAlchemy | (no extra install — use in-memory SQLite) |
+| Express | `npm install -D supertest` (if not already installed) |
+
+Only install into the existing environment. Only test packages, never production dependencies. Print what was installed.
+
+### 1e. Set up test harness
+
+Create framework-specific `pbt_conftest_*.py` files in the project root as needed:
+
+- **Django:** Create `pbt_conftest_django.py` — find the real `DJANGO_SETTINGS_MODULE` by scanning `manage.py` or `wsgi.py`, call `django.setup()`, add an autouse fixture wrapping `@pytest.mark.django_db`. Do not guess the settings module path.
+- **FastAPI:** No conftest needed — tests import `TestClient` directly.
+- **SQLAlchemy:** Create `pbt_conftest_sqlalchemy.py` with an in-memory SQLite engine bound to the project's `Base` metadata.
+- **Pure library code:** No harness needed. Skip this step.
+
+---
+
+## Phase 1.5: Bug Budget
+
+Before mining properties, estimate how hard to look.
+
+### 1. Count lines of code
+
+Count total non-blank, non-comment lines across all source files in scope. Exclude tests, migrations, and generated code (already excluded from file discovery).
+
+### 2. Estimate expected bugs
+
+Detect project maturity signals:
+
+- **Mature:** has `mypy.ini` or `py.typed` or `tsconfig` with strict, test coverage config (`pytest-cov`, `coverage`, `c8`), CI config (`.github/workflows/`, `.gitlab-ci.yml`), >50% of sampled functions have type annotations → **1–3 bugs per KLOC**
+- **Average:** some tests exist, partial type coverage, some CI → **3–10 bugs per KLOC**
+- **Young:** no tests, no type checking config, no CI → **10–25 bugs per KLOC**
+
+### 3. Set the bug budget
+
+Print:
+
+```text
+Bug Budget: <N> KLOC scanned, project maturity: <mature|average|young>
+Expected findable bugs: <low>–<high>
+```
+
+### 4. Post-triage comparison (executed after Phase 5)
+
+If findings are significantly below the low estimate:
+
+- Print: "Found X bugs, expected Y–Z. Investigating gap."
+- **Re-scan with wider strategies:** loosen input constraints, increase `max_examples` to 5000 for under-covered modules, apply property types that weren't used in the first pass
+- After re-scan, report final numbers honestly even if still below budget
+
+### Anti-gaming rules (hard rules — never violate)
+
+- The budget is a floor for **effort**, not a quota for **findings**. If thorough scanning finds fewer bugs than expected, that means the code is good — report that honestly.
+- Never weaken triage gates to inflate bug count. All three gates (reproducibility, legitimacy, impact) apply equally regardless of budget pressure.
+- Never report the same bug twice with different wording.
+- Never split a single bug into multiple reports (e.g., "fails on 0" and "fails on False" for the same `if not value` check is ONE bug, not two).
+- Never reclassify a discarded finding as a bug to close the gap.
+- If the gap remains after re-scan, report: "Budget gap: expected X–Y, found Z. Remaining gap likely in [untestable areas: DB-specific logic, async code, integration boundaries, etc.]." This is a valid outcome.
 
 ---
 
@@ -43,7 +125,7 @@ Parse `$ARGUMENTS` to determine the target and language.
 
 Read each source file. For every **public** function or method (no leading underscore in Python, exported in TypeScript), evaluate whether it has testable properties.
 
-### Property Types (check in this order)
+### Classic Property Types (1–6): check in this order
 
 **1. Round-trip / Inverse**
 Signal: paired functions like encode/decode, serialize/deserialize, parse/format, compress/decompress, encrypt/decrypt, to_X/from_X.
@@ -74,13 +156,56 @@ Property: function honors its documented contract for all valid inputs.
 **6. Crash-Free on Valid Input**
 Signal: any function with type-hinted parameters.
 Property: does not raise unhandled exceptions when called with well-typed inputs.
-Note: this is the weakest property. Only use it for functions where the above five don't apply.
+Note: this is the weakest classic property. Only use it for functions where the above five don't apply.
+
+### Bug-Pattern Property Types (7–13): actively scan code bodies
+
+These target what code **does wrong**, not what it **claims**. For each function, scan its body for the anti-pattern signals below.
+
+**7. Falsy-Value Confusion**
+Signal: `if not value`, `if value`, `value or default`, `value if value else default` — where `value` can be 0, False, or `""`.
+Property: function behaves correctly when given 0, False, `""`, and `[]` as inputs that are valid but falsy.
+What it catches: 0 treated as None, empty string treated as missing, False treated as unset.
+
+**8. Boundary & Off-by-One**
+Signal: slicing (`x[1:]`, `x[:n]`), `range()`, `<` vs `<=`, pagination params (`offset`, `limit`, `page`), loop bounds.
+Property: function produces correct results at boundary values (0, 1, max, max-1, max+1).
+What it catches: fence-post errors, empty-page crashes, off-by-one in slicing.
+
+**9. Type Coercion Traps**
+Signal: `Union[str, int]`, untyped parameters, mixed comparisons (`==` between str and int), string-to-number conversions.
+Property: function handles mixed types without silent wrong results (`"1" != 1`).
+What it catches: silent type coercion, string-number comparison bugs.
+
+**10. None/Null Propagation**
+Signal: `Optional` params, `.get()` without None-check, method chains on potentially-None values, `**kwargs` forwarding.
+Property: function handles None inputs gracefully — either rejects with clear error or produces correct output.
+What it catches: `AttributeError: 'NoneType'`, silent None propagation through chains.
+
+**11. Sentinel Value Confusion**
+Signal: `return -1`, status codes used as data, `if result == -1`, magic numbers as error indicators.
+Property: sentinel values are distinguishable from valid data in all cases.
+What it catches: -1 used as both "not found" and valid index, 0 as both "success" and valid count.
+
+**12. Collection Edge Cases**
+Signal: iteration (`for x in items`), aggregation (`sum()`, `max()`, `min()`), indexing (`items[0]`), `len()`.
+Property: function handles empty collections, single-element collections, and very large collections.
+What it catches: `IndexError` on empty list, `ValueError` from `max([])`, wrong behavior on single element.
+
+**13. State Mutation Side Effects**
+Signal: in-place operations on parameters (`.append()`, `.update()`, `sort()` vs `sorted()`), `return self`, modifying dict/list arguments.
+Property: function does not mutate its input arguments (pass a copy, compare original after call).
+What it catches: caller's data silently modified, defensive copy missing.
 
 ### Hard Rules
 
-- **Only mine properties the code claims to have.** Evidence: docstrings, type hints, function names, return type annotations, comments, or obvious semantics. Do NOT invent properties the code never promised.
+- **Classic properties (1–6):** only mine what code claims to have. Evidence: docstrings, type hints, function names, return type annotations, comments, or obvious semantics.
+- **Bug-pattern properties (7–13):** actively scan code bodies for anti-patterns. These target what code *does wrong*, not what it *claims*.
+- **Do NOT skip framework code** if Phase 1 set up the test harness. Models, views, serializers, and form validators are high-value targets.
 - **Skip trivial functions.** Simple getters, setters, pass-through wrappers, and one-line formatters are not worth testing.
 - **Prioritize high-value targets.** Business logic, data transformations, and anything where a bug costs money or corrupts data.
+- **Breadth mandate:** scan every public function. Apply bug-patterns (7–13) broadly. A large codebase should yield hundreds of properties, not dozens.
+- **Scanning strategy for large codebases:** three passes — (1) framework code first (models, views, serializers, form validators), (2) utilities and data transformations, (3) everything else.
 
 ### Output of This Phase
 
@@ -94,42 +219,19 @@ For each mined property, write a property-based test.
 
 ### Python (Hypothesis)
 
-Create a file `pbt_test_<module_name>.py` in the project root:
+Create `pbt_test_<module_name>.py` in the project root. Import `hypothesis`, `given`, `settings`, `assume`, `hypothesis.strategies as st`, and targets from the module under test. If Phase 1 created a conftest, import it too (e.g., `import pbt_conftest_django`).
 
-```python
-"""PBT bug hunt: <module_name>. Auto-generated, will be cleaned up."""
-import hypothesis
-from hypothesis import given, settings, assume
-import hypothesis.strategies as st
-# Import targets from the module under test
-```
+For each property: `@given(...)` with constrained strategies, `@settings(max_examples=1000)`, `assume()` for preconditions, docstring with property description, `math.isclose()` for floats.
 
-For each property:
+**Framework-specific:** Django — `@pytest.mark.django_db`, use project factories (`factory_boy`, `model_bakery`) if they exist, `RequestFactory` for views. FastAPI — `httpx.AsyncClient` or `TestClient`. SQLAlchemy — in-memory engine from conftest.
 
-- Use `@given(...)` with strategies constrained to realistic input domains
-- Use `@settings(max_examples=1000)` for thorough coverage
-- Use `assume()` to skip inputs the code's own validators would reject
-- Add a docstring: `"""Property: <description>"""`
-- Use `math.isclose()` for float comparisons with explicit tolerance
-
-**Strategy constraints:** Before writing strategies, read the function's callers and any validation logic. If the function is only ever called with positive integers, constrain to `st.integers(min_value=1)`, not `st.integers()`. Sound inputs over complete coverage.
+**Strategy constraints:** Read the function's callers and validation before writing strategies. Constrain to realistic input domains (e.g., `st.integers(min_value=1)` not `st.integers()` if only positive ints are valid). Sound inputs over complete coverage.
 
 ### TypeScript (fast-check)
 
-Create a file `pbt_test_<module_name>.ts` in the project root:
+Create `pbt_test_<module_name>.ts` in the project root. Import `fast-check`, `vitest` (`describe`, `it`, `expect`), and targets.
 
-```typescript
-/** PBT bug hunt: <module_name>. Auto-generated, will be cleaned up. */
-import fc from "fast-check";
-import { describe, it, expect } from "vitest";
-// Import targets from the module under test
-```
-
-For each property:
-
-- Use `fc.assert(fc.property(...))` with constrained arbitraries
-- Use `fc.pre()` for preconditions (equivalent to Hypothesis `assume()`)
-- Set `{ numRuns: 1000 }` for thorough coverage
+For each property: `fc.assert(fc.property(...))` with constrained arbitraries, `fc.pre()` for preconditions, `{ numRuns: 1000 }`.
 
 ---
 
@@ -139,6 +241,8 @@ Run the generated tests:
 
 - **Python:** `pytest pbt_test_*.py -v --tb=short --no-header -q 2>&1`
 - **TypeScript:** `npx vitest run pbt_test_*.ts --reporter=verbose 2>&1`
+
+If Phase 1 created conftest files, include them: `pytest pbt_conftest_*.py pbt_test_*.py -v --tb=short --no-header -q 2>&1`
 
 Capture the full output. For each test, record: pass, fail (with counterexample), or error (test itself is broken).
 
@@ -179,6 +283,10 @@ Does this failure matter?
 
 **Only failures that pass all three gates become bug reports.**
 
+### Bug Budget Comparison (from Phase 1.5)
+
+After triage completes, compare actual findings to the bug budget. If findings are significantly below the low estimate, execute the re-scan described in Phase 1.5 step 4.
+
 ---
 
 ## Phase 6: Reporting
@@ -187,48 +295,9 @@ For each confirmed bug, create a report file in `bugs/` (create the directory if
 
 **Filename:** `pbt_<target_name>_<YYYY-MM-DD>_<4char>.md` where `<4char>` is the first 4 characters of a hash of the bug description.
 
-**Format:**
+**Format:** Each report contains these sections: heading (`Bug: <function> — <description>`), metadata (target file:function, severity High/Medium/Low, type Logic/Crash/Contract, date, method), Summary (2-3 sentences), Failing Input (exact counterexample), Reproduction (standalone copy-paste-run script), Expected vs Actual, Suggested Fix (brief description/diff or "Needs investigation").
 
-```markdown
-# Bug: <function_name> — <one-line description>
-
-**Target:** `<file_path>:<function_name>`
-**Severity:** <High|Medium|Low>
-**Type:** <Logic|Crash|Contract>
-**Found:** <YYYY-MM-DD>
-**Method:** Property-based testing (Hypothesis/fast-check)
-
-## Summary
-
-<2-3 sentences: what the bug is and why it matters>
-
-## Failing Input
-
-\`\`\`
-<the exact counterexample>
-\`\`\`
-
-## Reproduction
-
-\`\`\`<python|typescript>
-<standalone script that demonstrates the bug — copy-paste-run>
-\`\`\`
-
-## Expected vs Actual
-
-- **Expected:** <what the code's contract promises>
-- **Actual:** <what actually happens>
-
-## Suggested Fix
-
-<brief description or diff if the fix is obvious, otherwise "Needs investigation">
-```
-
-**Severity guide:**
-
-- **High:** incorrect core logic, silent data corruption, security implications
-- **Medium:** crashes on valid input, contract violations, wrong exceptions
-- **Low:** edge cases, documentation mismatches, rare conditions
+**Severity:** High = incorrect core logic, silent data corruption, security. Medium = crashes on valid input, contract violations. Low = edge cases, documentation mismatches, rare conditions.
 
 ---
 
@@ -244,6 +313,8 @@ PBT Results: <N> bug(s) found in <target>
   HIGH  <function> — <description> → bugs/<filename>.md
   MED   <function> — <description> → bugs/<filename>.md
 
+Scanned <Z> source files (<N> KLOC). Installed dependencies: <list or "none">.
+Bug budget: <low>–<high> expected, <actual> found.
 Analyzed <X> functions, tested <Y> properties.
 ```
 
@@ -252,18 +323,20 @@ Analyzed <X> functions, tested <Y> properties.
 ```text
 PBT Results: <target> clean
 
+Scanned <Z> source files (<N> KLOC). Installed dependencies: <list or "none">.
+Bug budget: <low>–<high> expected, <actual> found.
 Tested <Y> properties on <X> functions — all held.
 ```
 
-**Clean up:** Remove all generated `pbt_test_*` files. The bug reports in `bugs/` are the deliverable, not the tests.
+**Clean up:** Remove all generated `pbt_test_*` and `pbt_conftest_*` files. The bug reports in `bugs/` are the deliverable, not the tests.
 
 ---
 
 ## Rules
 
 - You are hunting bugs, not writing a test suite. Quality of findings over quantity of tests.
-- If a function has no testable properties, skip it. Do not force properties onto code that doesn't claim them.
+- If a function has no testable properties, skip it. Do not force properties onto code that doesn't claim them (classic 1–6) or that doesn't exhibit anti-patterns (bug-pattern 7–13).
 - If all properties hold, that is a good outcome. Do not manufacture findings.
 - Keep generated test files minimal. They exist to run, not to read.
-- Never modify the user's source code. Only create pbt_test_* files and bugs/ reports.
-- If Hypothesis or fast-check is not installed, stop and say so. Do not install dependencies.
+- Never modify the user's source code. Only create `pbt_test_*` files, `pbt_conftest_*` files, and `bugs/` reports.
+- If the project's virtual environment or node_modules cannot be located, stop and explain. Do not create environments from scratch.
