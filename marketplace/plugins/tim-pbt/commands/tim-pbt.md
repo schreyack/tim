@@ -68,12 +68,12 @@ Only install into the existing environment. Only test packages, never production
 
 ### 1e. Set up test harness
 
-Create framework-specific `pbt_conftest_*.py` files in the project root as needed:
+If a framework was detected in 1c, you **must** set up its test harness. "Framework code is complex" is not a reason to skip — it is the reason this step exists. Create framework-specific `pbt_conftest_*.py` files in the project root:
 
-- **Django:** Create `pbt_conftest_django.py` — find the real `DJANGO_SETTINGS_MODULE` by scanning `manage.py` or `wsgi.py`, call `django.setup()`, add an autouse fixture wrapping `@pytest.mark.django_db`. Do not guess the settings module path.
+- **Django:** Create `pbt_conftest_django.py` — find the real `DJANGO_SETTINGS_MODULE` by scanning `manage.py` or `wsgi.py`, call `django.setup()`, add an autouse fixture wrapping `@pytest.mark.django_db`. Do not guess the settings module path. If Django setup fails, debug it — check for missing env vars, database config, or required settings. Do not silently fall back to "just test utility functions."
 - **FastAPI:** No conftest needed — tests import `TestClient` directly.
 - **SQLAlchemy:** Create `pbt_conftest_sqlalchemy.py` with an in-memory SQLite engine bound to the project's `Base` metadata.
-- **Pure library code:** No harness needed. Skip this step.
+- **Pure library code (no framework detected):** No harness needed.
 
 ---
 
@@ -248,9 +248,9 @@ What it catches: caller's data silently modified, defensive copy missing.
 
 - **Classic properties (1–6):** only mine what code claims to have. Evidence: docstrings, type hints, function names, return type annotations, comments, or obvious semantics.
 - **Bug-pattern properties (7–13):** actively scan code bodies for anti-patterns. These target what code *does wrong*, not what it *claims*.
-- **Do NOT skip framework code** if Phase 1 set up the test harness. Models, views, serializers, and form validators are high-value targets.
+- **Do NOT skip framework code.** If a framework was detected, Phase 1 must have set up the harness. Models, views, serializers, and form validators are where most business logic lives — test them.
 - **Skip only trivial functions.** Simple getters, setters, pass-through wrappers, and one-line formatters. Everything else gets evaluated.
-- **SCAN EVERYTHING. NEVER SELF-SCOPE.** Read every source file. Evaluate every public function. Do not "focus on high-value targets," do not "identify the most bug-prone areas," do not reduce scope because the codebase is large. The user chose the target — 500 files means reading 500 files, 133K lines means scanning 133K lines. Size is not a reason to skip files.
+- **SCAN EVERYTHING. NEVER SELF-SCOPE.** Read every source file. Evaluate every public function. Do not "focus on utility functions," do not "identify the best targets," do not skip framework code because "it requires Django setup" — that is what Phase 1 is for. The user chose the target — 500 files means reading 500 files. Size and framework complexity are not reasons to skip files.
 - **Scanning order for large codebases:** three passes — (1) framework code (models, views, serializers, form validators), (2) utilities and data transformations, (3) everything else. All three passes are **mandatory**. Do not stop after pass 1 or 2.
 
 ### Output of This Phase
