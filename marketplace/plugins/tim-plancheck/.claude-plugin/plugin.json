@@ -1,0 +1,9 @@
+{
+  "name": "tim-plancheck",
+  "version": "1.0.0",
+  "description": "Plan audit: verify completion status of all plans against actual codebase state.",
+  "author": {
+    "name": "Tim Schreyack",
+    "email": "schreyack@users.noreply.github.com"
+  }
+}
