@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# ops-aliases - Generate shell functions for ops.sh project aliases
+# Source this from your shell profile.
+# Reads .tim-projects, finds ops-config.yaml in each, creates a
+# shell function named after project.name that wraps ops.sh.
+
+TIM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECTS_FILE="$TIM_ROOT/.tim-projects"
+
+_find_ops_sh() {
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        if [[ -f "$line/ops/ops.sh" ]]; then
+            echo "$line/ops/ops.sh"
+            return 0
+        fi
+    done < "$PROJECTS_FILE"
+    return 1
+}
+
+# Bail silently if prerequisites missing (don't break shell startup)
+[[ -f "$PROJECTS_FILE" ]] || return 0 2>/dev/null || exit 0
+OPS_SH="$(_find_ops_sh)" || return 0 2>/dev/null || exit 0
+command -v yq >/dev/null 2>&1 || return 0 2>/dev/null || exit 0
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    config="$line/ops-config.yaml"
+    [[ -f "$config" ]] || continue
+    name="$(yq eval '.project.name' "$config" 2>/dev/null)"
+    [[ -n "$name" && "$name" != "null" ]] || continue
+    [[ "$name" =~ ^[a-z][a-z0-9_-]*$ ]] || continue
+    eval "${name}() { \"$OPS_SH\" --config \"$config\" \"\$@\"; }"
+done < "$PROJECTS_FILE"
