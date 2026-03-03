@@ -13,7 +13,6 @@ TIM projects must use shared libraries for common functionality. This prevents c
 │                                                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                    tim (THIS REPO)                       │   │
-│  │  ├── templates/ops/tim-ops-lib.sh   ← Ops: Bash library              │   │
 │  │  ├── libs/python/tim_lib/           ← Python: tim-lib                │   │
 │  │  └── libs/node/                      ← Node.js: @tim/lib              │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
@@ -25,8 +24,8 @@ TIM projects must use shared libraries for common functionality. This prevents c
 │  │   Project A      │  │   Project B      │  │   Project C      │          │
 │  │                  │  │                  │  │                  │          │
 │  │  Uses:           │  │  Uses:           │  │  Uses:           │          │
-│  │  - tim-ops-lib   │  │  - tim-ops-lib   │  │  - tim-ops-lib   │          │
 │  │  - tim-lib (py)  │  │  - @tim/lib (js) │  │  - tim-lib (py)  │          │
+│  │                  │  │                  │  │                  │          │
 │  └──────────────────┘  └──────────────────┘  └──────────────────┘          │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -34,26 +33,11 @@ TIM projects must use shared libraries for common functionality. This prevents c
 
 ## Shared Libraries
 
-### 1. tim-ops-lib (Bash)
+### 1. ops.sh (Bash — lives in infra repo)
 
-The ops.sh deployment library. Already implemented in `templates/ops/tim-ops-lib.sh`.
+The modular ops CLI for k8s workloads. See `standards/deployment/ops-script.md` for the full standard.
 
-**Provides:**
-
-- Deployment commands (deploy, rollback, status)
-- Safety tiers (SAFE, MODERATE, HUMAN_REQUIRED, BLOCKED)
-- Health checks
-- Audit logging
-- Notifications
-
-**Usage:**
-
-```bash
-# In project's ops.sh
-source "$PROJECT_ROOT/.tim-ops/tim-ops-lib.sh"
-load_config "ops-config.yaml"
-tim_ops_main "$@"
-```
+ops.sh and its modules live in the private infrastructure repo, not in tim. Projects provide only an `ops-config.yaml` file.
 
 ### 2. tim-py (Python)
 
@@ -179,17 +163,16 @@ npm install @tim/lib@1.0.0
 - Requires registry setup
 - More infrastructure to maintain
 
-### Method 3: Auto-Download (Like tim-ops-lib)
+### Method 3: Auto-Download
 
 For simple cases. Library downloads on first run.
 
 ```bash
-# In ops.sh (already implemented)
-TIM_OPS_LIB="${TIM_OPS_LIB:-$PROJECT_ROOT/.tim-ops/tim-ops-lib.sh}"
-if [[ ! -f "$TIM_OPS_LIB" ]]; then
-    curl -sSL "$TIM_OPS_URL" -o "$TIM_OPS_LIB"
+LIB_PATH="${LIB_PATH:-$PROJECT_ROOT/.lib/shared.sh}"
+if [[ ! -f "$LIB_PATH" ]]; then
+    curl -sSL "$LIB_URL" -o "$LIB_PATH"
 fi
-source "$TIM_OPS_LIB"
+source "$LIB_PATH"
 ```
 
 ## Versioning Strategy
@@ -314,9 +297,7 @@ tim/
 │           └── *.test.ts
 │
 ├── templates/
-│   └── ops/
-│       ├── tim-ops-lib.sh     # Ops library (already exists)
-│       └── ...
+│   └── ...
 ```
 
 ## Checklist for Projects

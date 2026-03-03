@@ -365,36 +365,7 @@ print('All CUSTOM patterns have required approvals')
 
 ## Ops.sh Integration
 
-```bash
-# In tim-ops-lib.sh, add to deploy command:
-
-verify_compliance() {
-    log_info "Running compliance verification..."
-
-    # Download and run compliance check
-    local check_result
-    check_result=$(curl -sSL "$TIM_COMPLIANCE_CHECK_URL" | bash)
-
-    if [[ $? -ne 0 ]]; then
-        log_error "Compliance check failed:"
-        echo "$check_result"
-        log_error "Deployment BLOCKED"
-        return 10
-    fi
-
-    log_success "Compliance verified"
-}
-
-# Add to deploy command
-cmd_deploy() {
-    # ... existing code ...
-
-    # NEW: Compliance check before deploy
-    verify_compliance || return $?
-
-    # ... rest of deploy ...
-}
-```
+The ops.sh operational CLI (see `standards/deployment/ops-script.md`) can integrate compliance verification into deploy workflows. The compliance checker runs as a preflight check before any deployment proceeds, blocking deploys that fail verification.
 
 ## Pattern Detection Heuristics
 

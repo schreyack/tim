@@ -1,460 +1,305 @@
 # TIM Ops Script Standard
 
-All TIM projects use a standardized `ops.sh` deployment interface. This document defines the required commands, safety model, and implementation pattern.
+Modular, config-driven operational CLI for Kubernetes workloads. ops.sh is the sole operational interface for all TIM projects running on k8s. Deploys are handled separately by CI/CD (GHA + ArgoCD) — ops.sh covers everything else.
 
-**CRITICAL**: All deployments are remote-only. The `--env` flag is REQUIRED for every command. See `standards/deployment/remote-only.md` for the policy and `standards/deployment/environments.md` for configuration.
+**CRITICAL**: The `--env` flag is REQUIRED for every command. See `standards/deployment/remote-only.md` for the policy and `standards/deployment/environments.md` for configuration.
 
-## Architecture: Shared Library Model
+## Architecture
 
 ```text
-tim-ops-lib (central repository)
-    │
-    ├── tim-ops-lib.sh          # Core library - shared by all projects
-    │
-    └── Updates flow to all projects via git submodule or direct sync
+infra-repo/
+    ops/
+        ops.sh              # Entry point: config loader, dispatch, core framework
+        modules/
+            commands.sh      # Status, logs, shell, exec, restart, stop, start, etc.
+            db.sh            # Backup, restore, migrate, rollback, shell, query
+            env.sh           # Check, list, set, diff
 
-project/
-    │
-    ├── ops.sh                  # Project wrapper - sources tim-ops-lib
-    ├── ops-config.yaml         # Project-specific configuration
-    └── ops-hooks/              # Optional project-specific hooks
-        ├── pre-deploy.sh
-        ├── post-deploy.sh
-        └── custom-commands.sh
+project-repo/
+    ops-config.yaml          # Project-specific configuration (only file needed)
+    k8s/                     # Kubernetes manifests (ArgoCD syncs these)
 ```
 
-## Environment Requirement
-
-**The `--env` flag is MANDATORY for all commands:**
+**No ops.sh copies in project repos.** ops.sh lives only in the infra repo. Projects provide only `ops-config.yaml`. Access via shell aliases:
 
 ```bash
-# REQUIRED - Always specify environment
-./ops.sh --env dev deploy     # Deploy to dev
-./ops.sh --env uat deploy     # Deploy to UAT
-./ops.sh --env prod deploy    # Deploy to production
-
-# ERROR - No environment specified
-./ops.sh deploy               # FAILS: --env flag required
+alias myapp="~/infra/ops/ops.sh --config ~/myapp/ops-config.yaml"
+myapp --env dev status
+myapp --env prod db backup
 ```
 
-Command tiers vary by environment. See `standards/deployment/command-matrix.md` for the full matrix.
+### Config-Driven Feature Gating
+
+Features are enabled by the presence of their config section. If a section is absent, its commands are hidden from help and return "not configured" if invoked.
 
 ---
 
-## Required Commands
+## ops-config.yaml Schema
 
-Every TIM project ops.sh must implement these commands with identical behavior:
+```yaml
+project:
+  name: "<project>"
+  namespace: "<namespace>"
 
-### Deployment Commands
+cluster:
+  control_plane: "<ip>"
+  control_plane_user: "<user>"
+  ssh_key: "~/.ssh/id_rsa"
 
-| Command | Safety Tier | Description |
-|---------|-------------|-------------|
-| `ops.sh deploy` | MODERATE | Smart deploy (detect changes, rebuild as needed) |
-| `ops.sh deploy --sync-only` | SAFE | Sync files without rebuild |
-| `ops.sh deploy --force` | HUMAN_REQUIRED | Force full rebuild |
-| `ops.sh rollback` | HUMAN_REQUIRED | Rollback to previous deployment |
-| `ops.sh rollback --version <tag>` | HUMAN_REQUIRED | Rollback to specific version |
+services:
+  <service-name>:
+    deployment: "<k8s-deployment-name>"
+    type: "Deployment"            # Deployment or StatefulSet
+    port: 8000                    # Container port
+    health_endpoint: "/health"    # Optional
+    aliases: ["api", "server"]    # Optional shorthand names
 
-### Status Commands
+database:
+  type: "postgresql"
+  statefulset: "<statefulset-name>"
+  service: "<k8s-service-name>"
+  user: "<db-user>"
+  name: "<db-name>"
+  migration_command: "<cmd>"
+  migration_service: "<service>"
+  rollback_command: "<cmd>"       # Optional
 
-| Command | Safety Tier | Description |
-|---------|-------------|-------------|
-| `ops.sh status` | SAFE | Show deployment status |
-| `ops.sh health` | SAFE | Run health checks |
-| `ops.sh logs` | SAFE | Tail application logs |
-| `ops.sh logs --service <name>` | SAFE | Tail specific service logs |
+backup:
+  minio_bucket: "<bucket-name>"
+  minio_alias: "minio"
+  gpg_recipient: "<key-id>"      # Optional — enables GPG encryption
+  uploads_pvc: "<pvc-name>"      # Optional — enables file backup commands
+  uploads_mount_path: "/app/uploads"
 
-### Database Commands
+workers:
+  queue_name: "<queue>"
+  redis_service: "redis"
+  scaledobject: "<scaledobject-name>"
 
-| Command | Safety Tier | Description |
-|---------|-------------|-------------|
-| `ops.sh db:migrate` | MODERATE | Run pending migrations |
-| `ops.sh db:migrate --dry-run` | SAFE | Preview migrations |
-| `ops.sh db:rollback` | HUMAN_REQUIRED | Rollback last migration |
-| `ops.sh db:backup` | SAFE | Create database backup |
-| `ops.sh db:restore <file>` | BLOCKED | Restore from backup (requires confirmation) |
+seed:
+  <seed-name>:
+    service: "<service>"
+    command: "<cmd>"
+    tier: { dev: "SAFE", prod: "BLOCKED" }
 
-### Maintenance Commands
+env:
+  template_path: "<path>"        # Relative to project root
+  configmap: "<configmap-name>"
+  secret: "<secret-name>"
 
-| Command | Safety Tier | Description |
-|---------|-------------|-------------|
-| `ops.sh shell` | MODERATE | Open shell in container |
-| `ops.sh restart` | MODERATE | Restart services |
-| `ops.sh stop` | HUMAN_REQUIRED | Stop all services |
-| `ops.sh destroy` | BLOCKED | Remove all containers/data |
+scripts:
+  allowed: ["<script-1>", "<script-2>"]
+  service: "<service>"
 
-## Safety Tier Model
+fetch:
+  allowed_paths: ["logs", "tmp"]
 
-### SAFE (Exit Code: 0)
+tiers:
+  dev:
+    restart: "SAFE"
+    stop: "SAFE"
+    shell: "SAFE"
+    "db:migrate": "SAFE"
+    "db:rollback": "SAFE"
+    "db:restore": "SAFE"
+    "db:query": "SAFE"
+  prod:
+    restart: "HUMAN_REQUIRED"
+    stop: "BLOCKED"
+    shell: "BLOCKED"
+    "db:migrate": "HUMAN_REQUIRED"
+    "db:rollback": "BLOCKED"
+    "db:restore": "BLOCKED"
+    "db:query": "HUMAN_REQUIRED"
+```
 
-- Read-only operations
+---
+
+## Commands
+
+### Status and Monitoring
+
+| Command | Description |
+|---------|-------------|
+| `status` | Show pods, services, and deployments |
+| `health` | Pod readiness + health endpoint checks |
+| `logs <service>` | Tail logs (`-f` for follow, `--tail N`) |
+| `disk` | Show PVC disk usage per service |
+| `worker status` | KEDA ScaledObject status, replica counts, queue depth |
+| `version` | Show ops.sh version |
+| `help` | Auto-generated command list |
+
+### Service Management
+
+| Command | Description |
+|---------|-------------|
+| `restart <service\|all>` | Rolling restart via `kubectl rollout restart` |
+| `stop <service\|all>` | Scale to 0 replicas (Deployments only, not StatefulSets) |
+| `start <service\|all>` | Scale to 1 replica (restore after stop) |
+| `rollback` | `kubectl rollout undo` (dev only; prod = revert git commit) |
+| `shell <service>` | Interactive shell in pod |
+| `exec <service> <cmd>` | Run command in pod |
+| `cleanup` | Delete completed pods + old ReplicaSets |
+| `cleanup logs` | Truncate container logs on node (requires SSH) |
+
+### Database
+
+| Command | Description |
+|---------|-------------|
+| `db backup` | pg_dump to MinIO (optional GPG encryption) |
+| `db backup:list` | List backups in MinIO bucket |
+| `db restore <file>` | Auto-backup-first, then restore from MinIO |
+| `db migrate` | Run migration command via kubectl exec |
+| `db rollback` | Run rollback command via kubectl exec |
+| `db shell [--write]` | psql session (read-only by default; `--write` triggers auto-backup) |
+| `db query "<SQL>"` | SQL validation + execution via `psql -c` |
+| `db status` | Database connection stats |
+| `files backup` | Tar uploads PVC to MinIO (requires `backup.uploads_pvc`) |
+| `files restore <file>` | Restore uploads from MinIO |
+
+### Environment
+
+| Command | Description |
+|---------|-------------|
+| `env check` | Validate ConfigMap/Secret against env template |
+| `env list` | List vars from ConfigMap/Secret (secrets masked) |
+| `env set KEY=VALUE` | Update var + rollout restart affected deployments |
+| `env diff` | Compare template vs actual values |
+
+### Other
+
+| Command | Description |
+|---------|-------------|
+| `seed [name]` | Run configured seed command in pod |
+| `script <name>` | Execute allowlisted script in pod |
+| `fetch <service> <path>` | Copy file from pod (path validated against allowlist) |
+
+---
+
+## Safety Tiers
+
+### SAFE
+
+- Read-only operations (status, health, logs, backup, backup:list)
 - No confirmation required
 - Can be scripted freely
 
-### MODERATE (Exit Code: 0 with warnings)
+### MODERATE
 
-- Makes changes but recoverable
-- Logs all actions
-- May prompt for confirmation in interactive mode
+- Makes changes but recoverable (restart, deploy, db:migrate)
+- Logged with audit trail
+- Prompts for confirmation in interactive mode
+- Non-interactive: exits with code 2 if `--confirm` not passed
 
-### HUMAN_REQUIRED (Exit Code: 2)
+### HUMAN_REQUIRED
 
-- Potentially destructive operations
-- Requires human approval via `tim-ops-approve`
-- AI cannot bypass - no `--confirm` flag available
-- Creates approval request that human must authorize
+- Potentially destructive (rollback, stop, db:rollback)
+- AI cannot bypass — requires human approval workflow
 - Logged with timestamp, user, and approver
 
-### BLOCKED (Exit Code: 3)
+### BLOCKED
 
-- Extremely dangerous
+- Extremely dangerous (destroy, db:restore in prod)
 - Requires `--confirm --i-understand-this-is-dangerous`
-- Sends alert to team channel
 - Logged with full audit trail
 
-## Exit Codes
+### Tier Resolution Precedence
+
+1. **Command-level override** — e.g., `seed.test.tier.dev = "SAFE"`
+2. **Global tiers section** — e.g., `tiers.dev.restart = "SAFE"`
+3. **Default** — `MODERATE` (if no tier defined for a command + environment)
+
+### Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
 | 1 | General error |
-| 2 | Requires human approval (HUMAN_REQUIRED) |
-| 3 | Blocked operation (BLOCKED) |
+| 2 | Requires confirmation (MODERATE in non-interactive mode) |
+| 3 | Requires human approval (HUMAN_REQUIRED/BLOCKED) |
 | 4 | Configuration error |
 | 5 | Health check failed |
 | 6 | Migration failed |
 
-## Configuration Files
+---
 
-### environments.yaml (REQUIRED)
+## Deploy Model
 
-Remote environment configuration. **Must be in .gitignore** - contains sensitive connection details.
+ops.sh does **not** handle deploys. Deployment is fully automated:
 
-See `standards/deployment/environments.md` for full schema.
+1. Developer pushes to a mapped branch (e.g., `dev`, `main`)
+2. GHA workflow triggers, builds container images for changed services
+3. GHA pushes images to container registry (tag = full git SHA)
+4. ArgoCD detects new image tags via Image Updater
+5. ArgoCD runs PreSync hook (migration Job) if configured
+6. ArgoCD applies updated Deployments with new image tags
+7. k8s rolls out new pods; readiness probes gate traffic
 
-```yaml
-# environments.yaml - NOT in git
-version: "1.0"
-project: "my-app"
+**Branch-to-environment mapping:**
 
-environments:
-  dev:
-    host: "dev.example.com"
-    connection:
-      method: "ssh"
-      user: "deploy"
-      key_file: "${HOME}/.ssh/dev_deploy_key"
-    remote:
-      type: "docker-compose"
-      path: "/opt/apps/my-app/dev"
+- `dev` branch deploys to dev namespace
+- `main` branch deploys to prod namespace
 
-  uat:
-    host: "uat.example.com"
-    connection:
-      method: "ssh"
-      user: "deploy"
-      key_file: "${HOME}/.ssh/uat_deploy_key"
-    remote:
-      type: "docker-compose"
-      path: "/opt/apps/my-app/uat"
+**Image tag strategy:** Full git SHA ensures every deploy is traceable. Rollback = ArgoCD reverts to previous image tag. Kustomize image transformer rewrites tags at sync time.
 
-  prod:
-    host: "prod.example.com"
-    connection:
-      method: "ssh"
-      user: "deploy"
-      key_file: "${HOME}/.ssh/prod_deploy_key"
-    remote:
-      type: "docker-compose"
-      path: "/opt/apps/my-app/prod"
-    protections:
-      require_approval: true
-      require_ticket: true
-      backup_before_deploy: true
-```
-
-### ops-config.yaml (Project Settings)
-
-Project-specific settings shared across environments:
-
-```yaml
-# ops-config.yaml - Project-specific configuration (committed to git)
-project:
-  name: "my-app"
-
-services:
-  backend:
-    container: "my-app-v2"
-    port: 5002
-    health_endpoint: "/health"
-    dockerfile: "backend/Dockerfile"
-    watch_paths:
-      - "backend/app/**/*.py"
-      - "backend/requirements.txt"
-      - "backend/Dockerfile"
-
-  frontend:
-    container: "my-app-v2-frontend"
-    port: 3000
-    health_endpoint: "/"
-    dockerfile: "frontend/Dockerfile"
-    watch_paths:
-      - "frontend/src/**/*.ts"
-      - "frontend/src/**/*.tsx"
-      - "frontend/package.json"
-      - "frontend/Dockerfile"
-
-  worker:
-    container: "my-app-v2-worker"
-    dockerfile: "backend/Dockerfile"
-    # No health endpoint - background worker
-
-database:
-  type: "postgresql"
-  container: "my-app-v2-db"
-  migration_command: "alembic upgrade head"
-  rollback_command: "alembic downgrade -1"
-  backup_path: "/backups"
-
-docker:
-  compose_file: "docker/docker-compose.v2.yml"
-
-deploy:
-  strategy: "rolling"  # rolling, blue-green, recreate
-  health_timeout: 60   # seconds to wait for healthy
-  rollback_on_failure: true
-
-notifications:
-  slack_webhook: "${SLACK_WEBHOOK_URL}"  # Optional
-  on_deploy: true
-  on_failure: true
-  on_rollback: true
-```
-
-## Implementation Pattern
-
-### Project ops.sh (Wrapper)
+**Manual sync (escape hatch):**
 
 ```bash
-#!/usr/bin/env bash
-# ops.sh - Project deployment script
-# Sources tim-ops-lib for core functionality
-
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR"
-
-# Source the shared TIM ops library
-# Option 1: Git submodule
-# source "$PROJECT_ROOT/lib/tim-ops/tim-ops-lib.sh"
-
-# Option 2: Direct path (if ops lib is installed system-wide)
-# source "/usr/local/lib/tim-ops/tim-ops-lib.sh"
-
-# Option 3: Download on first run
-TIM_OPS_LIB="${TIM_OPS_LIB:-$PROJECT_ROOT/.tim-ops/tim-ops-lib.sh}"
-if [[ ! -f "$TIM_OPS_LIB" ]]; then
-    echo "Downloading tim-ops-lib..."
-    mkdir -p "$(dirname "$TIM_OPS_LIB")"
-    curl -sSL "https://raw.githubusercontent.com/your-org/tim-ops/main/tim-ops-lib.sh" \
-        -o "$TIM_OPS_LIB"
-fi
-source "$TIM_OPS_LIB"
-
-# Load project configuration
-load_config "$PROJECT_ROOT/ops-config.yaml"
-
-# Project-specific hooks (optional)
-if [[ -d "$PROJECT_ROOT/ops-hooks" ]]; then
-    for hook in "$PROJECT_ROOT/ops-hooks"/*.sh; do
-        [[ -f "$hook" ]] && source "$hook"
-    done
-fi
-
-# Run the command
-tim_ops_main "$@"
+argocd app sync <project>-<env>
 ```
 
-### Custom Hooks
+**Migration ordering:** Migrations run pre-deploy (PreSync hook) because new code often requires new schema. Additive migrations are safe with old code if deploy fails after migration.
 
-Projects can extend ops.sh with custom commands via hooks:
+---
 
-```bash
-# ops-hooks/custom-commands.sh
+## Dependencies
 
-# Register custom command
-register_command "analyze" "SAFE" "Run audio analysis on test files"
+| Tool | Version | Purpose |
+|------|---------|---------|
+| yq | v4+ (Go version, NOT Python wrapper) | Config loading from ops-config.yaml |
+| kubectl | Latest stable | All k8s operations |
+| mc | Latest (MinIO client) | Backup/restore to object storage |
+| kubeconfig | N/A | `~/.kube/config` must exist and be valid |
+| ssh | N/A | Node-level operations only (log truncation, disk checks) |
 
-cmd_analyze() {
-    local service="${1:-backend}"
-    log_info "Running analysis tests..."
-    docker exec "$PROJECT_NAME-$service" python -m pytest tests/analysis/
-}
+**Preflight checks** (run on every invocation):
 
-# Hook into deploy lifecycle
-hook_pre_deploy() {
-    log_info "Running pre-deploy checks..."
-    # Custom validation
-}
+- `yq` exists and reports v4+
+- kubeconfig exists and `kubectl cluster-info` succeeds
+- SSH connectivity to control plane (warn-only — only needed for node-level commands)
 
-hook_post_deploy() {
-    log_info "Running post-deploy tasks..."
-    # Cache warming, etc.
-}
-```
+---
 
-## Change Detection
+## Security
 
-The library implements smart change detection to minimize rebuild time:
+### Shell Injection Protection
 
-```bash
-# Checks file modification times against last deploy
-# Only rebuilds services with changed files
+All user-supplied arguments (service names, SQL queries, env values, script names) must be double-quoted in shell commands. Never use unquoted variables.
 
-deploy_smart() {
-    local changed_services=()
+- Service names and script names validated against config-defined allowlists
+- `exec` and `script` commands use `--` to separate kubectl options from user arguments
+- `env set` validates KEY format (`^[A-Z_][A-Z0-9_]*$`) before passing to kubectl
 
-    for service in "${SERVICES[@]}"; do
-        if files_changed_since_deploy "$service"; then
-            changed_services+=("$service")
-        fi
-    done
+### SQL Validation
 
-    if [[ ${#changed_services[@]} -eq 0 ]]; then
-        log_info "No changes detected"
-        return 0
-    fi
+`db query` blocks dangerous patterns:
 
-    log_info "Rebuilding: ${changed_services[*]}"
-    for service in "${changed_services[@]}"; do
-        rebuild_service "$service"
-    done
-}
-```
+- `DELETE`/`UPDATE` without `WHERE`
+- `DROP`, `TRUNCATE`, `ALTER`, `COPY`, `CREATE FUNCTION`
+- Multi-statement (`;` separator)
 
-## Logging and Audit Trail
+All queries execute via `psql -c` (single-statement mode) to prevent semicolon injection. `SELECT` and `EXPLAIN` are always SAFE tier.
 
-All operations are logged with:
+### Path Traversal Protection
 
-- Timestamp
-- User (from $USER or git config)
-- Command executed
-- Exit code
-- Duration
+`fetch` command rejects paths containing `..` and validates against `fetch.allowed_paths` after normalization. Uses `kubectl exec tar` (which does not follow symlinks by default) instead of `kubectl cp`.
+
+### Audit Logging
+
+All operations logged to `~/.tim-ops/audit.log`:
 
 ```text
-# ~/.tim-ops/audit.log
-2025-01-15T10:30:00Z | tim | my-app | deploy | SUCCESS | 45s
-2025-01-15T11:00:00Z | tim | my-app | db:migrate | SUCCESS | 3s
-2025-01-15T14:22:00Z | tim | my-app | rollback --confirm | SUCCESS | 12s
+<ISO-8601> <user> <project> <env> <command> <result>
 ```
 
-## Health Check Protocol
-
-Standard health check sequence:
-
-```bash
-health_check() {
-    local timeout="${HEALTH_TIMEOUT:-60}"
-    local interval=5
-    local elapsed=0
-
-    while [[ $elapsed -lt $timeout ]]; do
-        if all_services_healthy; then
-            log_success "All services healthy"
-            return 0
-        fi
-        sleep $interval
-        elapsed=$((elapsed + interval))
-        log_info "Waiting for health... ${elapsed}s/${timeout}s"
-    done
-
-    log_error "Health check timeout"
-    return 5
-}
-
-all_services_healthy() {
-    for service in "${SERVICES[@]}"; do
-        local endpoint=$(get_health_endpoint "$service")
-        [[ -z "$endpoint" ]] && continue
-
-        local url="http://${REMOTE_HOST}:$(get_port "$service")${endpoint}"
-        if ! curl -sf "$url" > /dev/null 2>&1; then
-            return 1
-        fi
-    done
-    return 0
-}
-```
-
-## Rollback Strategy
-
-Automatic rollback on deployment failure:
-
-```bash
-deploy_with_rollback() {
-    # Save current state
-    local previous_commit=$(get_deployed_commit)
-
-    # Attempt deployment
-    if ! deploy_services; then
-        log_error "Deployment failed, initiating rollback"
-        rollback_to "$previous_commit"
-        notify_failure "Deployment failed, rolled back to $previous_commit"
-        return 1
-    fi
-
-    # Health check
-    if ! health_check; then
-        log_error "Health check failed, initiating rollback"
-        rollback_to "$previous_commit"
-        notify_failure "Health check failed, rolled back to $previous_commit"
-        return 5
-    fi
-
-    log_success "Deployment complete"
-    notify_success "Deployed $(get_current_commit)"
-}
-```
-
-## Integration with CI/CD
-
-ops.sh is designed to be called from CI pipelines:
-
-```yaml
-# .github/workflows/deploy.yml
-deploy:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Deploy to staging
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-      run: |
-        ./ops.sh --env staging deploy --confirm
-
-    - name: Run integration tests
-      run: |
-        ./ops.sh --env staging health
-        npm run test:integration
-
-    - name: Deploy to production
-      if: github.ref == 'refs/heads/main'
-      run: |
-        ./ops.sh --env prod deploy --confirm
-```
-
-## Compliance Checklist
-
-For a project to be TIM-compliant, its ops.sh must:
-
-- [ ] Source tim-ops-lib.sh (not copy/paste)
-- [ ] Have ops-config.yaml with all required fields
-- [ ] Implement all required commands
-- [ ] Respect safety tiers
-- [ ] Log all operations to audit trail
-- [ ] Support `--help` for all commands
-- [ ] Support `--dry-run` for destructive commands
-- [ ] Pass ops.sh self-test: `./ops.sh test`
+Format: one line per invocation with timestamp, user, project, environment, full command, and exit status.

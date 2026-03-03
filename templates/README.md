@@ -31,8 +31,6 @@ Ready-to-copy configuration files that implement the TIM standards. These templa
 
 | Template | Purpose | Standards Implemented |
 |----------|---------|----------------------|
-| `ops/ops.sh.template` | Deployment script | [ops-script](../standards/deployment/ops-script.md) |
-| `ops/ops-config.yaml.template` | Ops configuration | [ops-script](../standards/deployment/ops-script.md) |
 | `environments.yaml.example` | Environment config template | [environments](../standards/deployment/environments.md) |
 
 ### Claude Code Hooks (AI Behavioral Gates)

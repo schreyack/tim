@@ -19,8 +19,6 @@ templates/python/.pre-commit-config.yaml
 # Enforcement tools
 tools/check-code-quality.py
 tools/tim-compliance-check.sh
-tools/tim-local-dev-enable
-tools/tim-ops-approve
 
 # Sync scripts
 bin/sync-pre-commit

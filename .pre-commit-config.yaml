@@ -29,7 +29,7 @@ repos:
             templates/(node|python)/\.pre-commit-config\.yaml|
             templates/node/(eslint\.config\.js|tsconfig\.json)|
             templates/python/pyproject\.toml|
-            tools/(check-code-quality\.py|tim-compliance-check\.sh|tim-local-dev-enable|tim-ops-approve)
+            tools/(check-code-quality\.py|tim-compliance-check\.sh)
           )$
 
 
@@ -197,7 +197,7 @@ repos:
             templates/(node|python)/\.pre-commit-config\.yaml|
             templates/node/(eslint\.config\.js|tsconfig\.json)|
             templates/python/pyproject\.toml|
-            tools/(check-code-quality\.py|tim-compliance-check\.sh|tim-local-dev-enable|tim-ops-approve)
+            tools/(check-code-quality\.py|tim-compliance-check\.sh)
           )$
       - id: end-of-file-fixer
         exclude: >-
@@ -215,7 +215,7 @@ repos:
             templates/(node|python)/\.pre-commit-config\.yaml|
             templates/node/(eslint\.config\.js|tsconfig\.json)|
             templates/python/pyproject\.toml|
-            tools/(check-code-quality\.py|tim-compliance-check\.sh|tim-local-dev-enable|tim-ops-approve)
+            tools/(check-code-quality\.py|tim-compliance-check\.sh)
           )$
       - id: check-yaml
         args: [--unsafe]

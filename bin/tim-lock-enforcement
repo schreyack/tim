@@ -42,6 +42,8 @@ project_files() {
         [[ -f "$config" ]] && echo "$config"
         local gitignore="$project/.gitignore"
         [[ -f "$gitignore" ]] && echo "$gitignore"
+        local ops="$project/ops.sh"
+        [[ -f "$ops" ]] && echo "$ops"
     done
 }
 

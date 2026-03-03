@@ -8,7 +8,7 @@ This document defines what ops.sh commands are allowed in each environment (dev,
 |------|-----------|----------|
 | **SAFE** | 0 | Always allowed, no confirmation, fully scriptable |
 | **MODERATE** | 0 | Allowed with logging, may warn in interactive mode |
-| **HUMAN_REQUIRED** | 2 | Requires human approval via `tim-ops-approve` |
+| **HUMAN_REQUIRED** | 2 | Requires human approval via approval workflow |
 | **BLOCKED** | 3 | Never allowed in this environment |
 
 ## DEV Environment
@@ -191,10 +191,10 @@ For HUMAN_REQUIRED operations:
 # 1. AI or developer attempts operation
 ./ops.sh --env prod deploy --ticket PROJ-123
 # OUTPUT: Approval required. Request ID: abc123
-# OUTPUT: Run: tim-ops-approve abc123
+# OUTPUT: Run approval workflow for request abc123
 
 # 2. Human reviews and approves (separate terminal)
-tim-ops-approve abc123
+# Approve via the infra repo's approval tool
 # OUTPUT: Approved by: jane@example.com
 # OUTPUT: Expires in: 15 minutes
 

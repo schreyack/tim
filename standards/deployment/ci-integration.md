@@ -59,7 +59,7 @@ This document explains how CI/CD pipelines integrate with the TIM four-gate mode
 │  │  ┌─────────────────────────────────────────────────────┐     │           │
 │  │  │ ops.sh --env prod deploy --confirm                    │     │           │
 │  │  │                                                      │     │           │
-│  │  │  1. Security verification (verify-ops-security.sh)  │     │           │
+│  │  │  1. Security verification (pre-flight checks)       │     │           │
 │  │  │  2. Sync files to remote                            │     │           │
 │  │  │  3. Build containers                                │     │           │
 │  │  │  4. Canary deployment (10%)                         │     │           │
@@ -186,7 +186,7 @@ After CI passes and PR is merged:
 
 # Production - strict, requires approval and ticket
 ./ops.sh --env prod deploy --ticket PROJ-123
-# Will prompt for human approval via tim-ops-approve
+# Will prompt for human approval via approval workflow
 ```
 
 ### Automated Deployment

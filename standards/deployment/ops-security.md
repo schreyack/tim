@@ -10,7 +10,7 @@ The ops.sh script is only as secure as the infrastructure enforcing it. This doc
 2. **Rsync overwrites** - Rsync replaces protected config files
 3. **Container escape** - Attacker gains shell and modifies host
 4. **Config tampering** - ops-config.yaml modified to bypass safety tiers
-5. **Library tampering** - tim-ops-lib.sh modified to remove safety checks
+5. **Ops tool tampering** - ops modules modified to remove safety checks
 
 ## Required Security Controls
 
@@ -20,7 +20,6 @@ These files must be protected from modification:
 
 ```bash
 # Files that must be immutable locally
-.tim-ops/tim-ops-lib.sh      # Shared library (if using auto-download)
 ops-config.yaml              # After initial setup, controlled via PR
 ```
 
@@ -29,7 +28,6 @@ ops-config.yaml              # After initial setup, controlled via PR
 ```bash
 # Make immutable (requires sudo)
 sudo chattr +i ops-config.yaml
-sudo chattr +i .tim-ops/tim-ops-lib.sh
 
 # Verify immutability
 lsattr ops-config.yaml  # Should show 'i' flag
@@ -76,7 +74,7 @@ The deployment user should ONLY be able to run ops-approved commands.
 command="/home/tim/bin/ops-gateway.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-rsa AAAA... deploy@local
 ```
 
-**ops-gateway.sh** (Allowlist of permitted commands):
+**ops-gateway.sh** (lives in infra repo; allowlist of permitted commands):
 
 ```bash
 #!/usr/bin/env bash
@@ -194,7 +192,7 @@ This script runs on every ops.sh invocation and periodically via cron:
 
 ```bash
 #!/usr/bin/env bash
-# verify-ops-security.sh
+# verify-ops-security.sh (lives in infra repo)
 # Runs automated security checks - HARD STOP on any failure
 
 set -euo pipefail
@@ -219,19 +217,6 @@ log_fail() {
 # =============================================================================
 
 echo "=== Local Security Checks ==="
-
-# Check tim-ops-lib hasn't been modified
-if [[ -f ".tim-ops/tim-ops-lib.sh" ]]; then
-    EXPECTED_HASH="${TIM_OPS_LIB_HASH:-}"
-    if [[ -n "$EXPECTED_HASH" ]]; then
-        ACTUAL_HASH=$(sha256sum .tim-ops/tim-ops-lib.sh | cut -d' ' -f1)
-        if [[ "$ACTUAL_HASH" == "$EXPECTED_HASH" ]]; then
-            log_pass "tim-ops-lib.sh integrity verified"
-        else
-            log_fail "tim-ops-lib.sh has been modified (hash mismatch)"
-        fi
-    fi
-fi
 
 # Check ops-config.yaml is immutable (Linux)
 if command -v lsattr &> /dev/null; then
@@ -334,7 +319,7 @@ exit 0
 Add verification as a pre-flight check:
 
 ```bash
-# In tim-ops-lib.sh - add to tim_ops_main()
+# In ops.sh - add to main dispatch
 
 # Security verification before any operation
 verify_security() {
@@ -388,7 +373,7 @@ When setting up a new TIM project, infrastructure team must:
 ### Local Machine
 
 - [ ] ops-config.yaml created and locked (`chattr +i` / `chflags uchg`)
-- [ ] tim-ops-lib.sh downloaded and hash verified
+- [ ] ops.sh and modules available from infra repo
 - [ ] SSH key created specifically for ops deployment
 - [ ] Verification script in place
 
@@ -396,7 +381,7 @@ When setting up a new TIM project, infrastructure team must:
 
 - [ ] Deployment user created (non-root)
 - [ ] SSH authorized_keys with command restriction
-- [ ] ops-gateway.sh installed and tested
+- [ ] ops-gateway.sh installed and tested (from infra repo)
 - [ ] rsync restrictions configured
 - [ ] sudoers limited to docker commands only
 - [ ] docker-compose.yml made immutable

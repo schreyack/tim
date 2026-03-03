@@ -488,9 +488,6 @@ tim/
 │   ├── no-fallback-defaults.py  # No fallback defaults enforcement
 │   ├── sot_*.py                 # Settings source-of-truth validators
 │   ├── fallback_*.py            # Fallback detection (Python/TypeScript)
-│   ├── tim-local-dev-enable     # Enable local dev mode
-│   ├── tim-ops-approve          # Ops approval helper
-│   ├── ollama-server-setup.sh   # Ollama LLM judge server setup
 │   └── tim-test/                # Modular test wrapper
 └── scripts/               # Setup scripts
     └── quickstart.sh      # Quick start installer
