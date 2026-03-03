@@ -54,13 +54,13 @@ Remote-only removes the temptation entirely.
 ### NO Local Docker
 
 ```bash
-# PROHIBITED - No local docker-compose
+# PROHIBITED - No local containers
 docker-compose up -d        # NO
 docker run -p 8080:8080 ... # NO
 
-# REQUIRED - Use ops.sh with environment
-./ops.sh --env dev deploy   # YES
-./ops.sh --env dev logs     # YES
+# REQUIRED - Use ops.sh alias with environment
+myapp --env dev logs        # YES
+myapp --env dev status      # YES
 ```
 
 ### NO Local Databases
@@ -70,21 +70,21 @@ docker run -p 8080:8080 ... # NO
 psql -h localhost ...       # NO
 mysql -h 127.0.0.1 ...      # NO
 
-# REQUIRED - Database on remote
-./ops.sh --env dev db:migrate  # YES
-./ops.sh --env dev shell       # Then use psql inside container
+# REQUIRED - Database on remote k8s
+myapp --env dev db:migrate  # YES
+myapp --env dev shell       # Then use psql inside pod
 ```
 
-### NO Direct SSH
+### NO Direct SSH / kubectl
 
 ```bash
-# PROHIBITED - No direct SSH to servers
+# PROHIBITED - No direct access to cluster
 ssh user@server             # NO
-scp file user@server:       # NO
+kubectl exec -it pod ...    # NO
 
-# REQUIRED - Use ops.sh
-./ops.sh --env dev shell    # YES (for dev)
-./ops.sh --env dev logs     # YES
+# REQUIRED - Use ops.sh alias
+myapp --env dev shell       # YES (for dev)
+myapp --env dev logs        # YES
 ```
 
 ### Local Development Workflow
@@ -93,9 +93,9 @@ Developers write code locally, but test remotely:
 
 1. **Write code** on local machine (IDE, git)
 2. **Push to branch** triggers CI (Gate 2)
-3. **Deploy to dev** via `./ops.sh --env dev deploy`
+3. **Deploy to dev** — ArgoCD syncs automatically on push
 4. **Test on dev** via browser/API calls to dev environment
-5. **Debug** via `./ops.sh --env dev logs` and `./ops.sh --env dev shell`
+5. **Debug** via `myapp --env dev logs` and `myapp --env dev shell`
 6. **Iterate** - repeat steps 1-5
 
 ### What IS Allowed Locally
@@ -108,7 +108,7 @@ Developers write code locally, but test remotely:
 | Running unit tests (no I/O) | Yes | pytest/jest |
 | Git operations | Yes | git CLI |
 | Editing environments.yaml | Yes | Editor |
-| Running ops.sh commands | Yes | ops.sh |
+| Running ops.sh commands | Yes | ops.sh alias |
 
 ### What IS NOT Allowed Locally
 
@@ -167,11 +167,11 @@ environment: "dev"    # Must be dev, uat, or prod
 ops.sh requires explicit environment specification:
 
 ```bash
-./ops.sh deploy
+myapp status
 # ERROR: --env flag required. Use --env dev, --env uat, or --env prod
 
-./ops.sh --env dev deploy
-# OK: Deploying to dev environment
+myapp --env dev status
+# OK: Checking status of dev environment
 ```
 
 ### 3. Pre-commit Hook
@@ -218,15 +218,15 @@ For existing projects with local development:
 
 ### Phase 1: Set Up Remote Dev
 
-1. Provision dev server (same spec as prod but smaller)
-2. Configure `environments.yaml` with dev environment
-3. Deploy current code to dev: `./ops.sh --env dev deploy`
+1. Add service manifests to k3s-infra repo
+2. Configure `ops-config.yaml` with namespace and alias
+3. ArgoCD syncs dev namespace automatically
 
 ### Phase 2: Migrate Developers
 
 1. Remove local docker-compose files
 2. Update onboarding docs
-3. Train team on `./ops.sh --env dev` workflow
+3. Train team on ops.sh alias workflow
 4. Monitor for `localhost` in commits (block at CI)
 
 ### Phase 3: Remove Local Support
@@ -290,24 +290,10 @@ Once local dev is enabled for a project:
 
 ```bash
 # After enabling local dev:
-./ops.sh --env local deploy      # Build and start containers locally
-./ops.sh --env local status      # Check local container status
-./ops.sh --env local logs        # View local container logs
-./ops.sh --env local shell       # Open shell in local container
-./ops.sh --env local db:migrate  # Run migrations on local database
-```
-
-### Local Docker Compose File
-
-Local development uses `docker-compose.local.yml` by default, falling back to `docker-compose.yml` if not present.
-
-You can customize this in `environments.yaml`:
-
-```yaml
-environments:
-  local:
-    remote:
-      compose_file: "docker-compose.local.yml"
+myapp --env local status      # Check local container status
+myapp --env local logs        # View local container logs
+myapp --env local shell       # Open shell in local container
+myapp --env local db:migrate  # Run migrations on local database
 ```
 
 ### Audit Logging
@@ -336,7 +322,7 @@ If local dev is no longer needed or appropriate:
 tim-local-dev-enable --revoke --project /path/to/project
 ```
 
-After revocation, `./ops.sh --env local` will fail with instructions on how to re-enable.
+After revocation, `myapp --env local` will fail with instructions on how to re-enable.
 
 ## FAQ
 
@@ -351,19 +337,19 @@ A: TIM projects require network access. If offline, you can:
 
 ### Q: What about slow network connections?
 
-A: Dev environments are optimized for low-latency development:
+A: k8s cluster is on the local network for low-latency access:
 
-- Deploy only changed files (rsync delta)
-- Persistent SSH connections
-- Log streaming with buffering
+- ArgoCD deploys on push — no manual sync needed
+- Log streaming via ops.sh alias
+- kubectl proxy for direct service access when needed
 
 ### Q: What about cost?
 
-A: Remote dev is cheaper than you think:
+A: k3s runs on a single node, keeping costs minimal:
 
-- Single small server for all developers
-- Shared resources (database, Redis)
-- Auto-shutdown during off-hours (optional)
+- All services share cluster resources
+- Shared infrastructure (database, Redis as k8s services)
+- Single node to maintain
 
 Estimated cost: $20-50/month for small team.
 
@@ -379,12 +365,11 @@ Integration and E2E tests run on remote dev or UAT.
 
 ## Compliance Checklist
 
-- [ ] No `docker-compose.yml` with `localhost` (unless `docker-compose.local.yml`)
+- [ ] `ops-config.yaml` defines namespace and alias
 - [ ] No `.env` with local database URLs
-- [ ] `environments.yaml` defines dev, uat, prod (local is optional)
-- [ ] ops.sh requires `--env` flag
+- [ ] k8s manifests in infra repo define dev, uat, prod namespaces
+- [ ] ops.sh alias requires `--env` flag
 - [ ] CI validates remote-first compliance
-- [ ] `docker-compose.local.yml` is gitignored (if present)
 - [ ] Developer onboarding uses remote dev by default
 - [ ] CLAUDE.md documents remote-first workflow
 - [ ] `tim-local-dev-enable` is available in PATH for human opt-in

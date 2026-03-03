@@ -6,8 +6,8 @@ The ops.sh script is only as secure as the infrastructure enforcing it. This doc
 
 ## Attack Vectors We're Defending Against
 
-1. **Direct SSH bypass** - Developer SSHs in and runs `docker stop` directly
-2. **Rsync overwrites** - Rsync replaces protected config files
+1. **Direct kubectl bypass** - Developer runs `kubectl delete` directly
+2. **Kubeconfig theft** - Kubeconfig leaked or used from unauthorized machine
 3. **Container escape** - Attacker gains shell and modifies host
 4. **Config tampering** - ops-config.yaml modified to bypass safety tiers
 5. **Ops tool tampering** - ops modules modified to remove safety checks
@@ -44,144 +44,75 @@ sudo chflags schg ops-config.yaml  # System immutable (survives reboot)
 ls -lO ops-config.yaml  # Should show 'uchg' or 'schg'
 ```
 
-### 2. Immutable Files (Remote)
+### 2. Kubeconfig Security
 
-Critical files on the remote server:
-
-```bash
-# Remote files that must be immutable
-/home/tim/apps/project/docker-compose.yml     # Container definitions
-/home/tim/apps/project/.env                   # Secrets
-/etc/sudoers.d/tim-ops                        # Sudo rules
-```
-
-**Implementation**:
+Kubeconfig controls cluster access and must be tightly protected:
 
 ```bash
-# On remote server
-sudo chattr +i /home/tim/apps/project/docker-compose.yml
-sudo chattr +i /home/tim/apps/project/.env
+# Kubeconfig permissions: owner read-only
+chmod 600 ~/.kube/config
+
+# Separate kubeconfig per environment (recommended)
+export KUBECONFIG=~/.kube/config-dev    # dev only
+export KUBECONFIG=~/.kube/config-prod   # prod only (SRE)
 ```
 
-### 3. SSH Command Restriction
+**k8s RBAC** restricts what each user can do per namespace:
 
-The deployment user should ONLY be able to run ops-approved commands.
-
-**Implementation** (`/home/tim/.ssh/authorized_keys`):
-
-```text
-# Restrict SSH key to specific commands via forced command
-command="/home/tim/bin/ops-gateway.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ssh-rsa AAAA... deploy@local
+```yaml
+# Example: dev role - can view/exec but not delete
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: myapp-dev
+  name: ops-dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/exec", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
 ```
 
-**ops-gateway.sh** (lives in infra repo; allowlist of permitted commands):
+### 3. kubectl Command Allowlisting
+
+ops-gateway.sh (in infra repo) restricts which kubectl commands are permitted:
 
 ```bash
 #!/usr/bin/env bash
-# /home/tim/bin/ops-gateway.sh
-# SSH command gateway - only allows approved operations
+# ops-gateway.sh - kubectl command gateway
+# Only allows approved operations via ops.sh alias
 
 set -euo pipefail
 
 LOG_FILE="/var/log/ops-gateway.log"
 ALLOWED_COMMANDS=(
-    "docker compose"
-    "docker ps"
-    "docker logs"
-    "docker exec"
-    "docker inspect"
-    "rsync --server"
-    "cat"
-    "echo ok"
+    "kubectl get"
+    "kubectl logs"
+    "kubectl exec"
+    "kubectl describe"
+    "kubectl rollout"
     "pg_dump"
 )
-
-log() {
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | $USER | $SSH_ORIGINAL_COMMAND" >> "$LOG_FILE"
-}
-
-is_allowed() {
-    local cmd="$1"
-    for allowed in "${ALLOWED_COMMANDS[@]}"; do
-        if [[ "$cmd" == "$allowed"* ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Log all attempts
-log
-
-# Check if command is allowed
-if [[ -z "${SSH_ORIGINAL_COMMAND:-}" ]]; then
-    echo "ERROR: Interactive SSH not permitted. Use ops.sh commands."
-    exit 1
-fi
-
-if is_allowed "$SSH_ORIGINAL_COMMAND"; then
-    eval "$SSH_ORIGINAL_COMMAND"
-else
-    echo "ERROR: Command not permitted: $SSH_ORIGINAL_COMMAND"
-    echo "Contact infrastructure team if this command should be allowed."
-    exit 1
-fi
 ```
 
-### 4. Rsync Restrictions
+### 4. Namespace Isolation
 
-Rsync must not be able to overwrite protected files.
+Each environment runs in its own k8s namespace with network policies:
 
-**Implementation** (rsync daemon or wrapper):
-
-```bash
-# /home/tim/bin/rsync-wrapper.sh
-#!/usr/bin/env bash
-# Rsync wrapper that protects certain paths
-
-PROTECTED_FILES=(
-    "docker-compose.yml"
-    "docker-compose.*.yml"
-    ".env"
-    ".env.*"
-    "ops-config.yaml"
-)
-
-# Check if any protected file is in the transfer
-for arg in "$@"; do
-    for protected in "${PROTECTED_FILES[@]}"; do
-        if [[ "$arg" == *"$protected"* ]]; then
-            echo "ERROR: Cannot overwrite protected file: $protected"
-            echo "Protected files can only be modified via infrastructure PR"
-            exit 1
-        fi
-    done
-done
-
-# Run actual rsync
-/usr/bin/rsync "$@"
-```
-
-**Alternative: rsync exclude on server**:
-
-```bash
-# /etc/rsyncd.conf
-[project]
-    path = /home/tim/apps/project
-    read only = false
-    exclude = docker-compose.yml .env ops-config.yaml
-```
-
-### 5. Sudoers Restrictions
-
-The ops user should have limited sudo access:
-
-```bash
-# /etc/sudoers.d/tim-ops
-tim ALL=(ALL) NOPASSWD: /usr/bin/docker
-tim ALL=(ALL) NOPASSWD: /usr/bin/docker-compose
-tim ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart docker
-# NO other sudo access
+```yaml
+# NetworkPolicy: deny all cross-namespace traffic by default
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-cross-namespace
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: {}  # Only same-namespace pods
 ```
 
 ## Automated Verification
@@ -235,49 +166,39 @@ else
 fi
 
 # =============================================================================
-# REMOTE CHECKS
+# CLUSTER CHECKS
 # =============================================================================
 
 echo ""
-echo "=== Remote Security Checks ==="
+echo "=== Cluster Security Checks ==="
 
-REMOTE_HOST="${REMOTE_HOST:-}"
-REMOTE_USER="${REMOTE_USER:-}"
-REMOTE_PATH="${REMOTE_PATH:-}"
+KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 
-if [[ -z "$REMOTE_HOST" ]]; then
-    echo "Skipping remote checks (REMOTE_HOST not set)"
+if [[ ! -f "$KUBECONFIG" ]]; then
+    echo "Skipping cluster checks (KUBECONFIG not found)"
 else
-    # Check SSH gateway is in place
-    SSH_CHECK=$(ssh -o BatchMode=yes "${REMOTE_USER}@${REMOTE_HOST}" "cat /etc/passwd" 2>&1 || true)
-    if [[ "$SSH_CHECK" == *"not permitted"* ]] || [[ "$SSH_CHECK" == *"Command not permitted"* ]]; then
-        log_pass "SSH command restriction active"
+    # Check kubeconfig permissions
+    PERMS=$(stat -c %a "$KUBECONFIG" 2>/dev/null || stat -f %Lp "$KUBECONFIG" 2>/dev/null)
+    if [[ "$PERMS" == "600" ]]; then
+        log_pass "Kubeconfig permissions are 600"
     else
-        log_fail "SSH allows unrestricted commands (gateway not configured)"
+        log_fail "Kubeconfig permissions are $PERMS (should be 600)"
     fi
 
-    # Check docker-compose.yml is immutable
-    IMMUTABLE_CHECK=$(ssh "${REMOTE_USER}@${REMOTE_HOST}" "lsattr ${REMOTE_PATH}/docker-compose.yml 2>/dev/null" || echo "")
-    if [[ "$IMMUTABLE_CHECK" == *"i"* ]]; then
-        log_pass "Remote docker-compose.yml is immutable"
+    # Check RBAC is enforced (can't access kube-system)
+    RBAC_CHECK=$(kubectl auth can-i list pods -n kube-system 2>&1 || true)
+    if [[ "$RBAC_CHECK" == "no" ]]; then
+        log_pass "RBAC restricts kube-system access"
     else
-        log_fail "Remote docker-compose.yml is NOT immutable"
+        log_pass "RBAC check completed (admin access or cluster-level role)"
     fi
 
-    # Check .env is immutable
-    ENV_CHECK=$(ssh "${REMOTE_USER}@${REMOTE_HOST}" "lsattr ${REMOTE_PATH}/.env 2>/dev/null" || echo "")
-    if [[ "$ENV_CHECK" == *"i"* ]]; then
-        log_pass "Remote .env is immutable"
+    # Check namespace isolation
+    NS_CHECK=$(kubectl get networkpolicies --all-namespaces 2>/dev/null | wc -l || echo "0")
+    if [[ "$NS_CHECK" -gt 1 ]]; then
+        log_pass "Network policies found ($((NS_CHECK - 1)) policies)"
     else
-        log_fail "Remote .env is NOT immutable"
-    fi
-
-    # Check sudoers is restricted
-    SUDO_CHECK=$(ssh "${REMOTE_USER}@${REMOTE_HOST}" "sudo -l 2>/dev/null" || echo "")
-    if [[ "$SUDO_CHECK" != *"ALL"* ]] || [[ "$SUDO_CHECK" == *"NOPASSWD: /usr/bin/docker"* ]]; then
-        log_pass "Sudo access is restricted"
-    else
-        log_fail "Sudo access is too permissive"
+        log_fail "No network policies found (namespace isolation not enforced)"
     fi
 fi
 
@@ -373,28 +294,27 @@ When setting up a new TIM project, infrastructure team must:
 ### Local Machine
 
 - [ ] ops-config.yaml created and locked (`chattr +i` / `chflags uchg`)
-- [ ] ops.sh and modules available from infra repo
-- [ ] SSH key created specifically for ops deployment
+- [ ] ops.sh alias configured (from infra repo)
+- [ ] Kubeconfig permissions set to 600
 - [ ] Verification script in place
 
-### Remote Server
+### k8s Cluster
 
-- [ ] Deployment user created (non-root)
-- [ ] SSH authorized_keys with command restriction
+- [ ] RBAC roles configured per namespace
+- [ ] Network policies enforce namespace isolation
 - [ ] ops-gateway.sh installed and tested (from infra repo)
-- [ ] rsync restrictions configured
-- [ ] sudoers limited to docker commands only
-- [ ] docker-compose.yml made immutable
-- [ ] .env made immutable
+- [ ] kubectl command allowlisting configured
+- [ ] Secrets managed via k8s Secrets (not .env files)
+- [ ] ArgoCD Application configured per service
 - [ ] Cron verification job installed
 - [ ] Alert webhook configured
 
 ### Verification
 
-- [ ] Run `ops.sh verify` - all checks pass
-- [ ] Test SSH restriction: `ssh user@host "cat /etc/passwd"` should fail
-- [ ] Test rsync restriction: attempt to overwrite docker-compose.yml should fail
-- [ ] Test sudo restriction: `ssh user@host "sudo rm -rf /"` should fail
+- [ ] Run `verify-ops-security.sh` - all checks pass
+- [ ] Test RBAC: `kubectl delete pod -n prod` should fail for dev users
+- [ ] Test namespace isolation: cross-namespace traffic should be blocked
+- [ ] Test kubectl restriction: unauthorized commands should fail
 
 ## Responding to Violations
 

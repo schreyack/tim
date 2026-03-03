@@ -67,41 +67,22 @@ Immediate rollback if ANY of these occur during canary:
 
 ## Implementation
 
-### Using ops.sh
+### Using ops.sh alias
 
 ```bash
-# Start canary deployment (10% traffic)
-./ops.sh deploy --environment prod --canary
-
 # Monitor canary metrics
-./ops.sh canary status
+myapp --env prod canary status
 
 # Approve promotion to 100%
-./ops.sh canary promote --confirm
+myapp --env prod canary promote --confirm
 
 # Emergency rollback
-./ops.sh canary rollback --reason "Error rate spike"
+myapp --env prod canary rollback --reason "Error rate spike"
 ```
 
-### Docker Compose / Traefik
+Note: Canary deployments are initiated by ArgoCD via Argo Rollouts, not by ops.sh directly.
 
-```yaml
-# docker-compose.prod.yml
-services:
-  app:
-    image: myapp:stable
-    labels:
-      - "traefik.http.routers.app.rule=Host(`app.example.com`)"
-      - "traefik.http.services.app.loadbalancer.weight=90"
-
-  app-canary:
-    image: myapp:canary
-    labels:
-      - "traefik.http.routers.app-canary.rule=Host(`app.example.com`)"
-      - "traefik.http.services.app-canary.loadbalancer.weight=10"
-```
-
-### Kubernetes
+### Kubernetes (Argo Rollouts)
 
 ```yaml
 # canary-deployment.yaml
@@ -151,24 +132,15 @@ jobs:
     environment: production-canary
     steps:
       - name: Deploy canary (10%)
-        run: ./ops.sh deploy --environment prod --canary
-
-      - name: Wait for traffic
-        run: sleep 300  # 5 minute observation
-
-      - name: Check canary metrics
-        id: metrics
         run: |
-          METRICS=$(./ops.sh canary metrics --json)
-          ERROR_RATE=$(echo $METRICS | jq '.error_rate')
-          if (( $(echo "$ERROR_RATE > 0.005" | bc -l) )); then
-            echo "::error::Canary error rate too high: $ERROR_RATE"
-            exit 1
-          fi
+          # ArgoCD handles canary via Argo Rollouts
+          # GHA just builds the image; ArgoCD detects the change
+          echo "Image built and pushed — ArgoCD will initiate canary rollout"
 
-      - name: Promote to 100%
-        if: success()
-        run: ./ops.sh canary promote --confirm
+      - name: Wait for rollout
+        run: |
+          # Wait for Argo Rollouts to complete canary analysis
+          kubectl argo rollouts status myapp -n myapp-prod --timeout 600
 
   rollback:
     runs-on: ubuntu-latest
@@ -176,7 +148,7 @@ jobs:
     if: failure()
     steps:
       - name: Auto-rollback
-        run: ./ops.sh canary rollback --reason "Automated: Canary check failed"
+        run: kubectl argo rollouts abort myapp -n myapp-prod
 
       - name: Alert team
         run: |
@@ -247,7 +219,7 @@ Before promoting canary to 100%:
 
 ```bash
 # Human approves after review
-./ops.sh canary promote --confirm --approver "tim@example.com"
+myapp --env prod canary promote --confirm --approver "tim@example.com"
 
 # Logged for audit:
 # {
@@ -292,10 +264,10 @@ async function monitorCanary(): Promise<void> {
 
 ```bash
 # Emergency rollback - no confirmation needed
-./ops.sh canary rollback --emergency --reason "User reports checkout failures"
+myapp --env prod canary rollback --emergency --reason "User reports checkout failures"
 
 # Normal rollback with confirmation
-./ops.sh canary rollback --confirm --reason "Elevated error rate in payments"
+myapp --env prod canary rollback --confirm --reason "Elevated error rate in payments"
 ```
 
 ## Enforcement

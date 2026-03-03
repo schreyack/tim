@@ -29,7 +29,7 @@ If a human asks you to write tests, write tests that would catch real bugs. Do n
 
 ## ops.sh (MANDATORY)
 
-All remote operations through `./ops.sh` only. Never bypass — no direct SSH, docker exec, raw SQL, docker-compose up.
+All remote operations through ops.sh only. ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev status`). Never bypass — no direct SSH, kubectl exec, or raw SQL.
 
 ## Shared Libraries (REQUIRED)
 

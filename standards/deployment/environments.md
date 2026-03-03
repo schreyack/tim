@@ -14,93 +14,56 @@ All TIM projects must define environments using a standardized `environments.yam
 
 ```text
 project/
-    ├── environments.yaml           # NEVER committed - in .gitignore
-    ├── environments.yaml.example   # Committed - shows structure without real values
-    └── ops.sh                      # Uses environments.yaml
+    ├── ops-config.yaml             # Committed - namespace and alias config
+    └── (ops.sh lives in infra repo, accessed via alias)
 ```
 
 **Security Requirements:**
 
-- `environments.yaml` permissions: `600` (owner read/write only)
+- Kubeconfig permissions: `600` (owner read/write only)
 - Never commit real hostnames, IPs, or credentials
-- Use `${ENV_VAR}` syntax for values that vary by operator
+- Use k8s Secrets for sensitive values
 
 ## Configuration Schema
 
 ### Full Example
 
 ```yaml
-# environments.yaml - Remote Environment Configuration
-# DO NOT COMMIT THIS FILE - add to .gitignore
+# ops-config.yaml - Project ops configuration (committed to repo)
 
-version: "1.0"
+version: "2.0"
 project: "your-project-name"
+alias: "myapp"  # Shell alias for ops.sh invocation
 
 environments:
   dev:
     description: "Development environment for rapid iteration"
-    host: "dev.example.com"
-    connection:
-      method: "ssh"
-      user: "deploy"
-      port: 22
-      key_file: "${HOME}/.ssh/dev_deploy_key"
-    remote:
-      type: "docker-compose"
-      path: "/opt/apps/${PROJECT}/dev"
-      compose_file: "docker-compose.dev.yml"
-    isolation:
-      network: "dev-network"
-      data_prefix: "dev_"
-      allowed_cidrs: ["10.0.1.0/24"]
+    type: "k8s"
+    namespace: "myapp-dev"
+    deploy:
+      method: "argocd"
+      app: "myapp-dev"
 
   uat:
     description: "User acceptance testing environment"
-    host: "uat.example.com"
-    connection:
-      method: "ssh"
-      user: "deploy"
-      port: 22
-      key_file: "${HOME}/.ssh/uat_deploy_key"
-    remote:
-      type: "docker-compose"
-      path: "/opt/apps/${PROJECT}/uat"
-      compose_file: "docker-compose.uat.yml"
-    isolation:
-      network: "uat-network"
-      data_prefix: "uat_"
-      allowed_cidrs: ["10.0.2.0/24"]
+    type: "k8s"
+    namespace: "myapp-uat"
+    deploy:
+      method: "argocd"
+      app: "myapp-uat"
 
   prod:
     description: "Production environment - EXTREME CAUTION"
-    host: "prod.example.com"
-    connection:
-      method: "ssh"
-      user: "deploy"
-      port: 22
-      key_file: "${HOME}/.ssh/prod_deploy_key"
-    remote:
-      type: "docker-compose"
-      path: "/opt/apps/${PROJECT}/prod"
-      compose_file: "docker-compose.prod.yml"
-    isolation:
-      network: "prod-network"
-      data_prefix: "prod_"
-      allowed_cidrs: ["10.0.3.0/24"]
+    type: "k8s"
+    namespace: "myapp-prod"
+    deploy:
+      method: "argocd"
+      app: "myapp-prod"
     protections:
       require_approval: true
       require_ticket: true
       backup_before_deploy: true
       canary_required: true
-
-  # Optional: Local development (requires human approval to use)
-  # local:
-  #   description: "Local development environment"
-  #   connection:
-  #     method: "local"
-  #   remote:
-  #     type: "docker-compose"
-  #     compose_file: "docker-compose.local.yml"
 ```
 
 ### Required Fields
@@ -116,10 +79,9 @@ environments:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `description` | string | Yes | Human-readable description |
-| `host` | string | Yes | Hostname or IP address |
-| `connection` | object | Yes | Connection method configuration |
-| `remote` | object | Yes | Remote execution environment |
-| `isolation` | object | No | Network and data isolation settings |
+| `type` | string | Yes | Environment type (`k8s`, `local`) |
+| `namespace` | string | Yes (k8s) | Kubernetes namespace |
+| `deploy` | object | No | Deployment method configuration |
 | `protections` | object | No | Additional safety rules (typically for prod) |
 
 ## Local Environment (Optional)
@@ -141,27 +103,21 @@ tim-local-dev-enable --revoke --project /path/to/project
 
 ### Local Configuration
 
-The local environment can be configured in `environments.yaml`, though this is optional:
+The local environment can be configured in `ops-config.yaml`, though this is optional:
 
 ```yaml
 environments:
   local:
     description: "Local development environment"
-    connection:
-      method: "local"  # Special method for local execution
-    remote:
-      type: "docker-compose"
-      compose_file: "docker-compose.local.yml"  # Defaults to this if not specified
+    type: "local"
 ```
 
 ### Local Behavior
 
 | Aspect | Behavior |
 |--------|----------|
-| Connection method | Direct Docker access (no SSH) |
-| File sync | Not needed (already local) |
+| Connection method | Direct local access |
 | Command tiers | All SAFE (no restrictions) |
-| Compose file | `docker-compose.local.yml` (fallback: `docker-compose.yml`) |
 | Approval required | Yes, via `tim-local-dev-enable` |
 | AI can enable | No (multiple bypass prevention layers) |
 
@@ -169,182 +125,42 @@ environments:
 
 Local development approvals are stored in `~/.tim-ops/local-dev-approvals/` with one file per project. Operations are logged to `~/.tim-ops/local-dev-audit.log`.
 
-## Connection Methods
+## Cluster Access
 
-### SSH (Recommended)
+ops.sh accesses the k8s cluster via kubeconfig. Each operator needs:
 
-Standard SSH connection. Most common for self-hosted infrastructure.
+1. **kubeconfig** — provided by cluster admin, stored at `~/.kube/config`
+2. **RBAC role** — assigned per namespace (dev/uat/prod)
+3. **ops.sh alias** — configured via shell profile
 
-```yaml
-connection:
-  method: "ssh"
-  user: "deploy"              # Required: SSH username
-  port: 22                    # Optional: SSH port (default: 22)
-  key_file: "${HOME}/.ssh/deploy_key"  # Required: Path to private key
+```bash
+# Shell profile (~/.bashrc or ~/.zshrc)
+# Aliases are generated from ops-config.yaml by the infra repo setup
+alias myapp="/path/to/infra/ops.sh --project myapp"
 ```
 
-**With Bastion/Jump Host:**
+## Deployment Method
 
-```yaml
-connection:
-  method: "ssh"
-  user: "deploy"
-  port: 22
-  key_file: "${HOME}/.ssh/deploy_key"
-  jump_host: "bastion.example.com"    # Jump through this host
-  jump_user: "jump"                    # Username on jump host
-  jump_port: 22                        # Optional: Jump host port
-  jump_key: "${HOME}/.ssh/bastion_key" # Key for jump host
-```
+### ArgoCD (Default)
 
-### AWS Systems Manager (SSM)
+All deployments are handled by ArgoCD, not ops.sh directly:
 
-Keyless access through AWS IAM. Recommended for AWS infrastructure.
+1. GHA builds container image on push/merge
+2. ArgoCD detects manifest or image changes in the infra repo
+3. ArgoCD syncs the k8s namespace automatically
 
-```yaml
-connection:
-  method: "ssm"
-  instance_id: "i-0123456789abcdef"  # Required: EC2 instance ID
-  region: "us-east-1"                # Required: AWS region
-  profile: "production"              # Optional: AWS CLI profile
-```
-
-**Requirements:**
-
-- AWS CLI v2 installed
-- Session Manager plugin installed
-- IAM permissions for `ssm:StartSession`
-- SSM Agent running on target instance
-
-### Google Cloud SSH
-
-Access through gcloud CLI. Recommended for GCP infrastructure.
-
-```yaml
-connection:
-  method: "gcloud"
-  project: "my-gcp-project"   # Required: GCP project ID
-  zone: "us-central1-a"       # Required: Compute zone
-  instance: "prod-server"     # Required: Instance name
-```
-
-**Requirements:**
-
-- gcloud CLI installed and authenticated
-- IAM permissions for compute instance access
-- OS Login enabled (recommended)
-
-### Azure Bastion
-
-Access through Azure CLI. Recommended for Azure infrastructure.
-
-```yaml
-connection:
-  method: "azure"
-  resource_group: "my-rg"              # Required: Resource group
-  vm_name: "prod-vm"                   # Required: VM name
-  subscription: "xxx-xxx-xxx-xxx"      # Optional: Subscription ID
-```
-
-**Requirements:**
-
-- Azure CLI installed and authenticated
-- Azure Bastion configured for the VNet
-- RBAC permissions for VM access
-
-## Remote Types
-
-### Docker Compose (Default)
-
-Most common for single-server deployments.
-
-```yaml
-remote:
-  type: "docker-compose"
-  path: "/opt/apps/project"           # Required: Deployment directory
-  compose_file: "docker-compose.yml"  # Optional: Compose file name
-  project_name: "myproject"           # Optional: Docker project name
-```
-
-**Generated Commands:**
-
-- `docker compose -f <compose_file> up -d`
-- `docker compose -f <compose_file> logs`
-- `docker compose -f <compose_file> ps`
-
-### Kubernetes
-
-For Kubernetes cluster deployments.
-
-```yaml
-remote:
-  type: "kubernetes"
-  namespace: "production"                    # Required: K8s namespace
-  context: "prod-cluster"                    # Optional: kubectl context
-  kubeconfig: "/etc/kubernetes/admin.conf"   # Optional: Kubeconfig path
-  manifests_path: "k8s/"                     # Optional: Path to manifests
-```
-
-**Generated Commands:**
-
-- `kubectl apply -f <manifests_path>`
-- `kubectl rollout status deployment/<name>`
-- `kubectl logs -n <namespace>`
-
-### AWS ECS
-
-For Amazon ECS deployments.
-
-```yaml
-remote:
-  type: "ecs"
-  cluster: "prod-cluster"              # Required: ECS cluster name
-  service: "api-service"               # Required: Service name
-  region: "us-east-1"                  # Required: AWS region
-  task_definition: "api-task:latest"   # Optional: Task definition
-```
-
-**Generated Commands:**
-
-- `aws ecs update-service --force-new-deployment`
-- `aws ecs describe-services`
-- `aws logs tail`
-
-### Google Cloud Run
-
-For Cloud Run deployments.
-
-```yaml
-remote:
-  type: "cloud-run"
-  project: "my-gcp-project"   # Required: GCP project
-  region: "us-central1"       # Required: Region
-  service: "api-service"      # Required: Service name
-```
-
-**Generated Commands:**
-
-- `gcloud run deploy`
-- `gcloud run services describe`
-- `gcloud logging read`
+ops.sh is for operational commands only (logs, status, shell, db operations).
 
 ## Isolation Configuration
 
 Network and data isolation prevents cross-environment contamination.
 
-```yaml
-isolation:
-  network: "prod-network"         # Docker network name
-  data_prefix: "prod_"            # Database/table prefix
-  allowed_cidrs: ["10.0.3.0/24"]  # Allowed source IPs
-```
-
 **How Isolation is Enforced:**
 
-1. Docker networks are environment-specific (no cross-network communication)
-2. Database names/tables use environment prefix
-3. SSH gateway validates source IP against allowed CIDRs
-4. Separate SSH keys per environment (cannot use dev key for prod)
+1. k8s namespaces are environment-specific (dev, uat, prod)
+2. NetworkPolicies deny cross-namespace traffic by default
+3. RBAC roles restrict access per namespace
+4. Separate kubeconfig contexts per environment (recommended)
 
 ## Protection Settings
 
@@ -388,36 +204,27 @@ remote:
 
 ## Operator Onboarding
 
-Since `environments.yaml` is not in git, new operators follow this process:
+New operators follow this process:
 
-1. **Copy the example file:**
+1. **Get kubeconfig from cluster admin:**
 
    ```bash
-   cp environments.yaml.example environments.yaml
-   chmod 600 environments.yaml
+   # Place kubeconfig and set permissions
+   cp kubeconfig-from-admin ~/.kube/config
+   chmod 600 ~/.kube/config
    ```
 
-2. **Request credentials from team lead:**
-   - SSH key for each environment needed
-   - Or cloud CLI access (AWS/GCP/Azure)
-
-3. **Configure SSH keys:**
+2. **Set up ops.sh alias:**
 
    ```bash
-   # Dev only (developers)
-   ssh-keygen -t ed25519 -f ~/.ssh/dev_deploy_key
-
-   # UAT (QA team)
-   ssh-keygen -t ed25519 -f ~/.ssh/uat_deploy_key
-
-   # Prod (DevOps/SRE only)
-   ssh-keygen -t ed25519 -f ~/.ssh/prod_deploy_key
+   # Add to shell profile
+   alias myapp="/path/to/infra/ops.sh --project myapp"
    ```
 
-4. **Verify connectivity:**
+3. **Verify connectivity:**
 
    ```bash
-   ./ops.sh --env dev status
+   myapp --env dev status
    ```
 
 ## Access Levels
@@ -436,42 +243,34 @@ Operators only get credentials for environments they need:
 
 ## Validation
 
-ops.sh validates `environments.yaml` on every command:
+ops.sh validates `ops-config.yaml` on every command:
 
 ```bash
 # Validation checks:
-# 1. File exists and is readable
+# 1. ops-config.yaml exists and is readable
 # 2. YAML syntax is valid
-# 3. Required fields present
-# 4. Connection method is supported
-# 5. Remote type is supported
-# 6. Specified environment exists
-# 7. Local environment has human approval (if --env local)
+# 3. Required fields present (project, alias, namespace)
+# 4. Specified environment exists
+# 5. Local environment has human approval (if --env local)
 
-./ops.sh --env dev status
-# OK: Environment 'dev' loaded from environments.yaml
+myapp --env dev status
+# OK: Environment 'dev' loaded (namespace: myapp-dev)
 
-./ops.sh --env staging status
-# ERROR: Environment 'staging' not found in environments.yaml
+myapp --env staging status
+# ERROR: Environment 'staging' not found in ops-config.yaml
 
-./ops.sh --env local status
+myapp --env local status
 # ERROR: LOCAL DEVELOPMENT NOT ENABLED
 # To enable: tim-local-dev-enable --project .
-
-# After human enables local dev:
-./ops.sh --env local status
-# OK: Environment 'local' (direct Docker access)
 ```
 
 ## Compliance Checklist
 
-- [ ] `environments.yaml` exists (not committed to git)
-- [ ] `environments.yaml.example` committed (without real values)
-- [ ] `.gitignore` includes `environments.yaml`
-- [ ] File permissions are `600`
-- [ ] All three remote environments defined (dev, uat, prod)
+- [ ] `ops-config.yaml` committed with project, alias, and namespace config
+- [ ] Kubeconfig permissions are `600`
+- [ ] All three remote environments defined (dev, uat, prod) with namespaces
 - [ ] Local environment is optional (requires human approval to use)
 - [ ] Prod has `protections` section configured
-- [ ] Separate SSH keys per environment
-- [ ] `docker-compose.local.yml` is gitignored (if used)
+- [ ] RBAC roles configured per namespace
+- [ ] ArgoCD Application configured per environment
 - [ ] `tim-local-dev-enable` tool is available for human opt-in

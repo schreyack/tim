@@ -22,27 +22,19 @@
 
 <!-- CUSTOMIZE: Keep the option that fits your project, delete the other -->
 
-### Option A: Local/Remote Split
+### Option A: Remote Execution (k8s)
 
-**Local (macOS):** Edit files only. **Remote:** ALL execution via `./ops.sh` — deployment, logs, DB, containers. If it executes code, use `./ops.sh`.
+**Local (macOS):** Edit files only. **Remote:** ALL execution via ops.sh alias — logs, DB, shell. Deploys are handled by ArgoCD on git push. Projects have only `ops-config.yaml`; ops.sh lives in the infra repo.
+
+```bash
+myapp --env dev status | logs backend | health | db:migrate | shell
+```
+
+**Safety tiers:** SAFE (logs/status/health) → MODERATE (restart, needs confirm) → HUMAN_REQUIRED (rollback/restore) → BLOCKED (DROP/TRUNCATE/DELETE)
 
 ### Option B: Local Development
 
 Everything runs locally. Server: `npm start` or `uvicorn app.main:app`. Tests: `npm test` or `pytest`.
-
----
-
-## ops.sh Remote Operations
-
-<!-- Remove if not using ops.sh -->
-
-**All remote interaction goes through `./ops.sh`.** No direct SSH, docker exec, or raw SQL — ever.
-
-```bash
-./ops.sh help | deploy | logs backend | status | health | db backup
-```
-
-**Safety tiers:** SAFE (logs/status/health) → MODERATE (deploy/restart, needs confirm) → HUMAN_REQUIRED (rollback/restore) → BLOCKED (DROP/TRUNCATE/DELETE)
 
 ---
 

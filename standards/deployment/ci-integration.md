@@ -57,14 +57,14 @@ This document explains how CI/CD pipelines integrate with the TIM four-gate mode
 │  │ GATE 3: DEPLOYMENT (CI triggers ops.sh)                      │           │
 │  │                                                               │           │
 │  │  ┌─────────────────────────────────────────────────────┐     │           │
-│  │  │ ops.sh --env prod deploy --confirm                    │     │           │
+│  │  │ ArgoCD syncs from git → k8s cluster                   │     │           │
 │  │  │                                                      │     │           │
-│  │  │  1. Security verification (pre-flight checks)       │     │           │
-│  │  │  2. Sync files to remote                            │     │           │
-│  │  │  3. Build containers                                │     │           │
-│  │  │  4. Canary deployment (10%)                         │     │           │
-│  │  │  5. Health checks                                   │     │           │
-│  │  │  6. Full rollout or auto-rollback                   │     │           │
+│  │  │  1. GHA builds container image                      │     │           │
+│  │  │  2. ArgoCD detects manifest/image change            │     │           │
+│  │  │  3. Canary rollout (Argo Rollouts, 10%)             │     │           │
+│  │  │  4. Health checks                                   │     │           │
+│  │  │  5. Full rollout or auto-rollback                   │     │           │
+│  │  │                                                      │     │           │
 │  │  └─────────────────────────────────────────────────────┘     │           │
 │  └──────────────────────────────────────────────────────────────┘           │
 │                                                                              │
@@ -164,55 +164,21 @@ Rules:
 
 ## Deployment Integration
 
-### Manual Deployment (Recommended Initially)
+### Deployment Model
 
-After CI passes and PR is merged:
+Deployments are handled by ArgoCD, not ops.sh. The workflow:
 
-```bash
-# From local machine - ALWAYS specify --env
-./ops.sh --env prod deploy --ticket PROJ-123
-```
+1. **GHA builds** container image on push/merge
+2. **ArgoCD detects** manifest or image changes in the infra repo
+3. **ArgoCD syncs** the k8s cluster automatically
 
-**Note**: The `--env` flag is REQUIRED. Production deploys also require `--ticket`.
-
-### Deployment Workflow by Environment
+ops.sh is for operational commands only (logs, status, shell, db operations).
 
 ```bash
-# Development - rapid iteration, minimal restrictions
-./ops.sh --env dev deploy
-
-# UAT - testing, moderate restrictions
-./ops.sh --env uat deploy
-
-# Production - strict, requires approval and ticket
-./ops.sh --env prod deploy --ticket PROJ-123
-# Will prompt for human approval via approval workflow
-```
-
-### Automated Deployment
-
-Uncomment the deploy job in the CI workflow:
-
-```yaml
-deploy:
-  name: Deploy to Production
-  needs: [gate2-complete]
-  runs-on: ubuntu-latest
-  if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-  environment: production  # Requires manual approval in GitHub
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup SSH key
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
-
-    - name: Deploy via ops.sh
-      run: ./ops.sh --env prod deploy --ticket ${{ github.event.head_commit.message }}
-
-    - name: Verify deployment
-      run: ./ops.sh --env prod health
+# Operational commands via alias - ALWAYS specify --env
+myapp --env dev status
+myapp --env dev logs backend
+myapp --env prod health
 ```
 
 ### GitHub Secrets Required
@@ -221,7 +187,7 @@ Add these to repository Settings > Secrets and variables > Actions:
 
 | Secret | Description |
 |--------|-------------|
-| `DEPLOY_SSH_KEY` | Private SSH key for deployment server |
+| `GHCR_TOKEN` | GitHub Container Registry token for image push |
 | `SNYK_TOKEN` | (Optional) Snyk API token for security scanning |
 
 ### Environment Protection
@@ -247,7 +213,7 @@ Protection rules:
 5. CI passes? Create PR
 6. Get review + approval
 7. Merge to main
-8. Deploy via ops.sh (manual or automated)
+8. ArgoCD deploys automatically on merge
 ```
 
 ### When CI Fails
@@ -294,9 +260,9 @@ Setup:
 | Security scan | - | CI job | - |
 | Container scan | - | CI job | - |
 | Security verify | - | - | ops.sh verify |
-| Deploy | - | - | ops.sh deploy |
+| Deploy | - | - | ArgoCD (automatic) |
 | Health check | - | - | ops.sh health |
-| Canary | - | - | ops.sh canary |
+| Canary | - | - | Argo Rollouts |
 | Rollback | - | - | ops.sh rollback |
 
 ## Remote-First Validation
@@ -310,17 +276,13 @@ validate-remote-policy:
   steps:
     - uses: actions/checkout@v4
 
-    - name: Check for local docker configurations in non-local compose files
+    - name: Verify ops-config.yaml exists
       run: |
-        # Fail if docker-compose.yml or docker-compose.prod.yml have localhost
-        # docker-compose.local.yml is allowed to have localhost
-        for file in docker-compose.yml docker-compose.dev.yml docker-compose.uat.yml docker-compose.prod.yml; do
-          if [[ -f "$file" ]] && grep -q "localhost" "$file"; then
-            echo "ERROR: $file contains localhost - this is only allowed in docker-compose.local.yml"
-            exit 1
-          fi
-        done
-        echo "OK: No localhost in remote compose files"
+        if [[ ! -f ops-config.yaml ]]; then
+          echo "ERROR: ops-config.yaml required"
+          exit 1
+        fi
+        echo "OK: ops-config.yaml exists"
 
     - name: Check for local database URLs
       run: |
@@ -331,31 +293,12 @@ validate-remote-policy:
         fi
         echo "OK: No localhost database URLs in .env.example"
 
-    - name: Verify environments.yaml.example exists
+    - name: Verify no stale docker-compose references
       run: |
-        if [[ ! -f environments.yaml.example ]]; then
-          echo "ERROR: environments.yaml.example required"
-          exit 1
+        if [[ -f docker-compose.yml ]] || [[ -f docker-compose.prod.yml ]]; then
+          echo "WARNING: docker-compose files found - deployment uses k8s/ArgoCD"
         fi
-        echo "OK: environments.yaml.example exists"
-
-    - name: Verify environments.yaml is gitignored
-      run: |
-        if ! grep -q "environments.yaml" .gitignore 2>/dev/null; then
-          echo "ERROR: environments.yaml must be in .gitignore"
-          exit 1
-        fi
-        echo "OK: environments.yaml is gitignored"
-
-    - name: Verify docker-compose.local.yml is gitignored (if exists)
-      run: |
-        if [[ -f docker-compose.local.yml ]]; then
-          if ! grep -q "docker-compose.local.yml" .gitignore 2>/dev/null; then
-            echo "WARNING: docker-compose.local.yml exists but is not in .gitignore"
-            echo "Local compose files should generally be gitignored"
-          fi
-        fi
-        echo "OK: Local compose file check complete"
+        echo "OK: Stale reference check complete"
 ```
 
 ---
@@ -364,10 +307,10 @@ validate-remote-policy:
 
 - [ ] Copy appropriate CI workflow to `.github/workflows/ci.yml`
 - [ ] Configure branch protection on `main`
-- [ ] Add `DEPLOY_SSH_KEY` secret (for automated deploys)
+- [ ] Add `GHCR_TOKEN` secret (for container image push)
 - [ ] Create `production` environment with protection rules
 - [ ] Test workflow by creating a PR
 - [ ] Verify all checks pass before first production deploy
-- [ ] Create `environments.yaml.example` (committed)
-- [ ] Add `environments.yaml` to `.gitignore`
-- [ ] Set up remote dev/uat/prod environments
+- [ ] Create `ops-config.yaml` with namespace and alias
+- [ ] Add k8s manifests to infra repo
+- [ ] Configure ArgoCD Application for the service

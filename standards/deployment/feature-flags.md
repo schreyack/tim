@@ -201,7 +201,7 @@ Every flag can be instantly disabled:
 
 ```bash
 # Emergency disable
-./ops.sh flag disable new-checkout-flow --env prod --reason "P1 incident"
+myapp --env prod flag disable new-checkout-flow --reason "P1 incident"
 ```
 
 This takes effect immediately without code deployment.
@@ -264,8 +264,8 @@ Monthly cleanup process:
 
 ```bash
 # List stale flags
-./ops.sh flags list --stale
+myapp --env prod flags list --stale
 
 # Generate cleanup report
-./ops.sh flags report --format markdown > cleanup-sprint.md
+myapp --env prod flags report --format markdown > cleanup-sprint.md
 ```

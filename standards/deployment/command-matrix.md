@@ -189,18 +189,18 @@ For HUMAN_REQUIRED operations:
 
 ```bash
 # 1. AI or developer attempts operation
-./ops.sh --env prod deploy --ticket PROJ-123
+myapp --env prod restart --ticket PROJ-123
 # OUTPUT: Approval required. Request ID: abc123
-# OUTPUT: Run approval workflow for request abc123
+# OUTPUT: Run tim-ops-approve for request abc123
 
 # 2. Human reviews and approves (separate terminal)
-# Approve via the infra repo's approval tool
+tim-ops-approve abc123
 # OUTPUT: Approved by: jane@example.com
 # OUTPUT: Expires in: 15 minutes
 
 # 3. Retry the operation (same terminal)
-./ops.sh --env prod deploy --ticket PROJ-123
-# OUTPUT: Approval verified. Deploying...
+myapp --env prod restart --ticket PROJ-123
+# OUTPUT: Approval verified. Restarting...
 ```
 
 **Approval Requirements:**
