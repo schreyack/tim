@@ -27,9 +27,13 @@ If a human asks you to write tests, write tests that would catch real bugs. Do n
 - No TODO/FIXME/XXX, no print debugging, no bare except.
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 
+## Deployment
+
+Deployments are handled by ArgoCD, not by ops.sh or manual commands. Push to main → GHA builds container image → ArgoCD syncs k8s cluster automatically. Never deploy manually.
+
 ## ops.sh (MANDATORY)
 
-All remote operations through ops.sh only. ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev status`). Never bypass — no direct SSH, kubectl exec, or raw SQL.
+ops.sh is for **operations only** (logs, status, shell, db commands) — not for deploying. ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev status`). Never bypass — no direct SSH, kubectl exec, or raw SQL.
 
 ## Shared Libraries (REQUIRED)
 
