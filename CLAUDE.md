@@ -29,11 +29,11 @@ If a human asks you to write tests, write tests that would catch real bugs. Do n
 
 ## Deployment
 
-Deployments use ops.sh build/deploy with kaniko (in-cluster builds) and a local registry. `build` creates kaniko Jobs that clone the repo and push images to the in-cluster registry. `deploy` runs migrations, applies kustomize manifests, and waits for rollouts. No controllers, no external registries, no webhooks.
+Deployments use `ops.sh ship` — the standard single-command deploy pipeline. `ship` validates the current branch matches the target env, commits and pushes code changes, builds all services via kaniko, deploys (migrations + manifests + rollout), runs health checks, then commits and pushes the overlay update. Use `<alias> --env <env> ship` to deploy. `build` and `deploy` are available as individual commands but `ship` is preferred.
 
 ## ops.sh (MANDATORY)
 
-ops.sh handles both operations (logs, status, shell, db) and deployment (build, deploy). ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev build all`). Never bypass — no direct SSH, kubectl exec, or raw SQL.
+ops.sh handles both operations (logs, status, shell, db) and deployment (ship, build, deploy). ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev ship`). Never bypass — no direct SSH, kubectl exec, or raw SQL.
 
 ## Shared Libraries (REQUIRED)
 
