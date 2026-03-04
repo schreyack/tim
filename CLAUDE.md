@@ -48,6 +48,7 @@ ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.
 - `build <svc|all>` — build images via kaniko
 - `deploy` — run migrations + apply manifests
 - `ship` — full pipeline: commit, push, build, deploy, health check, commit overlay
+- `fetch <svc> <path>` — copy file from pod (allowed paths only)
 - `db backup|restore|migrate|shell|query|status` — database operations
 - `cleanup [logs]` — remove completed/failed pods, or truncate node logs
 - `disk` — PVC and volume usage
