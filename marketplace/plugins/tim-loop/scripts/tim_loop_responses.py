@@ -265,6 +265,32 @@ def build_soft_completion_nudge(
     }
 
 
+def build_decision_audit_reminder(
+    prompt: str, iteration: int, max_iter: int,
+    review_mode: str = "", pressure: int = 0,
+) -> dict:
+    """Build a block response requiring the decision audit before completion."""
+    context = _prompt_or_compact(prompt, is_first_in_phase=False, pressure=pressure)
+    return {
+        "decision": "block",
+        "reason": (
+            f"Tim Loop: Iteration {iteration} of {max_iter} "
+            f"(decision audit required)\n\n"
+            f"You output the completion signal but did not include the "
+            f"mandatory `DECISION AUDIT:` marker.\n\n"
+            f"Before completing, you MUST:\n"
+            f"1. Review all changes made during this session\n"
+            f"2. List any decisions that affected scope, features, UI/UX, "
+            f"or requirements\n"
+            f"3. For each, use `AskUserQuestion` to present options to the human\n"
+            f"4. Output `DECISION AUDIT: No unauthorized decisions found.` "
+            f"(or resolve each decision found)\n\n"
+            f"Then output the completion signal again.\n\n"
+            f"{context}"
+        ),
+    }
+
+
 def build_fresh_eyes_review_challenge(
     prompt: str, iteration: int, max_iter: int, judge_reason: str,
     is_first_in_phase: bool = False,

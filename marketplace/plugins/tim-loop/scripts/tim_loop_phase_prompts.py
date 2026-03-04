@@ -138,31 +138,43 @@ After Phase 6, proceed to the User Advocate Review (Phase 7).
 
 
 def get_phase_7_prompt() -> str:
-    """Generate the Phase 7 (User Advocate) prompt."""
+    """Generate the Phase 7 (User Advocate / Decision Audit) prompt."""
     return """## Phase 7: User Advocate Review (Decision Audit)
 
 Clear your mind. Forget the technical details. You are now the User Advocate.
 
-### Your One Question
+### Your Mandate
 
-> "Were any decisions made that removed features, functionality, or altered the UI/UX WITHOUT asking the human first?"
+Audit ALL decisions made across Phases 1-6. Did any agent (including you in earlier phases) make decisions that affected scope, features, UI/UX, or requirements WITHOUT consulting the human?
 
-### What You're Auditing
+### What Counts as Unauthorized
 
-**Feature Removals** - Was anything marked "out of scope" or removed without approval?
-**UI/UX Changes** - Was any user-facing behavior changed without asking?
-**Scope Decisions** - Did Claude choose between options without presenting them to the human?
+- Removing, simplifying, or deferring any feature/requirement without asking the human
+- Choosing between multiple valid approaches without presenting options to the human
+- Changing UI/UX behavior, layout, or user-facing text without approval
+- Marking items as 'out of scope', 'future work', or 'not needed' without asking
+- Reinterpreting requirements in a way that reduces scope
 
-### Your Standard
+### What is NOT Unauthorized
 
-If it affects what the user sees or experiences, the human should have been asked.
-Internal refactoring and code structure are Claude's domain.
-Features, functionality, UI, UX belong to the human.
+- Code structure, variable naming, internal architecture choices
+- Fixing typos, formatting, or grammar
+- Adding edge cases, error handling, or tests
+- Choosing standard patterns when only one reasonable approach exists
 
-### What To Do
+### Process
 
-**If you find unauthorized decisions:** List each one. Do NOT complete this phase.
-**If all decisions were authorized (or none were made):** Confirm and complete.
+1. Review the plan as it now stands compared to the original goal
+2. Identify every decision that affected scope, features, UI/UX, or requirements
+3. For EACH decision found, use `AskUserQuestion` to present:
+   - What the decision was
+   - Why it was made (or why the agent made it)
+   - Options (including reversing the decision) with your recommendation
+4. If no unauthorized decisions were found, state: `DECISION AUDIT: No unauthorized decisions found.`
+
+### Completion
+
+The `DECISION AUDIT:` marker MUST appear in your output before the completion signal.
 
 **To signal Phase 7 completion:** Output `<promise>PHASE-7-USER-ADVOCATE-DONE</promise>`
 

@@ -199,6 +199,7 @@ _build_plan_only_prompt() {
     prompt+="- An AI implementing this plan would have no ambiguity about what to do\n\n"
     prompt+="### Before Writing the Plan\n"
     prompt+="First, make sure you understand the full scope. If anything is unclear about what the human wants, ask BEFORE creating the plan. It's better to clarify upfront than to plan the wrong thing.\n\n"
+    _build_decision_audit_section
     prompt+="**To signal completion:** Output exactly \`<promise>$COMPLETION_PROMISE</promise>\` (the tag is \`promise\`, NOT \`prompt\`).\n"
     prompt+="Only output this when the plan is written AND you have no outstanding questions about scope or approach.\n"
 }
@@ -246,6 +247,7 @@ _build_full_workflow_prompt() {
     prompt+="- A \"cleaner\" plan that misses their needs isn't actually better\n\n"
     prompt+="If something seems wrong or impossible, raise it as a question. The human decides what to keep or cut.\n\n"
     prompt+="Change to \`<!-- REVIEWED: YES -->\` when the plan is ready for implementation.\n\n"
+    _build_decision_audit_section
     prompt+="---\n\n"
     prompt+="### Phase 3: Implement\n"
     prompt+="Execute 100% of the plan as written. The human designed this plan because they need these specific outcomes.\n\n"

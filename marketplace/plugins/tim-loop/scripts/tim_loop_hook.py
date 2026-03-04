@@ -26,6 +26,7 @@ from tim_loop_context_pressure import (
 from tim_loop_full_review import handle_full_review_phase
 from tim_loop_responses import (
     build_continue_response,
+    build_decision_audit_reminder,
     build_early_completion_challenge,
     build_fresh_eyes_review_challenge,
     build_short_output_continue_response,
@@ -123,6 +124,18 @@ def handle_completion_promise(
         challenge = _challenge_review_completion(state, prompt, assistant_text)
         if challenge is not None:
             return challenge
+
+    # Decision audit enforcement for review/plan modes
+    plan_only = state.get("PLAN_ONLY") == "true"
+    if review_mode in ("tech-review", "ai-ready", "pm-review") or plan_only:
+        if "DECISION AUDIT:" not in assistant_text:
+            log_stderr("Tim Loop: BLOCKED - Missing DECISION AUDIT marker")
+            current_iteration += 1
+            state["CURRENT_ITERATION"] = str(current_iteration)
+            save_state(state)
+            return build_decision_audit_reminder(
+                prompt, current_iteration, max_iterations, review_mode, pressure,
+            )
 
     plan_file = get_plan_file(state, prompt)
     verification = check_plan_verification(plan_file)

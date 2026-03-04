@@ -72,6 +72,7 @@ _build_tech_review_prompt() {
     prompt+="- 'Files verified' MUST list specific file:line numbers, not 'verified all files'\n"
     prompt+="- At least one edge case or criterion improvement is expected (plans are rarely perfect)\n"
     prompt+="- Empty or vague evidence logs will be rejected by the stop hook\n\n"
+    _build_decision_audit_section
     prompt+="**To signal completion:** Output exactly \`<promise>$COMPLETION_PROMISE</promise>\` (the tag is \`promise\`, NOT \`prompt\`).\n"
 }
 
@@ -165,6 +166,7 @@ _build_ai_ready_prompt() {
     prompt+="**Completion Criteria**\n"
     prompt+="You may ONLY declare completion when a full re-read of the plan finds ZERO new issues.\n"
     prompt+="Expect 2-3 passes minimum. Single-pass reviews are almost always incomplete.\n\n"
+    _build_decision_audit_section
     prompt+="**To signal completion:** Output exactly \`<promise>$COMPLETION_PROMISE</promise>\` (the tag is \`promise\`, NOT \`prompt\`).\n"
     prompt+="Only output this when:\n"
     prompt+="1. The plan passes the Goal Alignment Check (still achieves the original intent)\n"
@@ -304,6 +306,32 @@ _build_pm_review_prompt() {
     prompt+="- Related items are grouped logically\n"
     prompt+="- Transitions between sections are clear\n"
     prompt+="- ALL original content is preserved (just better organized)\n\n"
+    _build_decision_audit_section
     prompt+="**To signal completion:** Output exactly \`<promise>$COMPLETION_PROMISE</promise>\` (the tag is \`promise\`, NOT \`prompt\`).\n"
     prompt+="Only output this when the plan is well-organized, polished, and flows logically - with NO scope reduction.\n"
+}
+
+_build_decision_audit_section() {
+    prompt+="### Decision Audit (MANDATORY)\n\n"
+    prompt+="Before signaling completion, you MUST perform a decision audit.\n\n"
+    prompt+="**What counts as an unauthorized decision:**\n"
+    prompt+="- Removing, simplifying, or deferring any feature/requirement without asking the human\n"
+    prompt+="- Choosing between multiple valid approaches without presenting options to the human\n"
+    prompt+="- Changing UI/UX behavior, layout, or user-facing text without approval\n"
+    prompt+="- Marking items as 'out of scope', 'future work', or 'not needed' without asking\n"
+    prompt+="- Reinterpreting requirements in a way that reduces scope\n\n"
+    prompt+="**What is NOT an unauthorized decision:**\n"
+    prompt+="- Code structure, variable naming, internal architecture choices\n"
+    prompt+="- Fixing typos, formatting, or grammar\n"
+    prompt+="- Adding edge cases, error handling, or tests\n"
+    prompt+="- Choosing standard patterns (e.g., using Zod for validation) when only one reasonable approach exists\n\n"
+    prompt+="**Process:**\n"
+    prompt+="1. Review ALL changes made during this session (including by review agents)\n"
+    prompt+="2. List every decision that affected scope, features, UI/UX, or requirements\n"
+    prompt+="3. For each decision found, use \`AskUserQuestion\` to present:\n"
+    prompt+="   - What the decision was\n"
+    prompt+="   - Why it was made\n"
+    prompt+="   - Options (including reversing the decision) with your recommendation\n"
+    prompt+="4. If no unauthorized decisions were found, state: \`DECISION AUDIT: No unauthorized decisions found.\`\n\n"
+    prompt+="**The \`DECISION AUDIT:\` marker MUST appear in your output before the completion signal.**\n\n"
 }
