@@ -33,7 +33,26 @@ Deployments use `ops.sh ship` — the standard single-command deploy pipeline. `
 
 ## ops.sh (MANDATORY)
 
-ops.sh handles both operations (logs, status, shell, db) and deployment (ship, build, deploy). ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev ship`). Never bypass — no direct SSH, kubectl exec, or raw SQL.
+ops.sh is the **only** way to interact with the k3s cluster. All cluster operations — deployment, debugging, logs, database access — go through ops.sh. Never bypass it with direct SSH, kubectl, or raw SQL.
+
+ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev ship`).
+
+**Available commands:**
+- `status` — pods, services, deployments
+- `health` — health check all services
+- `logs <svc|job>` — view logs for a service (deployment) or a job (e.g., migration jobs)
+- `describe <svc|job|pod>` — describe a service, job, or pod with events (use this to diagnose failures like ImagePullBackOff, CrashLoopBackOff, etc.)
+- `restart <svc|all>` / `stop` / `start` — manage services
+- `shell <svc>` — interactive shell in a pod
+- `exec <svc> <cmd>` — run a command in a pod
+- `build <svc|all>` — build images via kaniko
+- `deploy` — run migrations + apply manifests
+- `ship` — full pipeline: commit, push, build, deploy, health check, commit overlay
+- `db backup|restore|migrate|shell|query|status` — database operations
+- `cleanup` — remove completed/failed pods
+- `disk` — PVC usage
+
+**If ops.sh doesn't support what you need, STOP and ask the human.** Do not work around it with direct kubectl, SSH, or any other cluster access. The human will add the capability to ops.sh.
 
 ## Shared Libraries (REQUIRED)
 
