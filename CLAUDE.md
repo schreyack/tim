@@ -49,8 +49,8 @@ ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.
 - `deploy` — run migrations + apply manifests
 - `ship` — full pipeline: commit, push, build, deploy, health check, commit overlay
 - `db backup|restore|migrate|shell|query|status` — database operations
-- `cleanup` — remove completed/failed pods
-- `disk` — PVC usage
+- `cleanup [logs]` — remove completed/failed pods, or truncate node logs
+- `disk` — PVC and volume usage
 
 **If ops.sh doesn't support what you need, STOP and ask the human.** Do not work around it with direct kubectl, SSH, or any other cluster access. The human will add the capability to ops.sh.
 
