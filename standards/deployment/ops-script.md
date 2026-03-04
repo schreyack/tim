@@ -1,6 +1,6 @@
 # TIM Ops Script Standard
 
-Modular, config-driven operational CLI for Kubernetes workloads. ops.sh is the sole operational interface for all TIM projects running on k8s. Deploys are handled separately by CI/CD (GHA + ArgoCD) — ops.sh covers everything else.
+Modular, config-driven operational CLI for Kubernetes workloads. ops.sh is the sole interface for all TIM projects running on k8s — handling both operations (status, logs, shell, db) and deployment (build, deploy, ship).
 
 **CRITICAL**: The `--env` flag is REQUIRED for every command. See `standards/deployment/remote-only.md` for the policy and `standards/deployment/environments.md` for configuration.
 
@@ -14,10 +14,11 @@ infra-repo/
             commands.sh      # Status, logs, shell, exec, restart, stop, start, etc.
             db.sh            # Backup, restore, migrate, rollback, shell, query
             env.sh           # Check, list, set, diff
+            deploy.sh        # Build (kaniko), deploy (kustomize), ship
 
 project-repo/
     ops-config.yaml          # Project-specific configuration (only file needed)
-    k8s/                     # Kubernetes manifests (ArgoCD syncs these)
+    k8s/                     # Kubernetes manifests (kustomize base + overlays)
 ```
 
 **No ops.sh copies in project repos.** ops.sh lives only in the infra repo. Projects provide only `ops-config.yaml`. Access via shell aliases:
@@ -39,7 +40,9 @@ Features are enabled by the presence of their config section. If a section is ab
 ```yaml
 project:
   name: "<project>"
-  namespace: "<namespace>"
+  namespaces:
+    dev: "<namespace-dev>"
+    prod: "<namespace-prod>"
 
 cluster:
   control_plane: "<ip>"
@@ -94,6 +97,20 @@ scripts:
 fetch:
   allowed_paths: ["logs", "tmp"]
 
+build:
+  registry: "<in-cluster-registry>"
+  git_url: "<repo-url>"
+  git_secret: "<k8s-secret-name>"
+  source_registry: "<source-registry>"  # Optional, default: ghcr.io/schreyack
+  branches:
+    dev: "<branch>"
+    prod: "<branch>"
+  services:
+    <service-name>:
+      context: "<build-context>"
+      dockerfile: "<dockerfile-path>"
+      image_name: "<image-name>"        # Optional, default: <project>-<service>
+
 tiers:
   dev:
     restart: "SAFE"
@@ -101,16 +118,13 @@ tiers:
     shell: "SAFE"
     "db:migrate": "SAFE"
     "db:rollback": "SAFE"
-    "db:restore": "SAFE"
-    "db:query": "SAFE"
+    # ... per-command overrides
   prod:
     restart: "HUMAN_REQUIRED"
     stop: "BLOCKED"
     shell: "BLOCKED"
     "db:migrate": "HUMAN_REQUIRED"
     "db:rollback": "BLOCKED"
-    "db:restore": "BLOCKED"
-    "db:query": "HUMAN_REQUIRED"
 ```
 
 ---
@@ -123,7 +137,7 @@ tiers:
 |---------|-------------|
 | `status` | Show pods, services, and deployments |
 | `health` | Pod readiness + health endpoint checks |
-| `logs <service>` | Tail logs (`-f` for follow, `--tail N`) |
+| `logs <service> [-f] [--tail N]` | Tail service logs |
 | `disk` | Show PVC disk usage per service |
 | `worker status` | KEDA ScaledObject status, replica counts, queue depth |
 | `version` | Show ops.sh version |
@@ -139,8 +153,15 @@ tiers:
 | `rollback` | `kubectl rollout undo` (dev only; prod = revert git commit) |
 | `shell <service>` | Interactive shell in pod |
 | `exec <service> <cmd>` | Run command in pod |
-| `cleanup` | Delete completed pods + old ReplicaSets |
-| `cleanup logs` | Truncate container logs on node (requires SSH) |
+| `cleanup [logs]` | Delete completed pods + old ReplicaSets; `logs` truncates node logs |
+
+### Build and Deploy
+
+| Command | Description |
+|---------|-------------|
+| `build <service\|all>` | Build image(s) via kaniko Job (in-cluster) |
+| `deploy [sha]` | Update kustomize overlay, run migrations, apply manifests, wait for rollouts |
+| `ship` | Preflight checks + build all + deploy + health check + commit overlay |
 
 ### Database
 
@@ -170,7 +191,7 @@ tiers:
 
 | Command | Description |
 |---------|-------------|
-| `seed [name]` | Run configured seed command in pod |
+| `seed [name]` | Run configured seed command in pod (default: test) |
 | `script <name>` | Execute allowlisted script in pod |
 | `fetch <service> <path>` | Copy file from pod (path validated against allowlist) |
 
@@ -186,22 +207,22 @@ tiers:
 
 ### MODERATE
 
-- Makes changes but recoverable (restart, deploy, db:migrate)
+- Makes changes but recoverable (restart, deploy, db migrate)
 - Logged with audit trail
-- Prompts for confirmation in interactive mode
-- Non-interactive: exits with code 2 if `--confirm` not passed
+- Prompts for confirmation (`y/N`) in interactive mode
+- Non-interactive: exits with code 2
 
 ### HUMAN_REQUIRED
 
-- Potentially destructive (rollback, stop, db:rollback)
-- AI cannot bypass — requires human approval workflow
-- Logged with timestamp, user, and approver
+- Potentially destructive (rollback, stop, db rollback)
+- AI cannot bypass — requires human to type the project name to confirm
+- Logged with timestamp and user
 
 ### BLOCKED
 
-- Extremely dangerous (destroy, db:restore in prod)
-- Requires `--confirm --i-understand-this-is-dangerous`
-- Logged with full audit trail
+- Extremely dangerous or not permitted (db restore in prod, shell in prod)
+- Hard deny — no flags or workarounds bypass this
+- Exits with code 1
 
 ### Tier Resolution Precedence
 
@@ -214,41 +235,50 @@ tiers:
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | General error |
-| 2 | Requires confirmation (MODERATE in non-interactive mode) |
-| 3 | Requires human approval (HUMAN_REQUIRED/BLOCKED) |
-| 4 | Configuration error |
-| 5 | Health check failed |
-| 6 | Migration failed |
+| 1 | General error / BLOCKED |
+| 2 | MODERATE action denied (non-interactive mode) |
+| 3 | HUMAN_REQUIRED action denied (non-interactive mode) |
 
 ---
 
 ## Deploy Model
 
-ops.sh does **not** handle deploys. Deployment is fully automated:
+ops.sh handles the full build-deploy lifecycle using kaniko for in-cluster image builds.
 
-1. Developer pushes to a mapped branch (e.g., `dev`, `main`)
-2. GHA workflow triggers, builds container images for changed services
-3. GHA pushes images to container registry (tag = full git SHA)
-4. ArgoCD detects new image tags via Image Updater
-5. ArgoCD runs PreSync hook (migration Job) if configured
-6. ArgoCD applies updated Deployments with new image tags
-7. k8s rolls out new pods; readiness probes gate traffic
+### Build (`build <service|all>`)
 
-**Branch-to-environment mapping:**
+1. ops.sh copies the GitHub PAT secret from the `registry` namespace to the target namespace (if not present)
+2. Creates a k8s Job with an init container (`alpine/git`) that clones the repo using `x-access-token` authentication
+3. The kaniko container builds from the cloned workspace and pushes to the in-cluster registry
+4. Waits for the Job to complete (timeout: 10 minutes)
 
-- `dev` branch deploys to dev namespace
-- `main` branch deploys to prod namespace
+### Deploy (`deploy [sha]`)
 
-**Image tag strategy:** Full git SHA ensures every deploy is traceable. Rollback = ArgoCD reverts to previous image tag. Kustomize image transformer rewrites tags at sync time.
+1. Updates kustomize overlay with new image tags (SHA-based)
+2. Runs migration Job if `database.migration_command` is configured
+3. Applies manifests via `kustomize build | kubectl apply`
+4. Waits for all deployment rollouts to complete
 
-**Manual sync (escape hatch):**
+### Ship (`ship`)
 
-```bash
-argocd app sync <project>-<env>
+End-to-end deployment with safety checks:
+
+1. **Preflight**: Verify clean working tree, HEAD pushed to remote, not detached HEAD
+2. **Build**: `build all`
+3. **Deploy**: `deploy` with current HEAD SHA
+4. **Health check**: Verify all services with health endpoints respond
+5. **Commit overlay**: Stage and push `k8s/overlays/<env>/kustomization.yaml` to git
+
+**Branch-to-environment mapping** is configured per project:
+
+```yaml
+build:
+  branches:
+    dev: "dev"      # dev environment builds from dev branch
+    prod: "main"    # prod environment builds from main branch
 ```
 
-**Migration ordering:** Migrations run pre-deploy (PreSync hook) because new code often requires new schema. Additive migrations are safe with old code if deploy fails after migration.
+**Image tag strategy:** Short git SHA ensures every deploy is traceable. The kustomize overlay records the deployed image tags.
 
 ---
 
@@ -258,6 +288,8 @@ argocd app sync <project>-<env>
 |------|---------|---------|
 | yq | v4+ (Go version, NOT Python wrapper) | Config loading from ops-config.yaml |
 | kubectl | Latest stable | All k8s operations |
+| kustomize | Latest stable | Manifest rendering for deploys |
+| jq | Latest | Secret manipulation (credential provisioning) |
 | mc | Latest (MinIO client) | Backup/restore to object storage |
 | kubeconfig | N/A | `~/.kube/config` must exist and be valid |
 | ssh | N/A | Node-level operations only (log truncation, disk checks) |
@@ -265,6 +297,7 @@ argocd app sync <project>-<env>
 **Preflight checks** (run on every invocation):
 
 - `yq` exists and reports v4+
+- `kubectl`, `kustomize`, and `jq` exist
 - kubeconfig exists and `kubectl cluster-info` succeeds
 - SSH connectivity to control plane (warn-only — only needed for node-level commands)
 

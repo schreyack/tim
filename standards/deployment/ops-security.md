@@ -119,7 +119,7 @@ spec:
 
 ### Verification Script
 
-This script runs on every ops.sh invocation and periodically via cron:
+This script exists as a standalone verification tool (`verify-ops-security.sh` in the infra repo). It is **not yet integrated** into ops.sh as a preflight check — run it manually or via cron:
 
 ```bash
 #!/usr/bin/env bash
@@ -235,9 +235,9 @@ echo "All security checks passed."
 exit 0
 ```
 
-### Integration with ops.sh
+### Integration with ops.sh (Aspirational)
 
-Add verification as a pre-flight check:
+The following shows planned integration as a pre-flight check. This is **not yet implemented** — verify-ops-security.sh currently runs standalone:
 
 ```bash
 # In ops.sh - add to main dispatch
@@ -305,7 +305,7 @@ When setting up a new TIM project, infrastructure team must:
 - [ ] ops-gateway.sh installed and tested (from infra repo)
 - [ ] kubectl command allowlisting configured
 - [ ] Secrets managed via k8s Secrets (not .env files)
-- [ ] ArgoCD Application configured per service
+- [ ] Build config in ops-config.yaml configured per service
 - [ ] Cron verification job installed
 - [ ] Alert webhook configured
 
