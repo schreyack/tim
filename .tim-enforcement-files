@@ -12,6 +12,7 @@
 .pre-commit-config.yaml
 templates/node/.pre-commit-config.yaml
 templates/python/.pre-commit-config.yaml
+templates/fullstack/.pre-commit-config.yaml
 
 # Secrets baseline
 .secrets.baseline
@@ -22,6 +23,11 @@ tools/tim-compliance-check.sh
 
 # Sync scripts
 bin/sync-pre-commit
+bin/sync_pre_commit/__init__.py
+bin/sync_pre_commit/__main__.py
+bin/sync_pre_commit/config.py
+bin/sync_pre_commit/projects.py
+bin/sync_pre_commit/fileops.py
 bin/sync-claude-md
 
 # Shared lib enforcement configs
