@@ -44,7 +44,7 @@ ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.
 - `describe <svc|job|pod>` — describe a service, job, or pod with events (use this to diagnose failures like ImagePullBackOff, CrashLoopBackOff, etc.)
 - `restart <svc|all>` / `stop` / `start` — manage services
 - `shell <svc>` — interactive shell in a pod
-- `exec <svc> <cmd>` — run a command in a pod
+- `exec <svc> <cmd...>` — run a command in a pod
 - `build <svc|all>` — build images via kaniko
 - `deploy` — run migrations + apply manifests
 - `ship` — full pipeline: commit, push, build, deploy, health check, commit overlay
