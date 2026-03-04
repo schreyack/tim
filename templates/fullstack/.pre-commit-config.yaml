@@ -1,0 +1,280 @@
+# TIM Standards - Fullstack (Python + Node.js) Pre-commit Configuration
+# Base template - used by bin/sync-pre-commit
+# For projects with backend/ (Python) and frontend/ (Node.js)
+# Run: pre-commit install
+
+repos:
+  # LOCKED - Prevent AI from modifying enforcement files
+  - repo: local
+    hooks:
+      - id: protect-enforcement-files
+        name: LOCKED - enforcement files require human approval to modify
+        entry: "bash -c 'printf \"BLOCKED: These enforcement files require --no-verify (human approval):\\n\"; for f; do printf \"  %s\\n\" \"$f\"; done; exit 1' --"
+        language: system
+        files: >-
+          (?x)^(
+            \.gitignore|
+            \.pre-commit-config\.yaml|
+            \.secrets\.baseline|
+            \.tim-settings-sot\.yaml
+          )$
+
+  # ──────────────────────────────────────────────────────────────
+  # Python hooks (scoped to backend/)
+  # ──────────────────────────────────────────────────────────────
+
+  # Ruff - Fast linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # MyPy - Type checking (strict mode, uses backend venv)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (strict, project venv)
+        entry: "bash -c 'if [ ! -f backend/.venv/bin/mypy ]; then echo \"ERROR: backend/.venv/bin/mypy not found. Configure mypy hook in .pre-commit-overrides.yaml with your venv path.\"; exit 1; fi; backend/.venv/bin/mypy backend/'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # Security - Bandit (Python only)
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.3
+    hooks:
+      - id: bandit
+        args: [-ll]
+        files: ^backend/
+
+  # Detect secrets - Prevent committing secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: package-lock\.json|poetry\.lock
+
+  # Codespell - Catch common misspellings
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+
+  # Python-specific regex checks
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-noqa
+        files: ^backend/
+      - id: python-check-blanket-type-ignore
+        files: ^backend/
+      - id: python-no-eval
+        files: ^backend/
+      - id: python-no-log-warn
+        files: ^backend/
+      - id: python-use-type-annotations
+        files: ^backend/
+      - id: text-unicode-replacement-char
+
+  # ──────────────────────────────────────────────────────────────
+  # Node.js hooks (scoped to frontend/)
+  # ──────────────────────────────────────────────────────────────
+
+  # Local hooks for Node.js tooling
+  - repo: local
+    hooks:
+      # TypeScript type checking
+      - id: tsc
+        name: TypeScript type check
+        entry: ./frontend/node_modules/.bin/tsc --noEmit
+        language: system
+        types: [ts]
+        pass_filenames: false
+        files: ^frontend/
+
+      # ESLint with zero warnings tolerance
+      - id: eslint
+        name: ESLint
+        entry: ./frontend/node_modules/.bin/eslint --max-warnings 0 --no-warn-ignored --fix
+        language: system
+        types: [ts]
+        pass_filenames: true
+        files: ^frontend/
+
+      # Prettier formatting check
+      - id: prettier
+        name: Prettier
+        entry: ./frontend/node_modules/.bin/prettier --check
+        language: system
+        types_or: [ts, javascript, json, css, markdown, yaml]
+        pass_filenames: true
+        files: ^frontend/
+
+  # Gitleaks - Detect secrets (Node-side)
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # ──────────────────────────────────────────────────────────────
+  # Shared hooks (unscoped)
+  # ──────────────────────────────────────────────────────────────
+
+  # Commitizen - Enforce commit message format
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.1.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: debug-statements
+        files: ^backend/
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: check-ast
+        files: ^backend/
+
+  # ──────────────────────────────────────────────────────────────
+  # Settings SOT enforcement (both languages)
+  # ──────────────────────────────────────────────────────────────
+
+  - repo: local
+    hooks:
+      - id: no-hardcoded-settings-python
+        name: No hardcoded settings - Python (SOT enforcement)
+        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language python --tier block
+        language: system
+        types: [python]
+        files: ^backend/
+
+      - id: no-hardcoded-settings-node
+        name: No hardcoded settings - Node (SOT enforcement)
+        entry: python3 lib/tim/tools/no-hardcoded-settings.py --language typescript --tier block
+        language: system
+        types_or: [ts, tsx]
+        files: ^frontend/
+
+  - repo: local
+    hooks:
+      - id: no-fallback-defaults-python
+        name: No fallback defaults - Python (fail loudly)
+        entry: python3 lib/tim/tools/no-fallback-defaults.py --language python
+        language: system
+        types: [python]
+        files: ^backend/
+
+      - id: no-fallback-defaults-node
+        name: No fallback defaults - Node (fail loudly)
+        entry: python3 lib/tim/tools/no-fallback-defaults.py --language typescript
+        language: system
+        types_or: [ts, tsx]
+        files: ^frontend/
+
+  # ──────────────────────────────────────────────────────────────
+  # CLAUDE.md Enforcement (both languages)
+  # ──────────────────────────────────────────────────────────────
+
+  - repo: local
+    hooks:
+      # Code quality - Python
+      - id: code-quality-python
+        name: Code quality - Python (file size, function size, complexity)
+        entry: python3 lib/tim/tools/check-code-quality.py --language python
+        language: system
+        types: [python]
+        files: ^backend/
+
+      # Code quality - Node
+      - id: code-quality-node
+        name: Code quality - Node (file size)
+        entry: python3 lib/tim/tools/check-code-quality.py --language typescript
+        language: system
+        types_or: [ts, tsx]
+        files: ^frontend/
+
+      # Block TODO/FIXME comments - Python
+      - id: no-todos-python
+        name: No TODO/FIXME comments (Python)
+        entry: "bash -c 'if grep -rn -E \"TODO|FIXME|XXX\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null; then echo ERROR - Remove TODO/FIXME/XXX comments; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block TODO/FIXME comments - Node
+      - id: no-todos-node
+        name: No TODO/FIXME comments (Node)
+        entry: "bash -c 'if grep -rn -E \"TODO|FIXME|XXX\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib frontend/ 2>/dev/null; then echo ERROR - Remove TODO/FIXME/XXX comments; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block print statements (Python - must use logging)
+      - id: no-print
+        name: No print statements
+        entry: "bash -c 'if grep -rn \"[^a-zA-Z_]print(\\|^print(\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null | grep -v noqa; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block console.log (Node - must use logger)
+      - id: no-console
+        name: No console.log
+        entry: "bash -c 'if grep -rn \"console\\.log\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib frontend/ 2>/dev/null | grep -v noqa; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block bare except clauses (Python)
+      - id: no-bare-except
+        name: No bare except clauses
+        entry: "bash -c 'if grep -rn \"except:\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null | grep -v noqa; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block any type (Node)
+      - id: no-any
+        name: No any type
+        entry: "bash -c 'if grep -rn -E \"(: any|as any|<any>)\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib frontend/ 2>/dev/null | grep -v noqa; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block placeholder implementations - Python
+      - id: no-placeholders-python
+        name: No placeholder implementations (Python)
+        entry: "bash -c 'if grep -rn NotImplementedError --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null; then echo ERROR - Implement fully, no NotImplementedError; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Block placeholder implementations - Node
+      - id: no-placeholders-node
+        name: No placeholder implementations (Node)
+        entry: "bash -c 'if grep -rin \"not implemented\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib frontend/ 2>/dev/null; then echo ERROR - Implement fully, no placeholders; exit 1; fi; exit 0'"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+# CI runs these same checks
+ci:
+  autofix_commit_msg: "style: auto-fix pre-commit issues"
+  autoupdate_commit_msg: "chore: update pre-commit hooks"
