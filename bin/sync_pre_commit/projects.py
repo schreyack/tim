@@ -43,9 +43,24 @@ def load_projects() -> list[Path]:
     return projects
 
 
+def _detect_from_symlink(project: Path) -> str | None:
+    """Detect template type from existing config symlink target."""
+    config = project / ".pre-commit-config.yaml"
+    if not config.is_symlink():
+        return None
+    target = str(os.readlink(config))
+    for ttype in ("fullstack", "node", "python"):
+        if f"templates/{ttype}" in target:
+            return ttype
+    return None
+
+
 def detect_template_type(project: Path) -> str | None:
     """Auto-detect whether a project is python, node, or fullstack."""
-    has_backend = (project / "backend" / "pyproject.toml").exists()
+    has_backend = (
+        (project / "backend" / "pyproject.toml").exists()
+        or (project / "backend" / "requirements.txt").exists()
+    )
     has_frontend = (project / "frontend" / "package.json").exists()
 
     if has_backend and has_frontend:
@@ -56,18 +71,7 @@ def detect_template_type(project: Path) -> str | None:
     if (project / "pyproject.toml").exists() or (project / "requirements.txt").exists():
         return "python"
 
-    # Fallback: check if existing config is a symlink pointing to a template
-    config = project / ".pre-commit-config.yaml"
-    if config.is_symlink():
-        target = str(os.readlink(config))
-        if "templates/node" in target:
-            return "node"
-        if "templates/python" in target:
-            return "python"
-        if "templates/fullstack" in target:
-            return "fullstack"
-
-    return None
+    return _detect_from_symlink(project)
 
 
 def _template_mtimes(template_type: str) -> list[float]:
