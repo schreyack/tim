@@ -101,7 +101,7 @@ Human approvers must verify before signing off on production deployment:
 **Deployment Readiness**:
 
 - [ ] All CI checks passed (green build)
-- [ ] E2E tests passed on UAT environment
+- [ ] E2E tests passed on dev environment
 - [ ] Canary deployment completed without issues
 - [ ] No new HIGH/CRITICAL security vulnerabilities
 - [ ] Database migrations tested with rollback

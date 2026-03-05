@@ -4,7 +4,7 @@ All TIM projects operate on a **remote-first deployment model**. This document d
 
 ## Policy Statement
 
-**Remote by default. All standard environments (dev, uat, prod) run on remote servers.**
+**Remote by default. All standard environments (dev, prod) run on remote servers.**
 
 Local development is available as an **opt-in option** that requires explicit human approval. AI developers cannot enable local development.
 
@@ -120,9 +120,9 @@ Developers write code locally, but test remotely:
 | E2E tests | No | Require deployed app |
 | SSH to servers directly | No | Use ops.sh |
 
-## Three Required Environments
+## Two Required Environments
 
-Every TIM project must have exactly three remote environments:
+Every TIM project must have exactly two remote environments:
 
 ### DEV (Development)
 
@@ -131,14 +131,6 @@ Every TIM project must have exactly three remote environments:
 - **Restrictions:** Minimal (sandbox only)
 - **Data:** Test/synthetic data
 - **Stability:** Can be broken, will be fixed
-
-### UAT (User Acceptance Testing)
-
-- **Purpose:** Stakeholder review and QA
-- **Access:** QA team, tech leads
-- **Restrictions:** Moderate
-- **Data:** Anonymized production-like data
-- **Stability:** Should be stable for testing
 
 ### PROD (Production)
 
@@ -159,7 +151,7 @@ ops-config.yaml does not support `environment: local`:
 environment: "local"  # ERROR: 'local' is not a valid environment
 
 # VALID
-environment: "dev"    # Must be dev, uat, or prod
+environment: "dev"    # Must be dev or prod
 ```
 
 ### 2. Required --env Flag
@@ -168,7 +160,7 @@ ops.sh requires explicit environment specification:
 
 ```bash
 myapp status
-# ERROR: --env flag required. Use --env dev, --env uat, or --env prod
+# ERROR: --env flag required. Use --env dev or --env prod
 
 myapp --env dev status
 # OK: Checking status of dev environment
@@ -361,13 +353,13 @@ A: Local testing is allowed for:
 - Linting and type checking
 - Static analysis
 
-Integration and E2E tests run on remote dev or UAT.
+Integration and E2E tests run on remote dev.
 
 ## Compliance Checklist
 
 - [ ] `ops-config.yaml` defines namespace and alias
 - [ ] No `.env` with local database URLs
-- [ ] k8s manifests in infra repo define dev, uat, prod namespaces
+- [ ] k8s manifests in infra repo define dev, prod namespaces
 - [ ] ops.sh alias requires `--env` flag
 - [ ] CI validates remote-first compliance
 - [ ] Developer onboarding uses remote dev by default

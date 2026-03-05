@@ -9,108 +9,33 @@ Code promotion through environments is controlled by automated gates. If a proje
 │                           PROMOTION PIPELINE                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  DEV                           UAT                          PROD             │
-│  ┌──────────────┐             ┌──────────────┐             ┌──────────────┐ │
-│  │ • Unit tests │             │ • Full e2e   │             │ • Full e2e   │ │
-│  │ • Integration│   AUTO      │ • Smoke test │   HUMAN     │ • Smoke test │ │
-│  │ • Quick      │ ─────────►  │ • Critical   │ ─────────►  │ • Critical   │ │
-│  │   iteration  │  IF PASS    │   routes     │  APPROVAL   │   routes     │ │
-│  │ • Errors OK  │             │ • No skips   │  REQUIRED   │ • No errors  │ │
-│  └──────────────┘             └──────────────┘             └──────────────┘ │
+│  DEV                                                       PROD             │
+│  ┌──────────────┐                                         ┌──────────────┐ │
+│  │ • Unit tests │                                         │ • Full e2e   │ │
+│  │ • Integration│              HUMAN                      │ • Smoke test │ │
+│  │ • Quick      │           ─────────────────────────►    │ • Critical   │ │
+│  │   iteration  │            APPROVAL                     │   routes     │ │
+│  │ • Errors OK  │            REQUIRED                     │ • No errors  │ │
+│  └──────────────┘                                         └──────────────┘ │
 │                                                                              │
-│  Errors/skips                  HARD STOP                    HARD STOP        │
-│  allowed here                  on any failure               on any failure   │
+│  Errors/skips                                              HARD STOP        │
+│  allowed here                                              on any failure   │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Gate 1: DEV → UAT
-
-### Trigger
-
-- Developer initiates promotion
-- Or: Automatic on merge to `develop` branch
-
-### Requirements
-
-| Check | Requirement | Enforcement |
-|-------|-------------|-------------|
-| Unit tests | All pass | CI gate |
-| Integration tests | All pass | CI gate |
-| Linting | Zero errors | CI gate |
-| Type checking | Zero errors | CI gate |
-| Build | Successful | CI gate |
-
-### What's NOT Required at DEV
-
-- E2E tests (encouraged, not required)
-- Full route coverage
-- Zero console warnings
-
-### Automation
-
-```yaml
-# .github/workflows/dev-to-uat.yml
-name: DEV to UAT Promotion
-
-on:
-  push:
-    branches: [develop]
-  workflow_dispatch:
-
-jobs:
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run unit tests
-        run: npm run test:unit
-        env:
-          CI: true
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: test
-        ports:
-          - 5432:5432
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run integration tests
-        run: npm run test:integration
-
-  promote:
-    needs: [unit-tests, integration-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to UAT
-        run: ./ops.sh deploy --environment uat --confirm
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.UAT_SSH_KEY }}
-
-      - name: Notify
-        run: |
-          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
-            -d '{"text":"✅ Promoted to UAT: ${{ github.sha }}"}'
-```
-
-## Gate 2: UAT → PROD
+## Gate: DEV → PROD
 
 ### Trigger
 
 - Manual workflow dispatch only
-- Requires passing all UAT tests first
+- Requires passing all DEV tests first
 
 ### Requirements (STRICT)
 
 | Check | Requirement | Enforcement |
 |-------|-------------|-------------|
-| All DEV checks | Pass | CI gate |
+| Unit + integration tests | Pass | CI gate |
 | Full e2e suite | All pass | CI gate, HARD STOP |
 | Smoke test | Critical routes clean | CI gate, HARD STOP |
 | Critical route coverage | Covered | CI gate, HARD STOP |
@@ -132,8 +57,8 @@ Any of these triggers immediate HARD STOP:
 ### Automation
 
 ```yaml
-# .github/workflows/uat-to-prod.yml
-name: UAT to PROD Promotion
+# .github/workflows/dev-to-prod.yml
+name: DEV to PROD Promotion
 
 on:
   workflow_dispatch:
@@ -160,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PROMOTION_MODE: 'true'
-      TEST_ENVIRONMENT: 'uat'
+      TEST_ENVIRONMENT: 'dev'
     steps:
       - uses: actions/checkout@v4
 
@@ -322,7 +247,7 @@ All promotions logged:
 ```json
 {
   "promotion_id": "promo_20250115_abc123",
-  "from_environment": "uat",
+  "from_environment": "dev",
   "to_environment": "prod",
   "triggered_by": "tim",
   "approved_by": ["alice", "bob"],

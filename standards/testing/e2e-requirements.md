@@ -14,8 +14,7 @@ E2E testing guidelines for projects that choose to implement them. Tests are not
 | Layer | Environment | Test Requirements | Promotion Rule |
 |-------|-------------|-------------------|----------------|
 | **DEV** | Local or remote | Unit + Integration | Quick deploy allowed |
-| **UAT** | Remote (Docker) | Full e2e required | Auto-promote if all tests pass |
-| **PROD** | Remote (Docker/Cloud) | Full e2e + smoke | Human approval required |
+| **PROD** | Remote | Full e2e + smoke | Human approval required |
 
 ### DEV Layer
 
@@ -23,15 +22,7 @@ E2E testing guidelines for projects that choose to implement them. Tests are not
 - Integration tests must pass
 - Quick iteration allowed
 - Errors/skips permitted (for active development)
-- **Cannot promote to UAT with any failing tests**
-
-### UAT Layer
-
-- ALL unit tests must pass
-- ALL integration tests must pass
-- ALL e2e tests must pass
-- Smoke test validates critical routes
-- **Auto-promotes to prod-ready if all pass**
+- **Cannot promote to PROD with any failing tests**
 
 ### PROD Layer
 
@@ -406,7 +397,6 @@ on:
         required: true
         type: choice
         options:
-          - uat
           - prod
 
 jobs:
@@ -435,14 +425,6 @@ jobs:
           if [ -n "$UNCOVERED" ]; then
             echo "::warning::Routes without e2e coverage: $UNCOVERED"
           fi
-
-  promote-uat:
-    needs: test
-    if: inputs.target == 'uat'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Auto-promote to UAT
-        run: ./ops.sh deploy --environment uat --confirm
 
   promote-prod:
     needs: test

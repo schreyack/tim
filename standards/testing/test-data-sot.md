@@ -45,7 +45,6 @@ tests/
     │
     └── environments/               # Environment-specific overrides
         ├── dev.yaml
-        ├── uat.yaml
         └── prod.yaml
 ```
 
@@ -509,14 +508,14 @@ export default globalSetup;
 ## Environment-Specific Data
 
 ```yaml
-# tests/data/environments/uat.yaml
+# tests/data/environments/prod.yaml
 overrides:
-  api_base_url: "https://uat.example.com/api"
+  api_base_url: "https://prod.example.com/api"
   timeout_ms: 30000
 
   users:
     admin:
-      email: "uat-admin@example.com"
+      email: "prod-admin@example.com"
       # Password from secrets manager, not in YAML
 ```
 

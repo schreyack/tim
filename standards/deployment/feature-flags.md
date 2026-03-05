@@ -51,7 +51,6 @@ flags:
     expires: "2025-02-15"    # Max 30 days from creation
     rollout:
       dev: 100%
-      uat: 100%
       prod: 0%               # Start at 0, increment after validation
     ticket: "JIRA-1234"      # Tracking ticket required
 ```
@@ -83,8 +82,8 @@ flags:
 │                                                                      │
 │  CREATE          ROLLOUT           VALIDATE         CLEANUP          │
 │  ┌──────┐       ┌──────┐          ┌──────┐        ┌──────┐          │
-│  │ Flag │  ──►  │ Dev  │  ──►     │ UAT  │  ──►   │ Prod │  ──►     │
-│  │ 0%   │       │ 100% │          │ 100% │        │ 100% │          │
+│  │ Flag │  ──►  │ Dev  │  ──►     │ Prod │  ──►   │ Prod │  ──►     │
+│  │ 0%   │       │ 100% │          │  10% │        │ 100% │          │
 │  └──────┘       └──────┘          └──────┘        └──────┘          │
 │                                                                      │
 │                                        │                  │          │

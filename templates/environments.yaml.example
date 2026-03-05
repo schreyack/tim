@@ -75,30 +75,6 @@ environments:
       allowed_cidrs: ["0.0.0.0/0"]  # Dev allows all IPs
 
   # =============================================================================
-  # UAT - User Acceptance Testing Environment
-  # =============================================================================
-  # Purpose: Stakeholder review and QA testing
-  # Access: QA team, tech leads
-  # Restrictions: Moderate
-  # =============================================================================
-  uat:
-    description: "User acceptance testing environment"
-    host: "uat.example.com"  # Replace with your UAT server
-    connection:
-      method: "ssh"
-      user: "deploy"
-      port: 22
-      key_file: "${HOME}/.ssh/uat_deploy_key"
-    remote:
-      type: "docker-compose"
-      path: "/opt/apps/${PROJECT}/uat"
-      compose_file: "docker-compose.yml"
-    isolation:
-      network: "uat-network"
-      data_prefix: "uat_"
-      allowed_cidrs: ["10.0.0.0/8"]  # Internal network only
-
-  # =============================================================================
   # PROD - Production Environment
   # =============================================================================
   # Purpose: Live user traffic
