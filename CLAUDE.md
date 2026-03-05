@@ -38,6 +38,7 @@ ops.sh is the **only** way to interact with the k3s cluster. All cluster operati
 ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev ship`).
 
 **Available commands:**
+
 - `status` — pods, services, deployments
 - `health` — health check all services
 - `logs <svc|job>` — view logs for a service (deployment) or a job (e.g., migration jobs)
