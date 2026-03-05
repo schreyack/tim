@@ -104,7 +104,7 @@ repos:
       # Block TODO/FIXME comments
       - id: no-todos
         name: No TODO/FIXME comments
-        entry: "bash -c 'if grep -rn -E \"TODO|FIXME|XXX\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null; then echo ERROR - Remove TODO/FIXME/XXX comments; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn -E \"TODO|FIXME|XXX\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null; then echo ERROR - Remove TODO/FIXME/XXX comments; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -112,7 +112,7 @@ repos:
       # Block console.log (must use logger)
       - id: no-console
         name: No console.log
-        entry: "bash -c 'if grep -rn \"console\\.log\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn \"console\\.log\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null | grep -v noqa; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -120,7 +120,7 @@ repos:
       # Block any type
       - id: no-any
         name: No any type
-        entry: "bash -c 'if grep -rn -E \"(: any|as any|<any>)\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn -E \"(: any|as any|<any>)\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null | grep -v noqa; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -128,7 +128,7 @@ repos:
       # Block placeholder implementations
       - id: no-placeholders
         name: No placeholder implementations
-        entry: "bash -c 'if grep -rin \"not implemented\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib . 2>/dev/null; then echo ERROR - Implement fully, no placeholders; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rin \"not implemented\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null; then echo ERROR - Implement fully, no placeholders; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
