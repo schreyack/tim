@@ -44,6 +44,16 @@ project_files() {
         [[ -f "$gitignore" ]] && echo "$gitignore"
         local ops="$project/ops.sh"
         [[ -f "$ops" ]] && echo "$ops"
+
+        # Submodule enforcement files (lib/tim mirrors the tim repo)
+        local sub="$project/lib/tim"
+        if [[ -d "$sub" ]]; then
+            while IFS= read -r line; do
+                line="${line%%#*}"
+                line="${line// /}"
+                [[ -n "$line" ]] && [[ -f "$sub/$line" ]] && echo "$sub/$line"
+            done < "$TIM_ROOT/.tim-enforcement-files"
+        fi
     done
 }
 
