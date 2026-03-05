@@ -45,18 +45,41 @@ STDLIB_STANDARDS = {
 }
 
 
+def _parse_dict_patterns(raw: dict[str, object]) -> dict[str, str]:
+    """Parse patterns in dict format: {key: {standard: value}}."""
+    return {
+        key: val.get("standard", "")
+        for key, val in raw.items()
+        if isinstance(val, dict)
+    }
+
+
+def _parse_list_patterns(raw: list[object]) -> dict[str, str]:
+    """Parse patterns in list format: [{name: x, standard: y}]."""
+    return {
+        item["name"]: item.get("standard", "")
+        for item in raw
+        if isinstance(item, dict) and "name" in item
+    }
+
+
 def load_patterns(project: Path) -> dict[str, str]:
-    """Load registered patterns, returning {pattern_key: standard}."""
+    """Load registered patterns, returning {pattern_key: standard}.
+
+    Supports both dict format (standard: value) and list format
+    (- name: x, scope: y).
+    """
     path = project / ".tim-patterns.yaml"
     if not path.exists():
         return {}
     with open(path) as f:
         data = yaml.safe_load(f) or {}
-    result: dict[str, str] = {}
-    for key, val in data.get("patterns", {}).items():
-        if isinstance(val, dict):
-            result[key] = val.get("standard", "")
-    return result
+    raw = data.get("patterns", {})
+    if isinstance(raw, dict):
+        return _parse_dict_patterns(raw)
+    if isinstance(raw, list):
+        return _parse_list_patterns(raw)
+    return {}
 
 
 def parse_requirements_txt(path: Path) -> set[str]:
