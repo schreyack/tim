@@ -1,0 +1,139 @@
+# pattern-library-map.yaml - Maps known libraries to TIM pattern categories
+#
+# Used by check-pattern-drift.py to detect unregistered patterns.
+# Key: normalized library name (lowercase, as it appears in deps)
+# Value: list of acceptable pattern names (key OR standard value)
+#
+# The drift checker matches against both pattern keys AND 'standard' field
+# values in .tim-patterns.yaml. A library is "registered" if ANY of its
+# acceptable names appear in the project's registered set.
+#
+# Add new mappings here when new libraries become common across projects.
+
+python:
+  # Authentication
+  pyjwt: [authentication, clerk-jwt, jwt-bearer, api-key]
+  python-jose: [authentication]
+  authlib: [authentication]
+
+  # Database / ORM
+  sqlalchemy: [database_orm, sqlalchemy-async]
+  alembic: [database_migrations, alembic]
+  asyncpg: [database_orm, sqlalchemy-async]
+  psycopg2-binary: [database_orm, sqlalchemy-async]
+
+  # Validation
+  pydantic: [input_validation, pydantic-strict]
+  pydantic-settings: [input_validation, pydantic-strict]
+
+  # Web frameworks
+  fastapi: [web_framework, fastapi]
+  django: [web_framework, django]
+
+  # Background jobs
+  celery: [background_jobs, celery-redis]
+
+  # Storage
+  boto3: [file_storage, s3]
+
+  # Payments
+  stripe: [payments]
+
+  # AI
+  anthropic: [ai_provider]
+  openai: [ai_provider]
+
+  # Logging
+  structlog: [logging, structured-json]
+
+  # Rate limiting
+  slowapi: [rate_limiting]
+
+  # Real-time
+  sse-starlette: [realtime]
+
+  # Monitoring
+  sentry-sdk: [monitoring]
+
+  # Email
+  sendgrid: [email_notifications]
+
+  # SMS
+  twilio: [sms_notifications]
+
+node:
+  # Authentication
+  "@clerk/express": [authentication, clerk]
+  "@clerk/backend": [authentication, clerk]
+  "@clerk/nextjs": [authentication, clerk, clerk-jwt]
+  jsonwebtoken: [authentication, jwt-bearer]
+  passport: [authentication]
+
+  # Database / ORM
+  "@prisma/client": [database_orm, prisma-client-singleton, prisma]
+  "@prisma/adapter-pg": [database_orm, prisma-client-singleton, prisma]
+  prisma: [database_migrations, prisma-migrate, prisma]
+  sequelize: [database_orm]
+  knex: [database_orm]
+  typeorm: [database_orm]
+
+  # Validation
+  zod: [input_validation, zod]
+  joi: [input_validation]
+  yup: [input_validation]
+
+  # Web frameworks
+  express: [web_framework, express]
+  next: [frontend_framework, nextjs-typescript]
+  react: [frontend_framework]
+  vue: [frontend_framework]
+
+  # Background jobs
+  node-cron: [background_jobs, node-cron]
+  node-schedule: [background_jobs, node-schedule]
+  bullmq: [background_jobs]
+  bull: [background_jobs]
+
+  # Storage
+  "@aws-sdk/client-s3": [file_storage, s3, storage-provider]
+  multer: [file_storage]
+
+  # Payments
+  stripe: [payments, payment_processing]
+  "@stripe/terminal-js": [payments, payment_processing]
+
+  # AI
+  "@anthropic-ai/sdk": [ai_provider, receipt_processing]
+  openai: [ai_provider]
+
+  # Logging
+  pino: [logging, structured-json]
+  winston: [logging]
+
+  # Rate limiting
+  express-rate-limit: [rate_limiting, express-rate-limit]
+
+  # State management
+  "@tanstack/react-query": [frontend_state, tanstack-query]
+  zustand: [frontend_state]
+  redux: [frontend_state]
+  "@reduxjs/toolkit": [frontend_state]
+
+  # Real-time
+  socket.io: [realtime]
+  ws: [realtime]
+
+  # Monitoring
+  "@sentry/node": [monitoring]
+  prom-client: [monitoring]
+
+  # Email
+  "@sendgrid/mail": [email_notifications]
+  nodemailer: [email_notifications]
+
+  # SMS
+  twilio: [sms_notifications]
+
+  # Offline / PWA
+  dexie: [frontend_offline]
+  workbox-webpack-plugin: [frontend_offline]

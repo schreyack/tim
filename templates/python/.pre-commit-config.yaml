@@ -174,6 +174,16 @@ repos:
         pass_filenames: false
         always_run: true
 
+  # Pattern drift detection - catch unregistered dependencies
+  - repo: local
+    hooks:
+      - id: pattern-drift
+        name: Pattern drift check
+        entry: python3 lib/tim/tools/check-pattern-drift.py
+        language: system
+        pass_filenames: false
+        files: (requirements\.txt|pyproject\.toml|\.tim-patterns\.yaml)$
+
 # CI runs these same checks
 ci:
   autofix_commit_msg: "style: auto-fix pre-commit issues"
