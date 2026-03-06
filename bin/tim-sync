@@ -103,6 +103,8 @@ sync_project() {
     if [[ -d "$project/lib/tim" ]]; then
         local before after
         before=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
+        # Reset working tree — submodule should always match upstream exactly
+        git -C "$project/lib/tim" checkout -- . 2>/dev/null || true
         if git -C "$project/lib/tim" pull origin main --quiet 2>/dev/null; then
             after=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
             if [[ "$before" != "$after" ]]; then
