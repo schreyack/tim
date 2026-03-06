@@ -29,7 +29,7 @@ repos:
         name: TypeScript type check
         entry: ./node_modules/.bin/tsc --noEmit
         language: system
-        types: [ts]
+        types_or: [ts, tsx]
         pass_filenames: false
 
       # ESLint with zero warnings tolerance
@@ -37,7 +37,7 @@ repos:
         name: ESLint
         entry: ./node_modules/.bin/eslint --max-warnings 0 --no-warn-ignored --fix
         language: system
-        types: [ts]
+        types_or: [ts, tsx]
         pass_filenames: true
 
       # Prettier formatting check
@@ -45,7 +45,7 @@ repos:
         name: Prettier
         entry: ./node_modules/.bin/prettier --check
         language: system
-        types_or: [ts, javascript, json, css, markdown, yaml]
+        types_or: [ts, tsx, javascript, json, css, markdown, yaml]
         pass_filenames: true
 
   # Gitleaks - Detect secrets

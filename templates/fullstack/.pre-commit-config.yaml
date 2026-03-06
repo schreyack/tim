@@ -89,32 +89,33 @@ repos:
   # ──────────────────────────────────────────────────────────────
 
   # Local hooks for Node.js tooling
+  # NOTE: hooks cd into frontend/ so tools find their configs (tsconfig, eslint, prettier)
   - repo: local
     hooks:
       # TypeScript type checking
       - id: tsc
         name: TypeScript type check
-        entry: ./frontend/node_modules/.bin/tsc --noEmit -p frontend/tsconfig.json
+        entry: bash -c 'cd frontend && node_modules/.bin/tsc --noEmit'
         language: system
-        types: [ts]
+        types_or: [ts, tsx]
         pass_filenames: false
         files: ^frontend/
 
       # ESLint with zero warnings tolerance
       - id: eslint
         name: ESLint
-        entry: ./frontend/node_modules/.bin/eslint --max-warnings 0 --fix
+        entry: bash -c 'cd frontend && node_modules/.bin/eslint --max-warnings 0 --no-warn-ignored --fix "${@#frontend/}"' --
         language: system
-        types: [ts]
+        types_or: [ts, tsx]
         pass_filenames: true
         files: ^frontend/
 
       # Prettier formatting check
       - id: prettier
         name: Prettier
-        entry: ./frontend/node_modules/.bin/prettier --check
+        entry: bash -c 'cd frontend && node_modules/.bin/prettier --check "${@#frontend/}"' --
         language: system
-        types_or: [ts, javascript, json, css, markdown, yaml]
+        types_or: [ts, tsx, javascript, json, css, markdown, yaml]
         pass_filenames: true
         files: ^frontend/
 
