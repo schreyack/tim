@@ -146,7 +146,7 @@ lock_files() {
     echo ""
     echo -e "  ${GREEN}Locked $count files.${NC}"
     if [[ "$use_schg" != "true" ]]; then
-        echo -e "  ${YELLOW}Tip: Run with --schg for system-level protection (requires sudo).${NC}"
+        echo -e "  ${YELLOW}⚠ uchg only — files are NOT protected from sudo/root. Run with --schg for full protection.${NC}"
     fi
 }
 

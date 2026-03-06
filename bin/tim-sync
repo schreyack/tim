@@ -22,7 +22,6 @@ source "$TIM_ROOT/libs/bash/tim-common.sh"
 load_projects
 
 NO_PUSH=false
-USED_SUDO=false
 UNLOCKED=false
 FAILED_PROJECTS=()
 UPDATED_PROJECTS=()
@@ -59,19 +58,7 @@ preflight() {
 
 # --- Unlock / relock ---
 
-has_schg_flags() {
-    local test_file="$TIM_ROOT/.tim-enforcement-files"
-    [[ -f "$test_file" ]] || return 1
-    local flags
-    flags=$(stat -f "%f" "$test_file" 2>/dev/null) || return 1
-    [[ $(( flags & 0x00020000 )) -ne 0 ]]
-}
-
 do_unlock() {
-    if has_schg_flags; then
-        USED_SUDO=true
-    fi
-    # Always sudo — human must approve unlock
     sudo "$TIM_ROOT/bin/tim-lock-enforcement" --unlock
     UNLOCKED=true
 }
@@ -79,10 +66,7 @@ do_unlock() {
 do_relock() {
     $UNLOCKED || return 0
     echo ""
-    "$TIM_ROOT/bin/tim-lock-enforcement"
-    if $USED_SUDO; then
-        sudo "$TIM_ROOT/bin/tim-lock-enforcement" --schg
-    fi
+    sudo "$TIM_ROOT/bin/tim-lock-enforcement" --schg
 }
 
 # --- Per-project sync ---
