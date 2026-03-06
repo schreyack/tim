@@ -47,8 +47,13 @@ preflight() {
     local unpushed
     unpushed=$(git -C "$TIM_ROOT" log @{u}..HEAD --oneline 2>/dev/null || echo "")
     if [[ -n "$unpushed" ]]; then
-        echo -e "${RED}Error: TIM repo has unpushed commits. Push first.${NC}"
-        exit 1
+        echo -e "${BLUE}Pushing TIM repo...${NC}"
+        if git -C "$TIM_ROOT" push --quiet 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} TIM repo pushed"
+        else
+            echo -e "${RED}Error: TIM repo push failed. Push manually first.${NC}"
+            exit 1
+        fi
     fi
 }
 
