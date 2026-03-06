@@ -8,8 +8,6 @@ Silent defaults mask bugs; if a value is missing, code should fail loudly.
 Always-on: no opt-in config file required. Runs on every file.
 Optional .tim-no-fallback.yaml for exempt_files only.
 
-Inline suppression: # noqa: no-fallback (Python) / // noqa: no-fallback (TypeScript)
-
 Usage:
     python no-fallback-defaults.py <files...> --language python|typescript
 """
@@ -56,8 +54,8 @@ def _load_exempt_patterns(project_root: Path | None) -> list[str]:
     try:
         import yaml
 
-        data = yaml.safe_load(config_path.read_text()) or {}  # noqa: no-fallback
-        return data.get("exempt_files", []) or []  # noqa: no-fallback
+        data = yaml.safe_load(config_path.read_text()) or {}
+        return data.get("exempt_files", []) or []
     except ImportError:
         pass
 

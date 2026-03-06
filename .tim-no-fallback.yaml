@@ -1,0 +1,3 @@
+exempt_files:
+  - "tools/sot_common.py"
+  - "tools/no-fallback-defaults.py"

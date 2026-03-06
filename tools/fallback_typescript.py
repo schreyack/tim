@@ -3,8 +3,6 @@
 import re
 from pathlib import Path
 
-NOQA_TAG = "// noqa: no-fallback"
-
 # Literal patterns for reuse
 _STR_LIT = r"""["'`]"""
 _NUM_LIT = r"\d"
@@ -56,8 +54,6 @@ def check_file(filepath: Path) -> list[str]:
     for lineno, line in enumerate(lines, 1):
         stripped = line.strip()
         if stripped.startswith("//") or stripped.startswith("*"):
-            continue
-        if NOQA_TAG in line:
             continue
         for pattern, msg in PATTERNS:
             if pattern.search(line):

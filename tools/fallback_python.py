@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 
-NOQA_TAG = "# noqa: no-fallback"
+from sot_common import default_name_pattern
 
 
 def _is_literal(node: ast.expr) -> bool:
@@ -53,17 +53,11 @@ def _is_os_getenv(node: ast.Call) -> bool:
 class FallbackDefaultVisitor(ast.NodeVisitor):
     """AST visitor that detects all fallback default patterns in Python."""
 
-    def __init__(self, filepath: str, source_lines: list[str]):
+    def __init__(self, filepath: str):
         self.filepath = filepath
-        self.source_lines = source_lines
         self.violations: list[str] = []
 
     def _add(self, lineno: int, msg: str) -> None:
-        """Record a violation unless the source line has a noqa suppression."""
-        if lineno <= len(self.source_lines):
-            line = self.source_lines[lineno - 1]
-            if NOQA_TAG in line:
-                return
         self.violations.append(f"{self.filepath}:{lineno}: {msg}")
 
     # -- Patterns 1-8: Call-based --
@@ -95,6 +89,11 @@ class FallbackDefaultVisitor(ast.NodeVisitor):
             )
         elif _is_non_none_literal(fallback):
             self._add(node.lineno, ".get() with fallback default — fail loudly instead")
+        elif (
+            isinstance(fallback, ast.Name)
+            and default_name_pattern().match(fallback.id)
+        ):
+            self._add(node.lineno, ".get() with DEFAULT_* fallback — fail loudly instead")
 
     def _check_getattr(self, node: ast.Call) -> None:
         """Pattern 2: getattr(obj, attr, default)."""
@@ -180,9 +179,85 @@ class FallbackDefaultVisitor(ast.NodeVisitor):
                         "'or <literal>' fallback — fail loudly instead",
                     )
                     break
+                if (
+                    isinstance(value, ast.Name)
+                    and default_name_pattern().match(value.id)
+                ):
+                    self._add(
+                        node.lineno,
+                        "'or DEFAULT_*' fallback — fail loudly instead",
+                    )
+                    break
         self.generic_visit(node)
 
-    # -- Pattern 10: x if cond else <literal> --
+    # -- Pattern 10: try/except KeyError with literal fallback --
+
+    def visit_Try(self, node: ast.Try) -> None:
+        self._check_try_except_fallback(node)
+        self.generic_visit(node)
+
+    def _check_try_except_fallback(self, node: ast.Try) -> None:
+        """Detect try: val = d[k] / except KeyError: val = literal."""
+        target_name = self._try_subscript_target(node)
+        if target_name is None:
+            return
+        caught = {"KeyError", "IndexError", "AttributeError"}
+        for handler in node.handlers:
+            if not self._handler_catches(handler, caught):
+                continue
+            if self._handler_assigns_literal(handler, target_name):
+                self._add(
+                    node.lineno,
+                    "try/except with literal fallback — fail loudly instead",
+                )
+
+    @staticmethod
+    def _try_subscript_target(node: ast.Try) -> str | None:
+        """Return target name if try body is `name = obj[key]`, else None."""
+        if len(node.body) != 1:
+            return None
+        stmt = node.body[0]
+        if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+            return None
+        if not isinstance(stmt.value, ast.Subscript):
+            return None
+        target = stmt.targets[0]
+        if not isinstance(target, ast.Name):
+            return None
+        return target.id
+
+    @staticmethod
+    def _handler_assigns_literal(
+        handler: ast.ExceptHandler, target_name: str,
+    ) -> bool:
+        """Check if handler body is a single `target_name = <literal>`."""
+        if len(handler.body) != 1:
+            return False
+        stmt = handler.body[0]
+        if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+            return False
+        target = stmt.targets[0]
+        if not isinstance(target, ast.Name) or target.id != target_name:
+            return False
+        return _is_literal(stmt.value)
+
+    @staticmethod
+    def _handler_catches(
+        handler: ast.ExceptHandler, names: set[str],
+    ) -> bool:
+        """Check if handler catches any of the given exception names."""
+        if handler.type is None:
+            return True
+        if isinstance(handler.type, ast.Name):
+            return handler.type.id in names
+        if isinstance(handler.type, ast.Tuple):
+            return any(
+                isinstance(elt, ast.Name) and elt.id in names
+                for elt in handler.type.elts
+            )
+        return False
+
+    # -- Pattern 11: x if cond else <literal> --
 
     def visit_IfExp(self, node: ast.IfExp) -> None:
         if _is_non_none_literal(node.orelse):
@@ -214,7 +289,6 @@ def check_file(filepath: Path) -> list[str]:
     except (SyntaxError, OSError, UnicodeDecodeError):
         return []
 
-    source_lines = source.splitlines()
-    visitor = FallbackDefaultVisitor(str(filepath), source_lines)
+    visitor = FallbackDefaultVisitor(str(filepath))
     visitor.visit(tree)
     return visitor.violations
