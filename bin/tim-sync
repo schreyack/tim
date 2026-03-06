@@ -68,12 +68,11 @@ has_schg_flags() {
 }
 
 do_unlock() {
-    # unlock_files handles uchg (no sudo) and schg (sudo) per-file
     if has_schg_flags; then
         USED_SUDO=true
-        echo -e "${YELLOW}System locks detected — will use sudo for schg files...${NC}"
     fi
-    "$TIM_ROOT/bin/tim-lock-enforcement" --unlock
+    # Always sudo — human must approve unlock
+    sudo "$TIM_ROOT/bin/tim-lock-enforcement" --unlock
     UNLOCKED=true
 }
 
