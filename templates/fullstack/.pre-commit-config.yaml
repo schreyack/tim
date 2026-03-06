@@ -94,7 +94,7 @@ repos:
       # TypeScript type checking
       - id: tsc
         name: TypeScript type check
-        entry: ./frontend/node_modules/.bin/tsc --noEmit
+        entry: ./frontend/node_modules/.bin/tsc --noEmit -p frontend/tsconfig.json
         language: system
         types: [ts]
         pass_filenames: false
@@ -103,7 +103,7 @@ repos:
       # ESLint with zero warnings tolerance
       - id: eslint
         name: ESLint
-        entry: ./frontend/node_modules/.bin/eslint --max-warnings 0 --no-warn-ignored --fix
+        entry: ./frontend/node_modules/.bin/eslint --max-warnings 0 --fix
         language: system
         types: [ts]
         pass_filenames: true
