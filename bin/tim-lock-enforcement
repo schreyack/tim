@@ -155,20 +155,38 @@ unlock_files() {
     echo -e "${BLUE}  Unlocking TIM Enforcement Files${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-    local count=0
+    local succeeded=0 failed=0
 
     while IFS= read -r file; do
         local rel="${file#"$TIM_ROOT"/}"
         [[ "$rel" == "$file" ]] && rel="$file"
 
-        sudo chflags noschg,nouchg "$file" 2>/dev/null && \
-            echo -e "  ${GREEN}✓${NC} unlocked  $rel" || \
+        local ok=false
+        if is_schg "$file"; then
+            # schg requires sudo to remove, then remove uchg
+            sudo chflags noschg "$file" 2>/dev/null && chflags nouchg "$file" 2>/dev/null && ok=true
+        elif is_uchg "$file"; then
+            # uchg only — no sudo needed
+            chflags nouchg "$file" 2>/dev/null && ok=true
+        else
+            ok=true  # already unlocked
+        fi
+
+        if $ok; then
+            echo -e "  ${GREEN}✓${NC} unlocked  $rel"
+            succeeded=$((succeeded + 1))
+        else
             echo -e "  ${RED}✗${NC} failed    $rel"
-        count=$((count + 1))
+            failed=$((failed + 1))
+        fi
     done < <(all_files)
 
     echo ""
-    echo -e "  ${GREEN}Unlocked $count files.${NC}"
+    echo -e "  ${GREEN}Unlocked $succeeded files.${NC}"
+    if [[ $failed -gt 0 ]]; then
+        echo -e "  ${RED}Failed to unlock $failed files.${NC}"
+        return 1
+    fi
 }
 
 show_help() {
