@@ -153,7 +153,8 @@ tiers:
 | `rollback` | `kubectl rollout undo` (dev only; prod = revert git commit) |
 | `shell <service>` | Interactive shell in pod |
 | `exec <service> <cmd>` | Run command in pod |
-| `cleanup [logs]` | Delete completed pods + old ReplicaSets; `logs` truncates node logs |
+| `delete <job\|pod> <name>` | Delete a specific job or pod |
+| `cleanup [logs]` | Delete completed/failed pods + jobs + old ReplicaSets; `logs` truncates node logs |
 
 ### Build and Deploy
 
