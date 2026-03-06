@@ -5,6 +5,23 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.88.0] - 2026-03-05
+
+### Added
+
+- **Anti-cheat enforcement** — Ban all inline suppression comments (`# noqa`, `// eslint-disable`, `// @ts-ignore`, `# type: ignore`, etc.) with file-level exemptions only via `.tim-no-suppression.yaml`
+- **AI cheat detection** — AST-based detection of code-level enforcement evasion: empty except handlers, broad exception catches, log-and-swallow patterns, `typing.cast()`, `defaultdict`, double-cast (`as unknown as Type`), empty catch blocks
+- **Try/except fallback detection** — `no-fallback-defaults` now catches `try: v = d["key"] except KeyError: v = "default"` and `DEFAULT_*` variable fallbacks
+- **New tools**: `no-suppression-comments.py`, `cheat_python.py`, `cheat_typescript.py`, `detect-ai-cheats.py`
+- **New config files**: `.tim-no-suppression.yaml`, `.tim-no-fallback.yaml`, `.tim-ai-cheat.yaml` (all protected by `protect-enforcement-files`)
+- **tim-loop** PostToolUse hook now detects suppression comments at write time
+
+### Changed
+
+- Removed `grep -v noqa` universal bypass from all bash-based pre-commit hooks
+- Removed inline `# noqa: no-fallback` suppression from fallback detection tools (file-level exemption only)
+- **tim-loop plugin** v2.81.0 → v2.82.0
+
 ## [2.87.0] - 2026-02-27
 
 ### Added

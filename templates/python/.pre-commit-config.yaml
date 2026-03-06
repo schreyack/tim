@@ -15,7 +15,10 @@ repos:
             \.gitignore|
             \.pre-commit-config\.yaml|
             \.secrets\.baseline|
-            \.tim-settings-sot\.yaml
+            \.tim-settings-sot\.yaml|
+            \.tim-no-fallback\.yaml|
+            \.tim-no-suppression\.yaml|
+            \.tim-ai-cheat\.yaml
           )$
 
   # Ruff - Fast linting and formatting
@@ -132,6 +135,24 @@ repos:
         language: system
         types: [python]
 
+  # No suppression comments - Ban inline enforcement bypass
+  - repo: local
+    hooks:
+      - id: no-suppression-comments
+        name: No suppression comments (ban inline bypass)
+        entry: python3 lib/tim/tools/no-suppression-comments.py --language python
+        language: system
+        types: [python]
+
+  # AI cheat detection - Detect code-level enforcement evasion
+  - repo: local
+    hooks:
+      - id: detect-ai-cheats
+        name: AI cheat detection (code-level enforcement evasion)
+        entry: python3 lib/tim/tools/detect-ai-cheats.py --language python
+        language: system
+        types: [python]
+
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
     hooks:
@@ -153,7 +174,7 @@ repos:
       # Block print statements (must use logging)
       - id: no-print
         name: No print statements
-        entry: "bash -c 'if grep -rn \"[^a-zA-Z_]print(\\|^print(\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn \"[^a-zA-Z_]print(\\|^print(\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -161,7 +182,7 @@ repos:
       # Block bare except clauses
       - id: no-bare-except
         name: No bare except clauses
-        entry: "bash -c 'if grep -rn \"except:\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null | grep -v noqa; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn \"except:\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true

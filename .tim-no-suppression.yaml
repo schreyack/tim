@@ -1,0 +1,7 @@
+exempt_files:
+  - "libs/python/tests/test_security.py"
+  - "libs/python/tests/test_config.py"
+  - "libs/python/tim_lib/security.py"
+  - "libs/node/src/config.ts"
+  - "libs/node/src/testing/assertions.ts"
+  - "examples/python/src/app/main.py"

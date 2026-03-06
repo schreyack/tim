@@ -16,7 +16,10 @@ repos:
             \.gitignore|
             \.pre-commit-config\.yaml|
             \.secrets\.baseline|
-            \.tim-settings-sot\.yaml
+            \.tim-settings-sot\.yaml|
+            \.tim-no-fallback\.yaml|
+            \.tim-no-suppression\.yaml|
+            \.tim-ai-cheat\.yaml
           )$
 
   # ──────────────────────────────────────────────────────────────
@@ -189,6 +192,42 @@ repos:
         files: ^frontend/
 
   # ──────────────────────────────────────────────────────────────
+  # Suppression comment and cheat detection (both languages)
+  # ──────────────────────────────────────────────────────────────
+
+  - repo: local
+    hooks:
+      - id: no-suppression-comments-python
+        name: No suppression comments - Python (ban inline bypass)
+        entry: python3 lib/tim/tools/no-suppression-comments.py --language python
+        language: system
+        types: [python]
+        files: ^backend/
+
+      - id: no-suppression-comments-node
+        name: No suppression comments - Node (ban inline bypass)
+        entry: python3 lib/tim/tools/no-suppression-comments.py --language typescript
+        language: system
+        types_or: [ts, tsx]
+        files: ^frontend/
+
+  - repo: local
+    hooks:
+      - id: detect-ai-cheats-python
+        name: AI cheat detection - Python (code-level enforcement evasion)
+        entry: python3 lib/tim/tools/detect-ai-cheats.py --language python
+        language: system
+        types: [python]
+        files: ^backend/
+
+      - id: detect-ai-cheats-node
+        name: AI cheat detection - Node (code-level enforcement evasion)
+        entry: python3 lib/tim/tools/detect-ai-cheats.py --language typescript
+        language: system
+        types_or: [ts, tsx]
+        files: ^frontend/
+
+  # ──────────────────────────────────────────────────────────────
   # CLAUDE.md Enforcement (both languages)
   # ──────────────────────────────────────────────────────────────
 
@@ -229,7 +268,7 @@ repos:
       # Block print statements (Python - must use logging)
       - id: no-print
         name: No print statements
-        entry: "bash -c 'if grep -rn \"[^a-zA-Z_]print(\\|^print(\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null | grep -v noqa; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn \"[^a-zA-Z_]print(\\|^print(\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -237,7 +276,7 @@ repos:
       # Block console.log (Node - must use logger)
       - id: no-console
         name: No console.log
-        entry: "bash -c 'if grep -rn \"console\\.log\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next frontend/ 2>/dev/null | grep -v noqa; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn \"console\\.log\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next frontend/ 2>/dev/null; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -245,7 +284,7 @@ repos:
       # Block bare except clauses (Python)
       - id: no-bare-except
         name: No bare except clauses
-        entry: "bash -c 'if grep -rn \"except:\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null | grep -v noqa; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn \"except:\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib backend/ 2>/dev/null; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -253,7 +292,7 @@ repos:
       # Block any type (Node)
       - id: no-any
         name: No any type
-        entry: "bash -c 'if grep -rn -E \"(: any|as any|<any>)\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next frontend/ 2>/dev/null | grep -v noqa; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn -E \"(: any|as any|<any>)\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next frontend/ 2>/dev/null; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true

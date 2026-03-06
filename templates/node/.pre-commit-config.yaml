@@ -15,7 +15,10 @@ repos:
             \.gitignore|
             \.pre-commit-config\.yaml|
             \.secrets\.baseline|
-            \.tim-settings-sot\.yaml
+            \.tim-settings-sot\.yaml|
+            \.tim-no-fallback\.yaml|
+            \.tim-no-suppression\.yaml|
+            \.tim-ai-cheat\.yaml
           )$
 
   # Local hooks for Node.js tooling
@@ -91,6 +94,24 @@ repos:
         language: system
         types_or: [ts, tsx]
 
+  # No suppression comments - Ban inline enforcement bypass
+  - repo: local
+    hooks:
+      - id: no-suppression-comments
+        name: No suppression comments (ban inline bypass)
+        entry: python3 lib/tim/tools/no-suppression-comments.py --language typescript
+        language: system
+        types_or: [ts, tsx]
+
+  # AI cheat detection - Detect code-level enforcement evasion
+  - repo: local
+    hooks:
+      - id: detect-ai-cheats
+        name: AI cheat detection (code-level enforcement evasion)
+        entry: python3 lib/tim/tools/detect-ai-cheats.py --language typescript
+        language: system
+        types_or: [ts, tsx]
+
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
     hooks:
@@ -112,7 +133,7 @@ repos:
       # Block console.log (must use logger)
       - id: no-console
         name: No console.log
-        entry: "bash -c 'if grep -rn \"console\\.log\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null | grep -v noqa; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn \"console\\.log\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null; then echo ERROR - Use logger instead of console.log; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true
@@ -120,7 +141,7 @@ repos:
       # Block any type
       - id: no-any
         name: No any type
-        entry: "bash -c 'if grep -rn -E \"(: any|as any|<any>)\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null | grep -v noqa; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -rn -E \"(: any|as any|<any>)\" --include=\"*.ts\" --include=\"*.tsx\" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=lib --exclude-dir=.next . 2>/dev/null; then echo ERROR - Use proper types instead of any; exit 1; fi; exit 0'"
         language: system
         pass_filenames: false
         always_run: true

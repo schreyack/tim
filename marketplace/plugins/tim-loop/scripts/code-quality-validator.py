@@ -184,6 +184,57 @@ def check_python_complexity(file_path: Path) -> list[Violation]:
     return violations
 
 
+PYTHON_SUPPRESSION = [
+    re.compile(r"#\s*noqa"),
+    re.compile(r"#\s*type:\s*ignore"),
+    re.compile(r"#\s*pylint:\s*disable"),
+    re.compile(r"#\s*fmt:\s*(off|on|skip)"),
+    re.compile(r"#\s*isort:\s*skip"),
+]
+
+TS_SUPPRESSION = [
+    re.compile(r"//\s*eslint-disable"),
+    re.compile(r"/\*\s*eslint-disable"),
+    re.compile(r"//\s*@ts-ignore"),
+    re.compile(r"//\s*@ts-expect-error"),
+    re.compile(r"//\s*@ts-nocheck"),
+    re.compile(r"//\s*prettier-ignore"),
+    re.compile(r"//\s*biome-ignore"),
+]
+
+
+def check_suppression_comments(file_path: Path) -> list[Violation]:
+    """Detect inline suppression comments (noqa, eslint-disable, etc.)."""
+    if "lib/tim/" in str(file_path):
+        return []
+
+    ext = file_path.suffix.lower()
+    if ext == ".py":
+        patterns = PYTHON_SUPPRESSION
+    elif ext in {".ts", ".tsx", ".js", ".jsx"}:
+        patterns = TS_SUPPRESSION
+    else:
+        return []
+
+    violations = []
+    try:
+        lines = file_path.read_text(encoding="utf-8").splitlines()
+        for lineno, line in enumerate(lines, 1):
+            for pat in patterns:
+                m = pat.search(line)
+                if m:
+                    violations.append(Violation(
+                        rule="suppression-comment",
+                        message=f"Line {lineno}: suppression comment "
+                               f"'{m.group()}' — inline suppression is banned",
+                        severity="error",
+                    ))
+                    break
+    except Exception:
+        pass
+    return violations
+
+
 def validate_file(file_path: Path) -> list[Violation]:
     """Run all validations on a file."""
     violations = []
@@ -209,6 +260,9 @@ def validate_file(file_path: Path) -> list[Violation]:
     elif file_path.suffix in {".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"}:
         violations.extend(check_js_ts_functions(file_path))
 
+    # Check for inline suppression comments
+    violations.extend(check_suppression_comments(file_path))
+
     return violations
 
 
@@ -232,6 +286,12 @@ GUIDANCE_TEMPLATES = {
         "2. Replace nested if/else with early returns or guard clauses\n"
         "3. Consider using polymorphism or strategy pattern for complex branching\n"
         "4. Break down complex boolean expressions into named variables"
+    ),
+    "suppression-comment": (
+        "WHAT TO DO FOR SUPPRESSION COMMENTS:\n"
+        "1. Remove the suppression comment\n"
+        "2. Fix the underlying issue the suppression was hiding\n"
+        "3. If the file legitimately needs an exemption, add it to .tim-no-suppression.yaml"
     ),
 }
 

@@ -1,0 +1,12 @@
+exempt_files:
+  # tim shared libs - legitimate error recovery and health checks
+  - "libs/python/tim_lib/db.py"
+  # tim-loop plugin - process management, file I/O, config parsing
+  - "marketplace/plugins/tim-loop/scripts/*.py"
+  # tim-pbt plugin - output parsing, temp file cleanup
+  - "marketplace/plugins/tim-pbt/scripts/pbt_state.py"
+  # examples - demonstration code
+  - "examples/python/src/app/*.py"
+  # node libs - test factories and Prisma singleton
+  - "libs/node/src/testing/factories.ts"
+  - "examples/node/src/db/client.ts"

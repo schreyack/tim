@@ -482,13 +482,17 @@ tim/
 │   └── node/              # Node.js/Express example
 ├── templates/             # Ready-to-copy configs
 ├── tools/                 # Enforcement and compliance tools
-│   ├── tim-compliance-check.sh  # Project compliance checker
-│   ├── check-code-quality.py    # Code quality pre-commit hook
-│   ├── no-hardcoded-settings.py # Settings SOT enforcement
-│   ├── no-fallback-defaults.py  # No fallback defaults enforcement
-│   ├── sot_*.py                 # Settings source-of-truth validators
-│   ├── fallback_*.py            # Fallback detection (Python/TypeScript)
-│   └── tim-test/                # Modular test wrapper
+│   ├── tim-compliance-check.sh     # Project compliance checker
+│   ├── check-code-quality.py       # Code quality pre-commit hook
+│   ├── no-hardcoded-settings.py    # Settings SOT enforcement
+│   ├── no-fallback-defaults.py     # No fallback defaults enforcement
+│   ├── no-suppression-comments.py  # Ban inline suppression comments
+│   ├── detect-ai-cheats.py         # AI cheat detection runner
+│   ├── cheat_python.py             # Python AST cheat detector
+│   ├── cheat_typescript.py         # TypeScript regex cheat detector
+│   ├── sot_*.py                    # Settings source-of-truth validators
+│   ├── fallback_*.py               # Fallback detection (Python/TypeScript)
+│   └── tim-test/                   # Modular test wrapper
 └── scripts/               # Setup scripts
     └── quickstart.sh      # Quick start installer
 ```
