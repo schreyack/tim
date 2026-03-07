@@ -152,6 +152,22 @@ SEPARATOR
     mv "$temp_file" "$output"
 
     echo -e "  ${GREEN}✓${NC} $name - synced successfully"
+
+    # Commit and push if CLAUDE.md changed
+    if git -C "$proj" diff --quiet -- CLAUDE.md 2>/dev/null; then
+        return 0
+    fi
+    git -C "$proj" add CLAUDE.md
+    if git -C "$proj" diff --cached --quiet -- CLAUDE.md 2>/dev/null; then
+        return 0
+    fi
+    git -C "$proj" commit -m "chore: sync TIM standards" -- CLAUDE.md >/dev/null 2>&1 \
+        || { echo -e "  ${YELLOW}!${NC} $name - commit failed"; return 0; }
+    local branch
+    branch="$(git -C "$proj" rev-parse --abbrev-ref HEAD 2>/dev/null)" || return 0
+    git -C "$proj" push origin "$branch" >/dev/null 2>&1 \
+        || { echo -e "  ${YELLOW}!${NC} $name - push failed (committed locally)"; return 0; }
+    echo -e "  ${GREEN}✓${NC} $name - committed and pushed CLAUDE.md"
 }
 
 sync_all() {
