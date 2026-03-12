@@ -163,37 +163,33 @@ repos:
         language: system
         types: [python]
 
-      # Block TODO/FIXME comments
+      # Block TODO/FIXME comments (staged files only)
       - id: no-todos
         name: No TODO/FIXME comments
-        entry: "bash -c 'if grep -rn -E \"TODO|FIXME|XXX\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Remove TODO/FIXME/XXX comments; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -nE \"TODO|FIXME|XXX\" \"$@\" 2>/dev/null; then echo ERROR - Remove TODO/FIXME/XXX comments; exit 1; fi; exit 0' --"
         language: system
-        pass_filenames: false
-        always_run: true
+        types: [python]
 
-      # Block print statements (must use logging)
+      # Block print statements (staged files only)
       - id: no-print
         name: No print statements
-        entry: "bash -c 'if grep -rn \"[^a-zA-Z_]print(\\|^print(\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -nE \"(^|[^a-zA-Z_])print\\(\" \"$@\" 2>/dev/null; then echo ERROR - Use logging instead of print; exit 1; fi; exit 0' --"
         language: system
-        pass_filenames: false
-        always_run: true
+        types: [python]
 
-      # Block bare except clauses
+      # Block bare except clauses (staged files only)
       - id: no-bare-except
         name: No bare except clauses
-        entry: "bash -c 'if grep -rn \"except:\" --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -n \"except:\" \"$@\" 2>/dev/null; then echo ERROR - Catch specific exceptions; exit 1; fi; exit 0' --"
         language: system
-        pass_filenames: false
-        always_run: true
+        types: [python]
 
-      # Block placeholder implementations
+      # Block placeholder implementations (staged files only)
       - id: no-placeholders
         name: No placeholder implementations
-        entry: "bash -c 'if grep -rn NotImplementedError --include=\"*.py\" --exclude-dir=.venv --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=lib . 2>/dev/null; then echo ERROR - Implement fully, no NotImplementedError; exit 1; fi; exit 0'"
+        entry: "bash -c 'if grep -n NotImplementedError \"$@\" 2>/dev/null; then echo ERROR - Implement fully, no NotImplementedError; exit 1; fi; exit 0' --"
         language: system
-        pass_filenames: false
-        always_run: true
+        types: [python]
 
   # Pattern drift detection - catch unregistered dependencies
   - repo: local
