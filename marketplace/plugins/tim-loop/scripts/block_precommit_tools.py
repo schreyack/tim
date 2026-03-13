@@ -27,7 +27,9 @@ BLOCKED_PATTERNS = [
 
 DENY_TEMPLATE = (
     "Direct invocation of `{tool}` is blocked. Write correct code and let "
-    "pre-commit enforce at commit time. Use `pre-commit run --all-files` to validate."
+    "pre-commit enforce at commit time. Use `pre-commit run --all-files` to validate. "
+    "If `{tool}` failed during a commit, the files are already fixed (hooks use --write). "
+    "Just `git add` the changed files and re-commit."
 )
 
 
