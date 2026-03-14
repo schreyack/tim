@@ -25,11 +25,25 @@ BLOCKED_PATTERNS = [
     re.compile(SEG + r"\s*(env|sudo|xargs|command|exec)\s+(-\S+\s+|[A-Z_]+=\S+\s+)*" + TOOLS),
 ]
 
-DENY_TEMPLATE = (
+# Tools whose pre-commit hooks auto-fix files (--write / --fix)
+AUTOFIX_TOOLS = {"prettier", "ruff", "black", "isort", "autopep8", "biome", "stylelint", "eslint"}
+
+DENY_AUTOFIX = (
     "Direct invocation of `{tool}` is blocked. Write correct code and let "
-    "pre-commit enforce at commit time. Use `pre-commit run --all-files` to validate. "
-    "If `{tool}` failed during a commit, the files are already fixed (hooks use --write). "
-    "Just `git add` the changed files and re-commit."
+    "pre-commit enforce at commit time. Use `pre-commit run --all-files` to validate.\n\n"
+    "Recovery when `{tool}` fails during a commit (hooks auto-fix with --write):\n"
+    "  1. Run `git diff --name-only` to find ALL files the hook modified\n"
+    "  2. `git add` every file from that list (not just the one you think failed)\n"
+    "  3. Re-commit with the same message"
+)
+
+DENY_CHECKONLY = (
+    "Direct invocation of `{tool}` is blocked. Write correct code and let "
+    "pre-commit enforce at commit time. Use `pre-commit run --all-files` to validate.\n\n"
+    "Recovery when `{tool}` fails during a commit (check-only — no auto-fix):\n"
+    "  1. Read the pre-commit error output to see the specific errors\n"
+    "  2. Fix the errors in your source code\n"
+    "  3. `git add` the fixed files and re-commit"
 )
 
 
@@ -54,11 +68,12 @@ def main() -> None:
 
     tool = check_command(command)
     if tool:
+        template = DENY_AUTOFIX if tool in AUTOFIX_TOOLS else DENY_CHECKONLY
         json.dump({
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "deny",
-                "permissionDecisionReason": DENY_TEMPLATE.format(tool=tool),
+                "permissionDecisionReason": template.format(tool=tool),
             }
         }, sys.stdout)
     sys.exit(0)
