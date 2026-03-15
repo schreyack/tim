@@ -29,13 +29,13 @@ If a human asks you to write tests, write tests that would catch real bugs. Do n
 
 ## Deployment
 
-Deployments use `ops.sh ship` — the standard single-command deploy pipeline. `ship` validates the current branch matches the target env, commits and pushes code changes, builds all services via kaniko, deploys (migrations + manifests + rollout), runs health checks, then commits and pushes the overlay update. Use `<alias> --env <env> ship` to deploy. `build` and `deploy` are available as individual commands but `ship` is preferred.
+Deployments use `ops.sh ship` — the standard single-command deploy pipeline. `ship` validates the current branch matches the target env, commits and pushes code changes, builds all services via BuildKit, deploys (migrations + manifests + rollout), runs health checks, then commits and pushes the overlay update. `build` and `deploy` are available as individual commands but `ship` is preferred.
 
 ## ops.sh (MANDATORY)
 
 ops.sh is the **only** way to interact with the k3s cluster. All cluster operations — deployment, debugging, logs, database access — go through ops.sh. Never bypass it with direct SSH, kubectl, or raw SQL.
 
-ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Access via shell alias (e.g., `myapp --env dev ship`).
+ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Each project has a shell alias that wraps ops.sh — the alias name is the `project.name` field from that project's `ops-config.yaml`. To find the alias for the current project, read `ops-config.yaml` and use the `project.name` value. Example: if `project.name: "jamphoria"`, then `jamphoria --env dev ship`.
 
 **Available commands:**
 
