@@ -113,7 +113,7 @@ repos:
       # Prettier formatting check
       - id: prettier
         name: Prettier
-        entry: bash -c 'cd frontend && node_modules/.bin/prettier --check "${@#frontend/}"' --
+        entry: bash -c 'cd frontend && node_modules/.bin/prettier --write "${@#frontend/}"' --
         language: system
         types_or: [ts, tsx, javascript, json, css, markdown, yaml]
         pass_filenames: true

@@ -129,7 +129,7 @@ repos:
 
       - id: prettier-node
         name: Prettier format check (libs/node)
-        entry: bash -c 'cd libs/node && npx prettier --check src/ tests/'
+        entry: bash -c 'cd libs/node && npx prettier --write src/ tests/'
         language: system
         files: ^libs/node/.*\.ts$
         pass_filenames: false
