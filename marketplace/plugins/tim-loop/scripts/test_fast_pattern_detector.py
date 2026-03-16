@@ -152,5 +152,80 @@ Starting parallel verification of all phases.
         self.assertIsNotNone(result, "Should catch bare 'Phase 3: Implementation'")
 
 
+class TestUserActionIntentBypass(unittest.TestCase):
+    """Test that task drift is skipped when the user requested a mutating action."""
+
+    @staticmethod
+    def _make_transcript(user_text: str, assistant_text: str) -> list[dict]:
+        """Build a minimal transcript with one human turn and one assistant turn."""
+        return [
+            {"message": {"role": "user", "content": user_text}},
+            {"message": {"role": "assistant", "content": assistant_text}},
+        ]
+
+    @patch("fast_pattern_detector.load_state")
+    def test_skips_task_drift_when_user_said_commit(self, mock_state: unittest.mock.MagicMock) -> None:
+        """'Let me fix the pre-commit failures' is not drift when user asked to commit."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = self._make_transcript(
+            "commit push frst",
+            "Pre-commit hooks caught issues. Let me fix them all.",
+        )
+        result = run_fast_checks(
+            "Pre-commit hooks caught issues. Let me fix them all.",
+            transcript=transcript,
+        )
+        self.assertIsNone(result, "Should not fire task drift when user asked to commit")
+
+    @patch("fast_pattern_detector.load_state")
+    def test_skips_task_drift_when_user_said_fix(self, mock_state: unittest.mock.MagicMock) -> None:
+        """'Let me fix the issues' is not drift when user explicitly asked to fix."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = self._make_transcript(
+            "fix the lint errors",
+            "Let me fix the issues I found.",
+        )
+        result = run_fast_checks(
+            "Let me fix the issues I found.",
+            transcript=transcript,
+        )
+        self.assertIsNone(result, "Should not fire task drift when user asked to fix")
+
+    @patch("fast_pattern_detector.load_state")
+    def test_still_catches_drift_when_user_asked_to_review(self, mock_state: unittest.mock.MagicMock) -> None:
+        """'Let me fix the issues' IS drift when user only asked for a review."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = self._make_transcript(
+            "review this code for me",
+            "Let me fix the issues I found during my review.",
+        )
+        result = run_fast_checks(
+            "Let me fix the issues I found during my review.",
+            transcript=transcript,
+        )
+        self.assertIsNotNone(result, "Should catch task drift when user only asked for review")
+
+    @patch("fast_pattern_detector.load_state")
+    def test_still_catches_drift_with_no_transcript(self, mock_state: unittest.mock.MagicMock) -> None:
+        """Backward compat: no transcript means task drift still fires."""
+        mock_state.return_value = _mock_state(review_mode="")
+        result = run_fast_checks("Let me fix the issues I found.")
+        self.assertIsNotNone(result, "Should catch task drift when no transcript provided")
+
+    @patch("fast_pattern_detector.load_state")
+    def test_skips_task_drift_when_user_said_deploy(self, mock_state: unittest.mock.MagicMock) -> None:
+        """Action intent covers deploy/ship commands too."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = self._make_transcript(
+            "deploy this to dev",
+            "Let me fix the failing health check first.",
+        )
+        result = run_fast_checks(
+            "Let me fix the failing health check first.",
+            transcript=transcript,
+        )
+        self.assertIsNone(result, "Should not fire task drift when user asked to deploy")
+
+
 if __name__ == "__main__":
     unittest.main()

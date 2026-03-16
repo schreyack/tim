@@ -18,6 +18,7 @@ The slow LLM-as-judge check remains in excuse_detector_v2.py (Stop hook only).
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -121,6 +122,44 @@ def extract_recent_assistant_text(transcript: list[dict], max_messages: int = 10
     return "\n".join(texts)
 
 
+# User action-intent keywords — when the user asks for these,
+# follow-up fixes are expected (not drift)
+_ACTION_INTENT_RE = re.compile(
+    r"\b(?:commit|push|deploy|ship|fix|patch|hotfix|implement|build|create|"
+    r"add|write|refactor|update|change|modify|edit|delete|remove|rename|"
+    r"install|upgrade|migrate|merge|rebase|squash)\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_last_human_text(transcript: list[dict]) -> str:
+    """Extract text from the most recent human turn in the transcript."""
+    for entry in reversed(transcript):
+        if is_human_turn(entry):
+            _, content = get_entry_role_and_content(entry)
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                texts = []
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        texts.append(block.get("text", ""))
+                return "\n".join(texts)
+    return ""
+
+
+def _user_requested_action(transcript: list[dict]) -> bool:
+    """Check if the user's last message requested a mutating action.
+
+    When the user asks to commit, fix, build, etc., follow-up actions like
+    'let me fix the pre-commit failures' are completing the request, not drift.
+    """
+    user_text = _extract_last_human_text(transcript)
+    if not user_text:
+        return False
+    return bool(_ACTION_INTENT_RE.search(user_text))
+
+
 def _check_mode_violations(recent_text: str, review_mode: str) -> tuple[str, str] | None:
     """Pass 1: Mode violation check (only in active review modes)."""
     mode_violations = find_mode_violations(recent_text, review_mode)
@@ -164,7 +203,10 @@ def _should_skip_behavioral_checks() -> tuple[str, bool]:
     return review_mode, implement_mode
 
 
-def run_fast_checks(recent_text: str) -> tuple[str, str] | None:
+def run_fast_checks(
+    recent_text: str,
+    transcript: list[dict] | None = None,
+) -> tuple[str, str] | None:
     """Run fast regex-only checks. Returns (category, details) or None."""
     review_mode, skip_behavioral = _should_skip_behavioral_checks()
 
@@ -174,9 +216,12 @@ def run_fast_checks(recent_text: str) -> tuple[str, str] | None:
             return result
 
     if review_mode != "full-review" and not skip_behavioral:
-        result = _check_task_drift(recent_text)
-        if result:
-            return result
+        # Skip task drift when the user explicitly requested a mutating action
+        # (e.g. "commit push" — fixing pre-commit failures is part of the task)
+        if not (transcript and _user_requested_action(transcript)):
+            result = _check_task_drift(recent_text)
+            if result:
+                return result
 
     return _check_excuse_patterns(recent_text)
 
@@ -217,7 +262,7 @@ def main() -> None:
     if not recent_text:
         sys.exit(0)
 
-    result = run_fast_checks(recent_text)
+    result = run_fast_checks(recent_text, transcript=transcript)
     if result:
         category, details = result
         block_count = increment_block_count()
