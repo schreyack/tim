@@ -58,11 +58,39 @@ find_plans_by_name() {
         done
     fi
 
-    # Search in ~/.claude/plans/ (including subdirectories like drafts/)
+    # Search in ~/.claude/plans/ (root + subdirectories, with package support)
     if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
+        # Standalone .md files at root level
         while IFS= read -r -d '' file; do
             results+=("$file")
-        done < <(find "$CLAUDE_PLANS_DIR" -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
+        done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
+
+        # Check immediate subdirectories: packages (have MASTER.md) vs folders (like drafts/)
+        while IFS= read -r -d '' subdir; do
+            if [[ -f "${subdir}/MASTER.md" ]]; then
+                # Package at root level — check if name matches pattern
+                local pkg_name
+                pkg_name=$(basename "$subdir")
+                if [[ "$pkg_name" == *"${base_pattern}"* ]]; then
+                    results+=("${subdir}/MASTER.md")
+                fi
+            else
+                # Subdirectory — search for standalone files and packages within it
+                while IFS= read -r -d '' file; do
+                    results+=("$file")
+                done < <(find "$subdir" -maxdepth 1 -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
+
+                while IFS= read -r -d '' pkgdir; do
+                    if [[ -f "${pkgdir}/MASTER.md" ]]; then
+                        local inner_pkg_name
+                        inner_pkg_name=$(basename "$pkgdir")
+                        if [[ "$inner_pkg_name" == *"${base_pattern}"* ]]; then
+                            results+=("${pkgdir}/MASTER.md")
+                        fi
+                    fi
+                done < <(find "$subdir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+            fi
+        done < <(find "$CLAUDE_PLANS_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
     fi
 
     # Output results (deduplicate in case of overlapping matches)

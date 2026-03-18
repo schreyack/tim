@@ -1,28 +1,10 @@
 #!/usr/bin/env bash
 # plan-ops/wizard.sh - Wizard orchestration
-# Part of plan-ops.sh modular refactor
-#
-# Dependencies: core.sh, search.sh, security.sh, status.sh, approval.sh, verification.sh, wizard-steps.sh
-# Exports: cmd_wizard, wizard_update_paths_after_move
-#
-# This file is sourced by plan-ops.sh, not executed directly.
+# Sourced by plan-ops.sh. Dependencies: core, search, security, status, approval, verification, wizard-steps
 # shellcheck source=plan-ops/core.sh
-# shellcheck source=plan-ops/search.sh
-# shellcheck source=plan-ops/status.sh
-
-# Guard against direct execution
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "ERROR: This module must be sourced, not executed directly" >&2
-    exit 1
-fi
-
-# =============================================================================
-# WIZARD HELPERS
-# =============================================================================
+[[ "${BASH_SOURCE[0]}" == "${0}" ]] && { echo "ERROR: Must be sourced" >&2; exit 1; }
 
 # Reset plan for full review - moves to drafts and resets status fields
-# Usage: reset_plan_for_full_review "$current_state"
-# Uses global: WIZARD_PLAN_FILE, WIZARD_IS_PACKAGE, WIZARD_PACKAGE_DIR, WIZARD_USER_NAME
 reset_plan_for_full_review() {
     local current_state="$1"
     echo ""
@@ -66,7 +48,6 @@ reset_plan_for_full_review() {
 }
 
 # Update wizard path variables after a stage move
-# Usage: wizard_update_paths_after_move "active"
 wizard_update_paths_after_move() {
     local new_stage="$1"
     local plans_dir
@@ -90,14 +71,7 @@ wizard_update_paths_after_move() {
     fi
 }
 
-# =============================================================================
-# PLAN PICKER (no-argument wizard)
-# =============================================================================
-
-# Show a numbered list of recent plans and let user pick one
-# Searches plans/ stages and ~/.claude/plans/
-# Sorted by filename (which contains timestamp) most recent first
-# Outputs: selected plan's absolute path
+# Show a numbered list of recent plans and let user pick one (no-argument wizard)
 wizard_pick_plan() {
     local all_plans=()
 
@@ -124,11 +98,30 @@ wizard_pick_plan() {
         done
     fi
 
-    # Also check ~/.claude/plans/ (including subdirectories like drafts/)
+    # Also check ~/.claude/plans/ (root + subdirectories, with package support)
     if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
+        # Standalone .md files at root level
         while IFS= read -r -d '' file; do
             all_plans+=("$file")
-        done < <(find "$CLAUDE_PLANS_DIR" -name "*.md" -type f -print0 2>/dev/null)
+        done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+
+        # Check immediate subdirectories: packages (have MASTER.md) vs folders (like drafts/)
+        while IFS= read -r -d '' subdir; do
+            if [[ -f "${subdir}/MASTER.md" ]]; then
+                all_plans+=("${subdir}/MASTER.md")
+            else
+                # Subdirectory — search for standalone files and packages within it
+                while IFS= read -r -d '' file; do
+                    all_plans+=("$file")
+                done < <(find "$subdir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+
+                while IFS= read -r -d '' pkgdir; do
+                    if [[ -f "${pkgdir}/MASTER.md" ]]; then
+                        all_plans+=("${pkgdir}/MASTER.md")
+                    fi
+                done < <(find "$subdir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+            fi
+        done < <(find "$CLAUDE_PLANS_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
     fi
 
     if [[ ${#all_plans[@]} -eq 0 ]]; then
@@ -193,10 +186,6 @@ wizard_pick_plan() {
         echo "Invalid choice. Enter a number between 1 and $count." >&2
     done
 }
-
-# =============================================================================
-# WIZARD COMMAND
-# =============================================================================
 
 cmd_wizard() {
     local plan_file="${1:-}"
