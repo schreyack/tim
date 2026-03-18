@@ -7,7 +7,7 @@ full-review process: phase transitions, phase challenges, phase corrections,
 and the final hard stop.
 """
 
-from tim_loop_responses import PHASE_NAMES, _prompt_or_compact
+from tim_loop_responses import PHASE_NAMES, _block_response, _prompt_or_compact
 
 
 def build_phase_transition_response(
@@ -18,15 +18,18 @@ def build_phase_transition_response(
     max_iter: int,
 ) -> dict:
     """Build response when transitioning between phases."""
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Phase {completed_phase} ({PHASE_NAMES[completed_phase]}) COMPLETE\n\n"
+    return _block_response(
+        (
+            f"Tim Loop: Phase {completed_phase} COMPLETE | "
+            f"Transitioning to Phase {next_phase} "
+            f"(iteration {iteration} of {max_iter})"
+        ),
+        (
+            f"Phase {completed_phase} ({PHASE_NAMES[completed_phase]}) is complete.\n\n"
             f"Transitioning to Phase {next_phase}: {PHASE_NAMES[next_phase]}\n\n"
-            f"(Global iteration {iteration} of {max_iter})\n\n"
             f"---\n\n{next_phase_prompt}"
         ),
-    }
+    )
 
 
 def build_early_phase_completion_challenge(
@@ -35,10 +38,9 @@ def build_early_phase_completion_challenge(
 ) -> dict:
     """Challenge when AI tries to complete a phase too early."""
     phase_name = PHASE_NAMES.get(phase, f"Phase {phase}")
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Phase {phase} ({phase_name}) - review not thorough enough\n\n"
+    return _block_response(
+        f"Tim Loop: Phase {phase} ({phase_name}) - review not thorough enough",
+        (
             f"You've done {current_iter} pass(es) but plans consistently have "
             f"{phase_name} issues that aren't caught until pass {min_iter}+.\n\n"
             f"This is not about reaching a pass count. Do a COMPLETE {phase_name} "
@@ -48,7 +50,7 @@ def build_early_phase_completion_challenge(
             f"3. Fix everything you find - do not save issues for later\n\n"
             f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
-    }
+    )
 
 
 def build_phase_skip_challenge(
@@ -56,10 +58,9 @@ def build_phase_skip_challenge(
     is_first_in_phase: bool = False, pressure: int = 0,
 ) -> dict:
     """Challenge when AI tries to skip directly to final completion."""
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Cannot complete full review - still on Phase {current_phase}\n\n"
+    return _block_response(
+        f"Tim Loop: Cannot complete full review - still on Phase {current_phase}",
+        (
             f"Full review requires completing all 7 phases in order:\n"
             f"1. Tech Review (`<promise>PHASE-1-TECH-DONE</promise>`)\n"
             f"2. Devil's Advocate (`<promise>PHASE-2-DEVILS-ADVOCATE-DONE</promise>`)\n"
@@ -71,7 +72,7 @@ def build_phase_skip_challenge(
             f"You are on Phase {current_phase}. Complete it first.\n\n"
             f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
-    }
+    )
 
 
 def build_final_completion_instruction(
@@ -79,10 +80,9 @@ def build_final_completion_instruction(
     is_first_in_phase: bool = False, pressure: int = 0,
 ) -> dict:
     """Instruct AI to output final completion signal after all phases done."""
-    return {
-        "decision": "block",
-        "reason": (
-            "Tim Loop: All 7 phases complete!\n\n"
+    return _block_response(
+        "Tim Loop: All 7 phases complete!",
+        (
             "Phase 1 (Tech Review): DONE\n"
             "Phase 2 (Devil's Advocate): DONE\n"
             "Phase 3 (Security Review): DONE\n"
@@ -94,7 +94,7 @@ def build_final_completion_instruction(
             "`<promise>FULL-REVIEW-DONE</promise>`\n\n"
             f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
-    }
+    )
 
 
 def build_fresh_eyes_phase_challenge(
@@ -104,11 +104,9 @@ def build_fresh_eyes_phase_challenge(
     """Build response when LLM judge finds a phase review superficial (full-review mode)."""
     phase_name = PHASE_NAMES.get(phase, f"Phase {phase}")
     reason_excerpt = judge_reason[:300].rstrip()
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Phase {phase} ({phase_name}) - "
-            f"review quality check FAILED (pass {current_iter})\n\n"
+    return _block_response(
+        f"Tim Loop: Phase {phase} ({phase_name}) - review quality check FAILED (pass {current_iter})",
+        (
             f"**Judge assessment:** {reason_excerpt}\n\n"
             f"---\n\n"
             f"Clear your mind completely. You are a DIFFERENT {phase_name} reviewer "
@@ -123,7 +121,7 @@ def build_fresh_eyes_phase_challenge(
             f"evaluation.\n\n"
             f"{_prompt_or_compact(prompt, is_first_in_phase, pressure=pressure)}"
         ),
-    }
+    )
 
 
 def build_phase_correction_response(
@@ -136,24 +134,23 @@ def build_phase_correction_response(
     """Build response correcting the agent to the right phase after a stale signal."""
     detected_name = PHASE_NAMES.get(detected_phase, f"Phase {detected_phase}")
     current_name = PHASE_NAMES.get(current_phase, f"Phase {current_phase}")
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: PHASE CORRECTION (iteration {iteration} of {max_iter})\n\n"
+    return _block_response(
+        f"Tim Loop: PHASE CORRECTION (iteration {iteration} of {max_iter})",
+        (
             f"You output a Phase {detected_phase} ({detected_name}) signal, but you "
             f"are on Phase {current_phase} ({current_name}). The Phase {detected_phase} "
             f"signal is stale — that phase was already completed.\n\n"
             f"Here are your Phase {current_phase} instructions:\n\n"
             f"---\n\n{phase_prompt}"
         ),
-    }
+    )
 
 
 def build_full_review_complete_hard_stop(plan_file: str) -> dict:
     """Build HARD STOP response when full-review completes - blocks implementation."""
-    return {
-        "decision": "block",
-        "reason": (
+    return _block_response(
+        "Tim Loop: FULL REVIEW COMPLETE - HARD STOP",
+        (
             "═══════════════════════════════════════════════════════════════════\n"
             "                    FULL REVIEW COMPLETE - HARD STOP\n"
             "═══════════════════════════════════════════════════════════════════\n\n"
@@ -174,4 +171,4 @@ def build_full_review_complete_hard_stop(plan_file: str) -> dict:
             "is a violation of the review process.\n\n"
             "═══════════════════════════════════════════════════════════════════\n"
         ),
-    }
+    )

@@ -309,6 +309,7 @@ def save_state(state: dict) -> None:
             for key, value in state.items():
                 if not key.startswith("_"):
                     f.write(f'{key}="{value}"\n')
+        os.chmod(state_file, 0o600)
     except Exception as e:
         log_message(f"Failed to save state: {e}")
 

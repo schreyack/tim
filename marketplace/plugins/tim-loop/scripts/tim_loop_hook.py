@@ -291,24 +291,53 @@ def process_assistant_output(state: dict, prompt: str, assistant_text: str) -> d
     return handle_continue_loop(state, prompt, pressure)
 
 
+def enforce_session_isolation(
+    hook_input: dict[str, object], state: dict[str, str]
+) -> None:
+    """Capture session_id on first invocation; exit if a different session calls."""
+    hook_session_id = str(hook_input.get("session_id", ""))
+    state_session_id = state.get("CLAUDE_SESSION_ID", "")
+
+    # Capture session_id from hook input on first invocation
+    # Sanitize: strip newlines/quotes to prevent state file format breakage
+    if hook_session_id and not state_session_id:
+        sanitized = hook_session_id.replace('"', "").replace("'", "").replace("\n", "")
+        state["CLAUDE_SESSION_ID"] = sanitized
+        save_state(state)
+        state_session_id = sanitized
+
+    if hook_session_id and state_session_id and hook_session_id != state_session_id:
+        log_stderr(
+            f"Tim Loop: Session ID mismatch (hook={hook_session_id}, "
+            f"state={state_session_id}) - allowing exit"
+        )
+        print("{}")
+        sys.exit(0)
+
+
+def allow_exit(reason: str) -> None:
+    """Log a reason and exit with empty response (allow Claude to stop)."""
+    log_stderr(reason)
+    print("{}")
+    sys.exit(0)
+
+
 def main() -> None:
     """Main hook entry point."""
     state = load_state()
     if not state:
-        log_stderr("Tim Loop: Stop hook could not load session state - allowing exit")
-        print("{}")
-        sys.exit(0)
+        allow_exit("Tim Loop: Stop hook could not load session state - allowing exit")
 
     prompt = load_prompt_from_state(state)
     if prompt is None:
-        log_stderr(f"Tim Loop: Prompt file missing (session {state.get('SESSION_ID', '?')})")
-        print("{}")
-        sys.exit(0)
+        allow_exit(f"Tim Loop: Prompt file missing (session {state.get('SESSION_ID', '?')})")
 
     hook_input = read_hook_input()
     if hook_input.get("stop_hook_active"):
         print("{}")
         sys.exit(0)
+
+    enforce_session_isolation(hook_input, state)
 
     transcript_path = hook_input.get("transcript_path", "")
     transcript = read_transcript(transcript_path) if transcript_path else []
@@ -316,7 +345,11 @@ def main() -> None:
 
     if is_agent_coordination_turn(transcript):
         log_stderr("Tim Loop: Agent coordination turn — skipping iteration")
-        print(json.dumps({"decision": "block", "reason": "Continue processing."}))
+        print(json.dumps({
+            "decision": "block",
+            "reason": "Continue processing.",
+            "systemMessage": "Tim Loop: Agent coordination turn",
+        }))
         sys.exit(0)
 
     if not assistant_text or len(assistant_text.strip()) < 20:

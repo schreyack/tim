@@ -20,6 +20,15 @@ PHASE_NAMES = {
 }
 
 
+def _block_response(system_message: str, reason: str) -> dict:
+    """Build a block response with separated metadata and content."""
+    return {
+        "decision": "block",
+        "reason": reason,
+        "systemMessage": system_message,
+    }
+
+
 def _build_compact_context(prompt: str, current_phase: int = 0) -> str:
     """Extract a compact ~200-token summary from the full prompt.
 
@@ -175,14 +184,13 @@ def build_continue_response(
         guidance = "The task is not yet complete. Continue working on it."
         is_first = iteration <= 1
 
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
+    return _block_response(
+        f"Tim Loop: Iteration {iteration} of {max_iter}",
+        (
             f"{guidance}\n\n"
             f"{_prompt_or_compact(prompt, is_first, current_phase, pressure)}"
         ),
-    }
+    )
 
 
 def build_verification_response(
@@ -194,15 +202,14 @@ def build_verification_response(
     The plan file path is in the compact context; Claude can re-read it.
     """
     context = _prompt_or_compact(prompt, is_first_in_phase=False, pressure=pressure)
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter} (verification required)\n\n"
+    return _block_response(
+        f"Tim Loop: Iteration {iteration} of {max_iter} (verification required)",
+        (
             f"You output the completion promise but the plan is not verified.\n"
             f"Add <!-- VERIFIED: YES --> after verifying all objectives.\n\n"
             f"{context}"
         ),
-    }
+    )
 
 
 def build_early_completion_challenge(
@@ -210,10 +217,9 @@ def build_early_completion_challenge(
     is_first_in_phase: bool = False,
 ) -> dict:
     """Build a response challenging early completion in review mode."""
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter}\n\n"
+    return _block_response(
+        f"Tim Loop: Iteration {iteration} of {max_iter}",
+        (
             f"Your review was not thorough enough. Plans consistently have issues "
             f"that aren't caught until pass {min_iter}+. You're on pass {iteration}.\n\n"
             f"This is not about reaching a pass count - it's about doing a genuinely "
@@ -224,7 +230,7 @@ def build_early_completion_challenge(
             f"completion promise again.\n\n"
             f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
-    }
+    )
 
 
 def build_short_output_continue_response(
@@ -232,13 +238,10 @@ def build_short_output_continue_response(
     is_first_in_phase: bool = False,
 ) -> dict:
     """Build a block response when output was too brief to be a real completion."""
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter} (response too brief - continuing)\n\n"
-            f"{_prompt_or_compact(prompt, is_first_in_phase)}"
-        ),
-    }
+    return _block_response(
+        f"Tim Loop: Iteration {iteration} of {max_iter} (response too brief - continuing)",
+        _prompt_or_compact(prompt, is_first_in_phase),
+    )
 
 
 def build_soft_completion_nudge(
@@ -259,10 +262,10 @@ def build_soft_completion_nudge(
             "You appear to be done but didn't output the completion signal. "
             "Output `<promise>COMPLETE</promise>` to finish."
         )
-    return {
-        "decision": "block",
-        "reason": f"Tim Loop: Iteration {iteration} of {max_iter}\n\n{msg}",
-    }
+    return _block_response(
+        f"Tim Loop: Iteration {iteration} of {max_iter}",
+        msg,
+    )
 
 
 def build_decision_audit_reminder(
@@ -271,11 +274,9 @@ def build_decision_audit_reminder(
 ) -> dict:
     """Build a block response requiring the decision audit before completion."""
     context = _prompt_or_compact(prompt, is_first_in_phase=False, pressure=pressure)
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter} "
-            f"(decision audit required)\n\n"
+    return _block_response(
+        f"Tim Loop: Iteration {iteration} of {max_iter} (decision audit required)",
+        (
             f"You output the completion signal but did not include the "
             f"mandatory `DECISION AUDIT:` marker.\n\n"
             f"Before completing, you MUST:\n"
@@ -288,7 +289,7 @@ def build_decision_audit_reminder(
             f"Then output the completion signal again.\n\n"
             f"{context}"
         ),
-    }
+    )
 
 
 def build_fresh_eyes_review_challenge(
@@ -298,11 +299,9 @@ def build_fresh_eyes_review_challenge(
     """Build response when LLM judge finds a review superficial (standalone review modes)."""
     # Truncate judge reason to keep prompt reasonable
     reason_excerpt = judge_reason[:300].rstrip()
-    return {
-        "decision": "block",
-        "reason": (
-            f"Tim Loop: Iteration {iteration} of {max_iter} "
-            f"(review quality check FAILED)\n\n"
+    return _block_response(
+        f"Tim Loop: Iteration {iteration} of {max_iter} (review quality check FAILED)",
+        (
             f"**Judge assessment:** {reason_excerpt}\n\n"
             f"---\n\n"
             f"Clear your mind completely. You are a DIFFERENT reviewer seeing this "
@@ -316,4 +315,4 @@ def build_fresh_eyes_review_challenge(
             f"evaluation.\n\n"
             f"{_prompt_or_compact(prompt, is_first_in_phase)}"
         ),
-    }
+    )
