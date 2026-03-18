@@ -94,8 +94,12 @@ cmd_import() {
         fi
     fi
 
-    # Check if file is already in plans/drafts/ (already imported)
-    if [[ "$source" == *"/plans/drafts/"* ]]; then
+    # Check if file is already in the PROJECT's plans/drafts/ (already imported)
+    # Must compare against absolute project drafts path to avoid false matches
+    # on ~/.claude/plans/drafts/ which also contains "/plans/drafts/"
+    local abs_drafts_dir
+    abs_drafts_dir=$(to_absolute "${PLANS_DIR}/drafts")
+    if [[ "$source" == "${abs_drafts_dir}/"* ]]; then
         log_info "Plan is already in drafts folder: $source"
 
         # Ensure Status Header has all required fields (fix incomplete headers)

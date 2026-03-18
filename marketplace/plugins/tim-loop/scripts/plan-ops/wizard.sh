@@ -124,11 +124,11 @@ wizard_pick_plan() {
         done
     fi
 
-    # Also check ~/.claude/plans/
+    # Also check ~/.claude/plans/ (including subdirectories like drafts/)
     if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
         while IFS= read -r -d '' file; do
             all_plans+=("$file")
-        done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+        done < <(find "$CLAUDE_PLANS_DIR" -name "*.md" -type f -print0 2>/dev/null)
     fi
 
     if [[ ${#all_plans[@]} -eq 0 ]]; then

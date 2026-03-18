@@ -58,11 +58,11 @@ find_plans_by_name() {
         done
     fi
 
-    # Search in ~/.claude/plans/
+    # Search in ~/.claude/plans/ (including subdirectories like drafts/)
     if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
         while IFS= read -r -d '' file; do
             results+=("$file")
-        done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
+        done < <(find "$CLAUDE_PLANS_DIR" -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
     fi
 
     # Output results (deduplicate in case of overlapping matches)
