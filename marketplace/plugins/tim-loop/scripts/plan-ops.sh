@@ -47,6 +47,7 @@ MODULES=(
     search
     security
     status
+    status-init
     approval
     reset
     verification

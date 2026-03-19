@@ -4,7 +4,8 @@
 #
 # Dependencies: core.sh, status.sh, approval.sh, verification.sh, commands-lifecycle.sh
 # Exports: wizard_step_import, wizard_step_review, wizard_step_pm_review,
-#          wizard_step_promote, wizard_step_ai_ready, wizard_step_tim_loop, wizard_step_complete
+#          wizard_step_promote, wizard_step_ai_ready, wizard_step_tim_loop, wizard_step_complete,
+#          reset_plan_for_full_review, wizard_update_paths_after_move
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -16,6 +17,71 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "ERROR: This module must be sourced, not executed directly" >&2
     exit 1
 fi
+
+# =============================================================================
+# WIZARD PATH HELPERS (moved from wizard.sh)
+# =============================================================================
+
+# Reset plan for full review - moves to drafts and resets status fields
+reset_plan_for_full_review() {
+    local current_state="$1"
+    echo ""
+    log_info "Resetting plan for full review..."
+
+    # Move plan to drafts if not already there
+    if [[ "$WIZARD_PLAN_FILE" != *"/drafts/"* ]]; then
+        local plans_dir
+        plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+        mkdir -p "${plans_dir}/drafts"
+
+        if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+            local pkg_name="${WIZARD_PACKAGE_DIR##*/}"
+            local new_pkg_dir="${plans_dir}/drafts/${pkg_name}"
+            mv "$WIZARD_PACKAGE_DIR" "$new_pkg_dir"
+            WIZARD_PACKAGE_DIR="$new_pkg_dir"
+            WIZARD_PLAN_FILE="${new_pkg_dir}/MASTER.md"
+            log_info "Moved package to: $WIZARD_PACKAGE_DIR"
+        else
+            local basename new_path
+            basename=$(basename "$WIZARD_PLAN_FILE")
+            new_path="${plans_dir}/drafts/${basename}"
+            mv "$WIZARD_PLAN_FILE" "$new_path"
+            WIZARD_PLAN_FILE="$new_path"
+            log_info "Moved plan to: $WIZARD_PLAN_FILE"
+        fi
+    fi
+
+    reset_for_full_review "$WIZARD_PLAN_FILE"
+    ensure_status_header_fields "$WIZARD_PLAN_FILE"
+    update_status "$WIZARD_PLAN_FILE" "draft" "Reset for full review by ${WIZARD_USER_NAME}"
+    local new_state
+    new_state=$(get_plan_state "$WIZARD_PLAN_FILE")
+    log_info "Plan reset complete. New state: $new_state"
+}
+
+# Update wizard path variables after a stage move
+wizard_update_paths_after_move() {
+    local new_stage="$1"
+    local plans_dir
+    plans_dir=$(get_plans_dir_from_path "$WIZARD_PLAN_FILE")
+
+    if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
+        local pkg_name="${WIZARD_PACKAGE_DIR##*/}"
+        local new_pkg_dir="${plans_dir}/${new_stage}/${pkg_name}"
+        if [[ -d "$new_pkg_dir" ]]; then
+            WIZARD_PACKAGE_DIR="$new_pkg_dir"
+            WIZARD_PLAN_FILE="${new_pkg_dir}/MASTER.md"
+            log_info "Updated package path: $WIZARD_PACKAGE_DIR"
+        fi
+    else
+        local basename="${WIZARD_PLAN_FILE##*/}"
+        local new_path="${plans_dir}/${new_stage}/${basename}"
+        if [[ -f "$new_path" ]]; then
+            WIZARD_PLAN_FILE="$new_path"
+            log_info "Updated path: $WIZARD_PLAN_FILE"
+        fi
+    fi
+}
 
 # =============================================================================
 # WIZARD STEP FUNCTIONS

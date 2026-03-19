@@ -3,7 +3,7 @@
 # Part of plan-ops.sh modular refactor
 #
 # Dependencies: core.sh
-# Exports: cmd_list, cmd_help
+# Exports: cmd_list, cmd_help, cmd_cleanup_drafts, cleanup_claude_plans
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
@@ -96,6 +96,61 @@ cmd_list() {
         else
             log_error "Folder not found: ${PLANS_DIR}/$stage"
             exit 1
+        fi
+    fi
+}
+
+# =============================================================================
+# CLEANUP COMMANDS
+# =============================================================================
+
+cmd_cleanup_drafts() {
+    local days=30
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --older-than)
+                days="${2%d}"  # Remove 'd' suffix if present
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    log_info "Finding drafts older than ${days} days..."
+
+    local found=0
+    while IFS= read -r -d '' file; do
+        echo "  $file"
+        found=1
+    done < <(find "${PLANS_DIR}/drafts" -name "*.md" -mtime +"$days" -print0 2>/dev/null)
+
+    if [[ $found -eq 0 ]]; then
+        log_info "No stale drafts found."
+        return 0
+    fi
+
+    echo ""
+    echo -n "Delete these files? [y/N] "
+    read -r response </dev/tty
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        find "${PLANS_DIR}/drafts" -name "*.md" -mtime +"$days" -delete
+        log_info "Deleted stale drafts."
+    else
+        log_info "Skipped deletion."
+    fi
+}
+
+cleanup_claude_plans() {
+    if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
+        local count
+        count=$(find "$CLAUDE_PLANS_DIR" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$count" -gt 0 ]]; then
+            find "$CLAUDE_PLANS_DIR" -name "*.md" -delete 2>/dev/null || true
+            log_info "Cleaned up ${count} file(s) from ${CLAUDE_PLANS_DIR}"
         fi
     fi
 }
