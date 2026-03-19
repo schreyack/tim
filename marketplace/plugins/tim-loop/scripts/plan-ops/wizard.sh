@@ -73,7 +73,7 @@ wizard_pick_plan() {
         local abs_plans_dir
         abs_plans_dir=$(to_absolute "$PLANS_DIR")
 
-        for stage in drafts active completed abandoned; do
+        for stage in drafts active; do
             local stage_dir="${abs_plans_dir}/${stage}"
             [[ -d "$stage_dir" ]] || continue
 
