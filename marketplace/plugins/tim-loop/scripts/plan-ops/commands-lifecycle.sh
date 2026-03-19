@@ -19,14 +19,14 @@ fi
 cmd_init() {
     log_info "Initializing plan folder structure..."
 
-    mkdir -p "${PLANS_DIR}"/{drafts,active,completed,abandoned}
+    mkdir -p "${PLANS_DIR}"/{drafts,active,completed,abandoned,playbooks}
 
     # Create .gitkeep files to preserve empty directories
-    for dir in drafts active completed abandoned; do
+    for dir in drafts active completed abandoned playbooks; do
         touch "${PLANS_DIR}/${dir}/.gitkeep"
     done
 
-    log_info "Created: ${PLANS_DIR}/{drafts,active,completed,abandoned}/"
+    log_info "Created: ${PLANS_DIR}/{drafts,active,completed,abandoned,playbooks}/"
     echo ""
 
     # Show PATH setup instructions
@@ -35,17 +35,10 @@ cmd_init() {
     log_info "PATH SETUP (optional but recommended)"
     echo "========================================"
     echo ""
-    echo "Add plan-ops to your PATH to run it from anywhere:"
-    echo ""
     echo "  # Add to ~/.bashrc or ~/.zshrc:"
     echo -e "  ${GREEN}export PATH=\"${bin_dir}:\$PATH\"${NC}"
-    echo ""
-    echo "  # Then reload your shell or run:"
-    echo -e "  ${GREEN}source ~/.bashrc${NC}  # or source ~/.zshrc"
-    echo ""
-    echo "  # After setup, you can run:"
-    echo -e "  ${GREEN}plan-ops import ...${NC}"
-    echo -e "  ${GREEN}plan-ops wizard ...${NC}"
+    echo "  # Then: source ~/.bashrc (or ~/.zshrc)"
+    echo "  # After setup: plan-ops import ... / plan-ops wizard ..."
     echo ""
     echo "========================================"
     echo ""
@@ -101,13 +94,9 @@ cmd_import() {
     abs_drafts_dir=$(to_absolute "${PLANS_DIR}/drafts")
     if [[ "$source" == "${abs_drafts_dir}/"* ]]; then
         log_info "Plan is already in drafts folder: $source"
-
-        # Ensure Status Header has all required fields (fix incomplete headers)
         ensure_status_header_fields "$source"
-
         echo ""
 
-        # Check current state and provide next steps
         local state
         state=$(get_plan_state "$source")
 
@@ -290,13 +279,28 @@ cmd_complete() {
     local is_pkg=false
     is_master_plan "$plan_file" && is_pkg=true
 
-    # Move plan/package to completed stage
-    plan_file=$(move_plan_to_stage "$plan_file" "completed")
+    # Route completion by plan type
+    local plan_type
+    plan_type=$(get_plan_type "$plan_file")
+    local target_folder="completed"
+    local stage_value="completed"
+    if [[ "$plan_type" == "playbook" ]]; then
+        target_folder="playbooks"
+        stage_value="playbook"
+    fi
+
+    # Move plan/package to target stage
+    plan_file=$(move_plan_to_stage "$plan_file" "$target_folder")
 
     # Update status
-    if ! update_status "$plan_file" "completed" "All phases completed, verification passed"; then
+    if ! update_status "$plan_file" "$stage_value" "All phases completed, verification passed"; then
         log_error "Failed to update status after completion"
         exit 1
+    fi
+
+    # Playbook-specific: add Run Log section if not present (uses helper from commands-playbook.sh)
+    if [[ "$plan_type" == "playbook" ]] && ! grep -q "### Run Log" "$plan_file"; then
+        _insert_run_log "$plan_file"
     fi
 
     # Clear saved prompt now that plan is complete
@@ -310,11 +314,18 @@ cmd_complete() {
 
     if [[ "$is_pkg" == true ]]; then
         log_info "Completed package: $(dirname "$plan_file")"
+    elif [[ "$plan_type" == "playbook" ]]; then
+        log_info "Playbook ready: $plan_file"
     else
         log_info "Completed: $plan_file"
     fi
-    log_info "Plan lifecycle complete! To see all completed plans:"
-    echo -e "  ${GREEN}$SCRIPT_PATH list completed${NC}"
+    if [[ "$plan_type" == "playbook" ]]; then
+        log_info "Playbook ready to run! To see all playbooks:"
+        echo -e "  ${GREEN}$SCRIPT_PATH list playbooks${NC}"
+    else
+        log_info "Plan lifecycle complete! To see all completed plans:"
+        echo -e "  ${GREEN}$SCRIPT_PATH list completed${NC}"
+    fi
 }
 
 cmd_abandon() {

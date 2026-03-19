@@ -41,7 +41,7 @@ find_plans_by_name() {
         done < <(find "${abs_plans_dir}" -maxdepth 1 -name "*${base_pattern}*.md" -type f -print0 2>/dev/null)
 
         # Search stage subfolders for both files and packages
-        for stage in drafts active completed abandoned; do
+        for stage in drafts active completed abandoned playbooks; do
             if [[ -d "${abs_plans_dir}/${stage}" ]]; then
                 # Search for standalone plan files
                 while IFS= read -r -d '' file; do
@@ -143,7 +143,7 @@ try_relocate_plan() {
     fi
 
     # Search order: completed, active, drafts, abandoned (most likely moves)
-    for stage in completed active drafts abandoned; do
+    for stage in completed active drafts abandoned playbooks; do
         # Check for standalone file
         local candidate="${plans_dir}/${stage}/${item_name}"
         if [[ -f "$candidate" ]]; then

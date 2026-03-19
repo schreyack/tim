@@ -26,8 +26,8 @@ _insert_run_log() {
 
 ### Run Log
 
-| Run | Timestamp | Result | Notes |
-|-----|-----------|--------|-------|
+| Run # | Started | Result | Notes |
+|-------|---------|--------|-------|
 
 ---
 RUNLOG
@@ -182,7 +182,7 @@ cmd_playbook_run() {
     if grep -qE "^### Run Log" "$playbook_file"; then
         local log_row="| ${run_count} | ${ts} | - | - |"
         awk -v row="$log_row" '
-            /^\| Run \| Timestamp \| Result \| Notes \|/ { in_table=1 }
+            /^\| Run # \| Started \| Result \| Notes \|/ { in_table=1 }
             in_table && /^$/ { print row; in_table=0 }
             in_table && /^---$/ { print row; in_table=0 }
             { print }

@@ -224,7 +224,7 @@ handle_unexpected_plan_move() {
 
     # File doesn't exist or is in wrong folder - search for it
     local found_in="" found_path=""
-    for folder in drafts active completed abandoned; do
+    for folder in drafts active completed abandoned playbooks; do
         local check_path="${plans_dir}/${folder}/${basename}"
         if [[ -f "$check_path" ]]; then
             found_in="$folder"
@@ -271,6 +271,7 @@ handle_unexpected_plan_move() {
             active) stage_value="active" ;;
             completed) stage_value="completed" ;;
             abandoned) stage_value="abandoned" ;;
+            playbooks) stage_value="playbook" ;;
         esac
         sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | ${stage_value} |/" "$target_path"
 

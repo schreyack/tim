@@ -217,6 +217,8 @@ cmd_reopen() {
         current_stage="active"
     elif [[ "$plan_file" == *"/plans/drafts/"* ]]; then
         current_stage="draft"
+    elif [[ "$plan_file" == *"/plans/playbooks/"* ]]; then
+        current_stage="playbook"
     else
         current_stage=$(get_status_field "$plan_file" "Stage")
     fi

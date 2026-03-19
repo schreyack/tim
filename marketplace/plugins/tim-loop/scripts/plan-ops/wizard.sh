@@ -13,7 +13,7 @@ wizard_pick_plan() {
         local abs_plans_dir
         abs_plans_dir=$(to_absolute "$PLANS_DIR")
 
-        for stage in drafts active; do
+        for stage in drafts active playbooks; do
             local stage_dir="${abs_plans_dir}/${stage}"
             [[ -d "$stage_dir" ]] || continue
 
@@ -87,6 +87,7 @@ wizard_pick_plan() {
             */active/*)    stage_label="active" ;;
             */completed/*) stage_label="done" ;;
             */abandoned/*) stage_label="abandoned" ;;
+            */playbooks/*) stage_label="playbook" ;;
             *)             stage_label="import" ;;
         esac
 
@@ -182,7 +183,8 @@ cmd_wizard() {
        [[ "$WIZARD_PLAN_FILE" != *"/plans/drafts/"* ]] && \
        [[ "$WIZARD_PLAN_FILE" != *"/plans/active/"* ]] && \
        [[ "$WIZARD_PLAN_FILE" != *"/plans/completed/"* ]] && \
-       [[ "$WIZARD_PLAN_FILE" != *"/plans/abandoned/"* ]]; then
+       [[ "$WIZARD_PLAN_FILE" != *"/plans/abandoned/"* ]] && \
+       [[ "$WIZARD_PLAN_FILE" != *"/plans/playbooks/"* ]]; then
 
         # Determine which folder based on Stage field
         local stage
@@ -192,6 +194,7 @@ cmd_wizard() {
             active) target_folder="active" ;;
             completed) target_folder="completed" ;;
             abandoned) target_folder="abandoned" ;;
+            playbook) target_folder="playbooks" ;;
         esac
 
         local basename plans_dir new_path
@@ -257,8 +260,33 @@ cmd_wizard() {
         fi
     fi
 
+    # Playbook-ready state - offer run/history/reopen
+    if [[ "$state" == "playbook-ready" ]]; then
+        echo ""
+        log_info "This is a completed playbook, ready to run."
+        # Show run stats
+        local run_count last_run last_result
+        run_count=$(get_status_field "$WIZARD_PLAN_FILE" "Run Count")
+        last_run=$(get_status_field "$WIZARD_PLAN_FILE" "Last Run")
+        last_result=$(get_status_field "$WIZARD_PLAN_FILE" "Last Result")
+        [[ "$run_count" != "-" && "$run_count" != "0" ]] && \
+            echo "  Run Count: $run_count | Last Run: $last_run | Last Result: $last_result"
+        echo ""
+        echo "  [1] Run playbook  [2] Show run history  [3] Reopen to drafts  [4] Exit"
+        echo -n "Choice [1-4]: "
+        read -r pb_choice </dev/tty
+        case "$pb_choice" in
+            1) cmd_playbook_run "$WIZARD_PLAN_FILE" ;;
+            2) cmd_playbook_show "$WIZARD_PLAN_FILE" ;;
+            3) cmd_reopen "$WIZARD_PLAN_FILE" --to drafts --reason "Reopened via wizard"
+               wizard_update_paths_after_move "drafts"
+               state=$(get_plan_state "$WIZARD_PLAN_FILE") ;;
+        esac
+        if [[ "$pb_choice" != "3" ]]; then return; fi
+    fi
+
     # Main wizard loop - continues until plan is completed
-    while [[ "$state" != "done" ]]; do
+    while [[ "$state" != "done" && "$state" != "playbook-ready" ]]; do
         case "$state" in
             import)          wizard_step_import ;;
             review)          wizard_step_review ;;
@@ -325,6 +353,19 @@ cmd_wizard() {
         # Refresh state after each step (path may have changed due to move)
         state=$(get_plan_state "$WIZARD_PLAN_FILE")
     done
+
+    # Playbook completed through lifecycle
+    if [[ "$state" == "playbook-ready" ]]; then
+        echo ""
+        echo "------------------------------------------------------------"
+        echo -e "${GREEN}Playbook ready to run!${NC}"
+        echo "------------------------------------------------------------"
+        cmd_playbook_show "$WIZARD_PLAN_FILE"
+        echo ""
+        echo "Run with:"
+        show_command "plan-ops playbook run $(basename "$WIZARD_PLAN_FILE" .md)"
+        return
+    fi
 
     # Success - plan reached completed state
     echo ""

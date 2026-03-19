@@ -84,7 +84,7 @@ cmd_list() {
     local stage="${1:-all}"
 
     if [[ "$stage" == "all" ]]; then
-        for s in drafts active completed abandoned; do
+        for s in drafts active completed abandoned playbooks; do
             echo "=== ${s} ==="
             list_stage_contents "$s"
             echo ""
@@ -222,7 +222,7 @@ COMMANDS:
     cleanup-drafts [--older-than <N>d]
         Find and optionally delete drafts older than N days (default: 30)
 
-    list [drafts|active|completed|abandoned|all]
+    list [drafts|active|completed|abandoned|playbooks|all]
         List plans by stage (default: all)
         Shows packages marked with [P] and file counts
 
@@ -231,6 +231,19 @@ COMMANDS:
         - Interactive mode (no args): guides you through grouping plans by date
         - Explicit mode: specify package name, master file, and include pattern
         Use when you have multiple related plans from iterative development
+
+    playbook <subcommand> [args]
+        Manage repeatable playbooks
+
+        Subcommands:
+            create <name>           Create a new playbook scaffold in drafts
+            import <file>           Convert any file to playbook format in drafts
+            list                    List completed playbooks ready to run
+            run <playbook>          Start a playbook run (outputs tim-loop command)
+            log <playbook> --result <success|failure|partial> [--notes "..."]
+                                    Record result of most recent run
+            show <playbook>         Show playbook details and run history
+            help                    Show playbook help
 
     wizard [<plan-file>] [--status]
         Interactive wizard to guide through plan lifecycle
@@ -332,6 +345,14 @@ EXAMPLES:
     $SCRIPT_PATH list active
     $SCRIPT_PATH wizard ~/.claude/plans/new-plan.md
     $SCRIPT_PATH wizard plans/active/my-plan.md --status
+
+PLAYBOOK EXAMPLES:
+    $SCRIPT_PATH playbook create run-tests
+    $SCRIPT_PATH playbook import docs/maintenance-checklist.md
+    $SCRIPT_PATH playbook list
+    $SCRIPT_PATH playbook run run-tests
+    $SCRIPT_PATH playbook log run-tests --result success --notes "All passed"
+    $SCRIPT_PATH playbook show run-tests
 
 PACKAGE EXAMPLES:
     $SCRIPT_PATH package                                    # Interactive mode

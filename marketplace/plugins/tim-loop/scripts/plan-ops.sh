@@ -25,6 +25,7 @@ set -euo pipefail
 #   cleanup-drafts    Remove stale drafts
 #   list              List plans by stage
 #   package           Create a package from related plan files
+#   playbook          Manage repeatable playbooks
 
 # =============================================================================
 # SCRIPT PATH RESOLUTION
@@ -57,6 +58,7 @@ MODULES=(
     commands-approval
     commands-execution
     commands-package
+    commands-playbook
     commands-utility
 )
 
@@ -95,6 +97,7 @@ case "${1:-help}" in
     cleanup-drafts) cmd_cleanup_drafts "${@:2}" ;;
     list) cmd_list "${@:2}" ;;
     package) cmd_package "${@:2}" ;;
+    playbook) cmd_playbook "${@:2}" ;;
     wizard) cmd_wizard "${@:2}" ;;
     help|--help|-h) cmd_help ;;
     *)

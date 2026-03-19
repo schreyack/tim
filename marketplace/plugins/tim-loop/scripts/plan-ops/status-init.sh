@@ -36,6 +36,8 @@ fix_invalid_stage() {
         expected_stage="completed"
     elif [[ "$file" == *"/plans/abandoned/"* ]]; then
         expected_stage="abandoned"
+    elif [[ "$file" == *"/plans/playbooks/"* ]]; then
+        expected_stage="playbook"
     fi
 
     # Check current stage value
@@ -43,7 +45,7 @@ fix_invalid_stage() {
     current_stage=$(get_status_field "$file" "Stage")
 
     # Validate stage value
-    if [[ "$current_stage" =~ ^(draft|active|completed|abandoned)$ ]]; then
+    if [[ "$current_stage" =~ ^(draft|active|completed|abandoned|playbook)$ ]]; then
         # Stage is valid, no fix needed
         return 0
     fi
@@ -117,6 +119,7 @@ add_status_header() {
 | Field | Value |
 |-------|-------|
 | Stage | draft |
+| Type | plan |
 | Created | ${ts} |
 | Last Updated | ${ts} |
 | Author | ${author} |
@@ -136,6 +139,9 @@ add_status_header() {
 | Implementation Verified By | - |
 | Implementation Verified Date | - |
 | Remediation Plan | - |
+| Last Run | - |
+| Last Result | - |
+| Run Count | 0 |
 
 ### Progress Log
 

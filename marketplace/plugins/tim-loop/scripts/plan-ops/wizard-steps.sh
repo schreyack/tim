@@ -369,13 +369,21 @@ wizard_step_complete() {
     fi
 
     echo ""
+    local plan_type
+    plan_type=$(get_plan_type "$WIZARD_PLAN_FILE")
     if [[ "$WIZARD_IS_PACKAGE" == true ]]; then
         echo "Marking package complete..."
+    elif [[ "$plan_type" == "playbook" ]]; then
+        echo "Marking playbook complete..."
     else
         echo "Marking plan complete..."
     fi
 
     # cmd_complete moves the file/package and updates status
     cmd_complete "$WIZARD_PLAN_FILE"
-    wizard_update_paths_after_move "completed"
+    if [[ "$plan_type" == "playbook" ]]; then
+        wizard_update_paths_after_move "playbooks"
+    else
+        wizard_update_paths_after_move "completed"
+    fi
 }

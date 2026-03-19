@@ -66,6 +66,15 @@ requires_pm_review() {
     fi
 }
 
+# Get plan type from Status Header (plan or playbook)
+get_plan_type() {
+    local file="$1"
+    local type
+    type=$(get_status_field "$file" "Type")
+    [[ -z "$type" || "$type" == "-" ]] && type="plan"
+    echo "$type"
+}
+
 # Extract a field value from Status Header markdown table
 # Usage: get_status_field "$plan_file" "Stage"
 # Returns: field value (e.g., "draft", "active") or empty if not found
@@ -92,6 +101,12 @@ get_plan_state() {
     # Check if in ~/.claude/plans (needs import)
     if [[ "$plan_file" == *"/.claude/plans/"* ]]; then
         echo "import"
+        return
+    fi
+
+    # Check if in playbooks/ (completed playbook ready to run)
+    if [[ "$plan_file" == *"/plans/playbooks/"* ]]; then
+        echo "playbook-ready"
         return
     fi
 
@@ -191,6 +206,15 @@ show_plan_status() {
     echo ""
     echo "Current State: $state"
     echo "Next Action: $(get_state_description "$state")"
+    local plan_type last_run last_result run_count
+    plan_type=$(get_plan_type "$plan_file")
+    [[ "$plan_type" != "plan" ]] && echo "  Type: $plan_type"
+    last_run=$(get_status_field "$plan_file" "Last Run")
+    [[ "$last_run" != "-" ]] && echo "  Last Run: $last_run"
+    last_result=$(get_status_field "$plan_file" "Last Result")
+    [[ "$last_result" != "-" ]] && echo "  Last Result: $last_result"
+    run_count=$(get_status_field "$plan_file" "Run Count")
+    [[ "$run_count" != "0" && "$run_count" != "-" ]] && echo "  Run Count: $run_count"
 }
 
 # Human-readable state descriptions
@@ -206,6 +230,7 @@ get_state_description() {
         done)            echo "Plan already complete" ;;
         abandoned)       echo "Plan was cancelled" ;;
         unknown)         echo "Unknown state - check Status Header" ;;
+        playbook-ready)  echo "Playbook ready to run" ;;
         not-found)       echo "Plan file not found" ;;
         *)               echo "Unknown state" ;;
     esac
@@ -289,7 +314,8 @@ ensure_status_header_fields() {
 
     local required_fields=(
         "Stage|draft|Field"
-        "Created|${ts}|Stage"
+        "Type|plan|Stage"
+        "Created|${ts}|Type"
         "Last Updated|${ts}|Created"
         "Author|Claude|Last Updated"
         "Approver|-|Author"
@@ -308,6 +334,9 @@ ensure_status_header_fields() {
         "Implementation Verified By|-|Implementation Verified"
         "Implementation Verified Date|-|Implementation Verified By"
         "Remediation Plan|-|Implementation Verified Date"
+        "Last Run|-|Remediation Plan"
+        "Last Result|-|Last Run"
+        "Run Count|0|Last Result"
     )
 
     local added_fields=()

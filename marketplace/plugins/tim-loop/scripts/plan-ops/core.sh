@@ -60,7 +60,7 @@ to_absolute() {
 get_plans_dir_from_path() {
     local path="$1"
     # Match paths like .../plans/stage/filename.md where stage is drafts/active/completed/abandoned
-    if [[ "$path" =~ ^(.*/plans)/(drafts|active|completed|abandoned)/[^/]+$ ]]; then
+    if [[ "$path" =~ ^(.*/plans)/(drafts|active|completed|abandoned|playbooks)/[^/]+$ ]]; then
         echo "${BASH_REMATCH[1]}"
     else
         # Fallback to local PLANS_DIR
@@ -185,7 +185,7 @@ get_package_dir() {
     # Check if parent is a stage folder (drafts/active/completed/abandoned)
     local parent_name
     parent_name=$(basename "$parent")
-    if [[ "$parent_name" =~ ^(drafts|active|completed|abandoned)$ ]]; then
+    if [[ "$parent_name" =~ ^(drafts|active|completed|abandoned|playbooks)$ ]]; then
         # This file is in a package folder
         if [[ -f "${dir}/MASTER.md" ]]; then
             echo "$dir"

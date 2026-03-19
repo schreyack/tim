@@ -94,7 +94,7 @@ update_verification_status() {
             file="$relocated"
         else
             log_error "Plan file not found: $file"
-            log_error "Searched in drafts/, active/, completed/, abandoned/"
+            log_error "Searched in drafts/, active/, completed/, abandoned/, playbooks/"
             return 1
         fi
     fi
