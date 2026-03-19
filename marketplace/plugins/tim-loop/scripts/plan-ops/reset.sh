@@ -196,13 +196,14 @@ cmd_reopen() {
         exit 1
     fi
 
-    if [[ ! -f "$plan_file" ]]; then
-        log_error "Plan file not found: $plan_file"
-        exit 1
+    # Resolve plan name or path (searches all stages including completed/abandoned)
+    if [[ -f "$plan_file" ]]; then
+        plan_file=$(to_absolute "$plan_file")
+    elif [[ -d "$plan_file" && -f "${plan_file}/MASTER.md" ]]; then
+        plan_file=$(to_absolute "${plan_file}/MASTER.md")
+    else
+        plan_file=$(resolve_plan_path "$plan_file") || exit 1
     fi
-
-    # Convert to absolute path
-    plan_file=$(to_absolute "$plan_file")
 
     # Verify plan is in completed or abandoned state
     local current_stage
