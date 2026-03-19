@@ -161,9 +161,9 @@ All operations are logged to `~/.tim-ops/audit.log`:
 
 ```text
 # Format: timestamp user project env command result
-2026-01-17T10:30:00Z tim jamphoria dev deploy START
-2026-01-17T10:30:45Z tim jamphoria dev deploy OK
-2026-01-17T15:00:00Z tim jamphoria prod shell BLOCKED
+2026-01-17T10:30:00Z tim myapp dev deploy START
+2026-01-17T10:30:45Z tim myapp dev deploy OK
+2026-01-17T15:00:00Z tim myapp prod shell BLOCKED
 ```
 
 ---
