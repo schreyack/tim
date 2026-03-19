@@ -33,7 +33,8 @@ reset_for_full_review() {
         return 1
     fi
 
-    # Ensure all required Status Header fields exist before resetting
+    # Add Status Header if missing, then ensure all required fields exist
+    add_status_header "$file"
     ensure_status_header_fields "$file"
 
     # Reset Plan Review to required
@@ -120,7 +121,8 @@ reset_for_reimplementation() {
         return 1
     fi
 
-    # Ensure all required Status Header fields exist before resetting
+    # Add Status Header if missing, then ensure all required fields exist
+    add_status_header "$file"
     ensure_status_header_fields "$file"
 
     # Reset Implementation Verified fields
