@@ -24,7 +24,7 @@ from tim_loop_phase_responses import (
     build_phase_transition_response,
 )
 from tim_loop_responses import build_continue_response
-from tim_loop_state import log_stderr, save_state
+from tim_loop_state import cleanup_tim_loop, log_stderr, save_state
 
 # Phase signals for full-review mode
 PHASE_SIGNALS = {
@@ -176,9 +176,16 @@ def _check_final_signal(state: dict, prompt: str, text: str, phase: int) -> dict
     return {"hard_stop": True, "plan_file": plan_file}
 
 
-def _handle_hard_stop(final_result: dict) -> dict:
-    """Handle full review complete - return HARD STOP response."""
+def _handle_hard_stop(state: dict, final_result: dict) -> dict:
+    """Handle full review complete - clean up state, return HARD STOP response.
+
+    Must clean up state so the hook doesn't re-fire on subsequent turns
+    in the same session (e.g. the user asking unrelated questions).
+    """
     log_stderr("Tim Loop: Full review complete - HARD STOP (requires human approval)")
+    state_file = state.get("_state_file", "")
+    prompt_file = state.get("TIM_LOOP_PROMPT_FILE", "")
+    cleanup_tim_loop("Tim Loop: Full review complete — cleaning up state", state_file, prompt_file)
     plan_file = final_result.get("plan_file", "the plan file")
     return build_full_review_complete_hard_stop(plan_file)
 
@@ -271,7 +278,7 @@ def handle_full_review_phase(
     final_result = _check_final_signal(state, prompt, assistant_text, current_phase)
     if final_result is not None:
         if final_result.get("hard_stop"):
-            return _handle_hard_stop(final_result)
+            return _handle_hard_stop(state, final_result)
         return final_result
 
     # Check for phase completion signal
