@@ -219,9 +219,9 @@ cmd_reopen() {
         current_stage=$(get_status_field "$plan_file" "Stage")
     fi
 
-    # Block reopening to the same stage the plan is already in
-    if [[ "$current_stage" == "$target" ]] || [[ "$current_stage" == "draft" && "$target" == "drafts" ]]; then
-        log_error "Plan is already in ${current_stage}, nothing to reopen"
+    # Block reopening drafts to drafts (no-op), but allow active→active (resets implementation fields)
+    if [[ "$current_stage" == "draft" && "$target" == "drafts" ]]; then
+        log_error "Plan is already in drafts, nothing to reopen"
         exit 1
     fi
 
