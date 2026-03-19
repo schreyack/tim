@@ -14,7 +14,7 @@ def unlock_file(path: Path) -> None:
         return
     try:
         subprocess.run(
-            ["sudo", "-n", "chflags", "noschg", str(path)],
+            ["sudo", "chflags", "noschg", str(path)],
             check=False,
             capture_output=True,
         )

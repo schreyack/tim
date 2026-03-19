@@ -31,7 +31,7 @@ PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Pattern 4: { x = <literal> } destructuring defaults
     (
         re.compile(
-            rf"""\{{\s*[^}}]*\w+\s*=\s*{_LITERAL}"""
+            rf"""\{{\s*[^}}<]*\w+\s*=\s*{_LITERAL}"""
         ),
         "Destructuring with literal default — fail loudly instead",
     ),

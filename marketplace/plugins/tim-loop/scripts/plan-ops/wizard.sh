@@ -33,15 +33,9 @@ reset_plan_for_full_review() {
         fi
     fi
 
-    # Reset status fields for full review
     reset_for_full_review "$WIZARD_PLAN_FILE"
-
-    # Ensure all required Status Header fields exist (fixes plans with missing fields)
     ensure_status_header_fields "$WIZARD_PLAN_FILE"
-
-    # Add progress log entry
     update_status "$WIZARD_PLAN_FILE" "draft" "Reset for full review by ${WIZARD_USER_NAME}"
-
     local new_state
     new_state=$(get_plan_state "$WIZARD_PLAN_FILE")
     log_info "Plan reset complete. New state: $new_state"
@@ -75,21 +69,18 @@ wizard_update_paths_after_move() {
 wizard_pick_plan() {
     local all_plans=()
 
-    # Collect plans from all stage directories
     if [[ -d "$PLANS_DIR" ]]; then
         local abs_plans_dir
         abs_plans_dir=$(to_absolute "$PLANS_DIR")
 
-        for stage in drafts active; do
+        for stage in drafts active completed abandoned; do
             local stage_dir="${abs_plans_dir}/${stage}"
             [[ -d "$stage_dir" ]] || continue
 
-            # Standalone plans
             while IFS= read -r -d '' file; do
                 all_plans+=("$file")
             done < <(find "$stage_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
 
-            # Package plans (directories with MASTER.md)
             while IFS= read -r -d '' dir; do
                 if [[ -f "${dir}/MASTER.md" ]]; then
                     all_plans+=("${dir}/MASTER.md")
@@ -98,19 +89,15 @@ wizard_pick_plan() {
         done
     fi
 
-    # Also check ~/.claude/plans/ (root + subdirectories, with package support)
     if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
-        # Standalone .md files at root level
         while IFS= read -r -d '' file; do
             all_plans+=("$file")
         done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
 
-        # Check immediate subdirectories: packages (have MASTER.md) vs folders (like drafts/)
         while IFS= read -r -d '' subdir; do
             if [[ -f "${subdir}/MASTER.md" ]]; then
                 all_plans+=("${subdir}/MASTER.md")
             else
-                # Subdirectory — search for standalone files and packages within it
                 while IFS= read -r -d '' file; do
                     all_plans+=("$file")
                 done < <(find "$subdir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
@@ -295,25 +282,39 @@ cmd_wizard() {
         fi
     fi
 
-    # Check if plan is already completed - offer verification step
+    # Completed plan - offer verification or reopen
     if [[ "$state" == "done" ]]; then
         echo ""
         log_info "This plan is already marked as completed."
-        run_verification_tim_loop "$WIZARD_PLAN_FILE" "Run verification tim-loop on completed plan? [y/N] "
-
-        # Move plan to completed/ folder if not already there
-        if [[ "$WIZARD_PLAN_FILE" != *"/plans/completed/"* ]]; then
+        echo "  [1] Run verification tim-loop  [2] Reopen to drafts"
+        echo "  [3] Reopen to active           [4] Exit"
+        echo -n "Choice [1-4]: "
+        read -r done_choice </dev/tty
+        case "$done_choice" in
+            1)
+                run_verification_tim_loop "$WIZARD_PLAN_FILE" "Confirm: run verification? [Y/n] "
+                if [[ "$WIZARD_PLAN_FILE" != *"/plans/completed/"* ]]; then
+                    cmd_complete "$WIZARD_PLAN_FILE"
+                    wizard_update_paths_after_move "completed"
+                fi
+                ;;
+            2|3)
+                local reopen_target="drafts"
+                [[ "$done_choice" == "3" ]] && reopen_target="active"
+                cmd_reopen "$WIZARD_PLAN_FILE" --to "$reopen_target" --reason "Reopened via wizard"
+                wizard_update_paths_after_move "$reopen_target"
+                state=$(get_plan_state "$WIZARD_PLAN_FILE")
+                ;;
+        esac
+        if [[ "$done_choice" == "2" || "$done_choice" == "3" ]]; then
+            :  # Continue to main wizard loop
+        else
             echo ""
-            log_info "Moving plan to completed/ folder..."
-            cmd_complete "$WIZARD_PLAN_FILE"
-            wizard_update_paths_after_move "completed"
+            echo "------------------------------------------------------------"
+            echo -e "${GREEN}Plan lifecycle complete!${NC}"
+            echo "------------------------------------------------------------"
+            return
         fi
-
-        echo ""
-        echo "------------------------------------------------------------"
-        echo -e "${GREEN}Plan lifecycle complete!${NC}"
-        echo "------------------------------------------------------------"
-        return
     fi
 
     # Main wizard loop - continues until plan is completed
@@ -331,7 +332,20 @@ cmd_wizard() {
                 exit 1
                 ;;
             abandoned)
-                log_warn "Plan was abandoned. Cannot continue."
+                log_warn "Plan was abandoned."
+                echo -n "Reopen? [y/N] "
+                read -r response </dev/tty
+                if [[ "$response" =~ ^[Yy] ]]; then
+                    echo "  [1] drafts (full review)  [2] active (re-implement)"
+                    echo -n "Choice [1-2]: "
+                    read -r reopen_choice </dev/tty
+                    local reopen_target="drafts"
+                    [[ "$reopen_choice" == "2" ]] && reopen_target="active"
+                    cmd_reopen "$WIZARD_PLAN_FILE" --to "$reopen_target" --reason "Reopened via wizard"
+                    wizard_update_paths_after_move "$reopen_target"
+                    state=$(get_plan_state "$WIZARD_PLAN_FILE")
+                    continue
+                fi
                 exit 0
                 ;;
             unknown)

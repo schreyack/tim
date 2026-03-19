@@ -2,12 +2,13 @@
 # plan-ops/reset.sh - Plan status reset functionality
 # Part of plan-ops.sh modular refactor
 #
-# Dependencies: core.sh, status.sh
-# Exports: reset_for_full_review
+# Dependencies: core.sh, status.sh, security.sh
+# Exports: reset_for_full_review, reset_for_reimplementation, cmd_reopen
 #
 # This file is sourced by plan-ops.sh, not executed directly.
 # shellcheck source=plan-ops/core.sh
 # shellcheck source=plan-ops/status.sh
+# shellcheck source=plan-ops/security.sh
 
 # Guard against direct execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -100,4 +101,150 @@ reset_for_full_review() {
     sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
 
     log_info "Reset plan status for full review"
+}
+
+# =============================================================================
+# RESET FOR REIMPLEMENTATION
+# =============================================================================
+
+# Reset implementation fields only, keeping reviews and approvals intact
+# Use when moving a completed/abandoned plan back to active for re-implementation
+# Does NOT move the file - caller is responsible for that
+reset_for_reimplementation() {
+    local file="$1"
+    local ts
+    ts=$(timestamp)
+
+    if [[ ! -f "$file" ]]; then
+        log_error "Plan file not found: $file"
+        return 1
+    fi
+
+    # Ensure all required Status Header fields exist before resetting
+    ensure_status_header_fields "$file"
+
+    # Reset Implementation Verified fields
+    if grep -qE "\| Implementation Verified[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| Implementation Verified[[:space:]]*|[^|]*|/| Implementation Verified | no |/" "$file"
+    fi
+    if grep -qE "\| Implementation Verified By[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| Implementation Verified By[[:space:]]*|[^|]*|/| Implementation Verified By | - |/" "$file"
+    fi
+    if grep -qE "\| Implementation Verified Date[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| Implementation Verified Date[[:space:]]*|[^|]*|/| Implementation Verified Date | - |/" "$file"
+    fi
+
+    # Reset Remediation Plan
+    if grep -qE "\| Remediation Plan[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| Remediation Plan[[:space:]]*|[^|]*|/| Remediation Plan | - |/" "$file"
+    fi
+
+    # Update Stage to active
+    if grep -qE "\| Stage[[:space:]]*\|" "$file"; then
+        sed -i '' "s/| Stage[[:space:]]*|[^|]*|/| Stage | active |/" "$file"
+    fi
+
+    # Update Last Updated
+    sed -i '' "s/| Last Updated[[:space:]]*|[^|]*|/| Last Updated | ${ts} |/" "$file"
+
+    log_info "Reset implementation fields for reimplementation"
+}
+
+# =============================================================================
+# REOPEN COMMAND
+# =============================================================================
+
+# Reopen a completed or abandoned plan, moving it to drafts or active
+cmd_reopen() {
+    # Block AI from running this command
+    verify_interactive_terminal
+
+    local plan_file="${1:-}"
+    local target=""
+    local reason="Plan reopened"
+
+    # Parse arguments
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --to)
+                target="$2"
+                shift 2
+                ;;
+            --reason)
+                reason="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$plan_file" ]]; then
+        log_error "Usage: $SCRIPT_PATH reopen <plan-file> --to <drafts|active> [--reason <reason>]"
+        exit 1
+    fi
+
+    if [[ -z "$target" ]]; then
+        log_error "Target stage required: --to <drafts|active>"
+        exit 1
+    fi
+
+    if [[ "$target" != "drafts" && "$target" != "active" ]]; then
+        log_error "Target must be 'drafts' or 'active', got: $target"
+        exit 1
+    fi
+
+    if [[ ! -f "$plan_file" ]]; then
+        log_error "Plan file not found: $plan_file"
+        exit 1
+    fi
+
+    # Convert to absolute path
+    plan_file=$(to_absolute "$plan_file")
+
+    # Verify plan is in completed or abandoned state
+    local current_stage
+    current_stage=$(get_status_field "$plan_file" "Stage")
+    if [[ "$plan_file" == *"/plans/completed/"* ]]; then
+        current_stage="completed"
+    elif [[ "$plan_file" == *"/plans/abandoned/"* ]]; then
+        current_stage="abandoned"
+    fi
+
+    if [[ "$current_stage" != "completed" && "$current_stage" != "abandoned" ]]; then
+        log_error "Can only reopen completed or abandoned plans (current: ${current_stage:-unknown})"
+        exit 1
+    fi
+
+    # Track if package for logging
+    local is_pkg=false
+    is_master_plan "$plan_file" && is_pkg=true
+
+    # Move plan/package to target stage
+    plan_file=$(move_plan_to_stage "$plan_file" "$target")
+
+    # Reset appropriate fields based on target
+    if [[ "$target" == "drafts" ]]; then
+        reset_for_full_review "$plan_file"
+    else
+        reset_for_reimplementation "$plan_file"
+    fi
+
+    # Update progress log
+    if ! update_status "$plan_file" "$target" "Reopened from ${current_stage}: ${reason}"; then
+        log_error "Failed to update status after reopen"
+        exit 1
+    fi
+
+    if [[ "$is_pkg" == true ]]; then
+        log_info "Reopened package to ${target}: $(dirname "$plan_file")"
+    else
+        log_info "Reopened to ${target}: $plan_file"
+    fi
+
+    echo ""
+    log_info "NEXT STEP: Use the wizard to continue:"
+    show_command "$SCRIPT_PATH wizard $plan_file"
 }

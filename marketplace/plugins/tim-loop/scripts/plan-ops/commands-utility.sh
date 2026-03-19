@@ -155,6 +155,12 @@ COMMANDS:
         Move plan from active to completed
         When run via wizard: offers optional verification tim-loop first
 
+    reopen <plan-file> --to <drafts|active> [--reason <reason>]
+        Reopen a completed or abandoned plan
+        - --to drafts: Full reset, plan goes back through entire review cycle
+        - --to active: Keep reviews/approvals, reset implementation fields only
+        Use when a plan needs rework or was abandoned prematurely
+
     abandon <plan-file> [--reason <reason>]
         Move plan to abandoned with optional reason
 
@@ -265,6 +271,8 @@ EXAMPLES:
     $SCRIPT_PATH execute plans/active/2025-01-16-feature-auth.md
     $SCRIPT_PATH fast-track my-plan.md --approver "Tim" --reason "Already reviewed in design meeting"
     $SCRIPT_PATH complete plans/active/2025-01-16-feature-auth.md
+    $SCRIPT_PATH reopen plans/completed/2025-01-16-feature-auth.md --to active --reason "Bug found"
+    $SCRIPT_PATH reopen plans/abandoned/old-plan.md --to drafts --reason "Requirements clarified"
     $SCRIPT_PATH abandon plans/drafts/old-plan.md --reason "Requirements changed"
     $SCRIPT_PATH list active
     $SCRIPT_PATH wizard ~/.claude/plans/new-plan.md

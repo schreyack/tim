@@ -20,6 +20,7 @@ set -euo pipefail
 #   execute           Output tim-loop command for active plan
 #   fast-track        Skip workflow and go directly to implementation
 #   complete          Move plan from active to completed
+#   reopen            Reopen a completed or abandoned plan
 #   abandon           Move plan to abandoned
 #   cleanup-drafts    Remove stale drafts
 #   list              List plans by stage
@@ -88,6 +89,7 @@ case "${1:-help}" in
     execute) cmd_execute "${@:2}" ;;
     fast-track) cmd_fast_track "${@:2}" ;;
     complete) cmd_complete "${@:2}" ;;
+    reopen) cmd_reopen "${@:2}" ;;
     abandon) cmd_abandon "${@:2}" ;;
     cleanup-drafts) cmd_cleanup_drafts "${@:2}" ;;
     list) cmd_list "${@:2}" ;;
