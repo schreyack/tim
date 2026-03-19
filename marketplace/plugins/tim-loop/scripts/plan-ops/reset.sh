@@ -232,6 +232,10 @@ cmd_reopen() {
     # Move plan/package to target stage
     plan_file=$(move_plan_to_stage "$plan_file" "$target")
 
+    # Ensure Status Header exists before resetting fields
+    add_status_header "$plan_file"
+    ensure_status_header_fields "$plan_file"
+
     # Reset appropriate fields based on target
     if [[ "$target" == "drafts" ]]; then
         reset_for_full_review "$plan_file"
