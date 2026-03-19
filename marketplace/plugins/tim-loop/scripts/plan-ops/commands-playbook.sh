@@ -21,8 +21,9 @@ _insert_run_log() {
     local progress_end_line
     progress_end_line=$(awk '/^### Progress Log/{found=1} found && /^---/{print NR; exit}' "$file")
     if [[ -n "$progress_end_line" ]]; then
-        local run_log_block
-        run_log_block=$(cat << 'RUNLOG'
+        # Write block to temp file to avoid awk multiline -v issues
+        local run_log_tmp="${file}.runlog.tmp"
+        cat > "$run_log_tmp" << 'RUNLOG'
 
 ### Run Log
 
@@ -31,11 +32,11 @@ _insert_run_log() {
 
 ---
 RUNLOG
-        )
-        awk -v n="$progress_end_line" -v block="$run_log_block" '
-            NR == n { print; print block; next }
+        awk -v n="$progress_end_line" '
+            NR == n { print; while ((getline line < "'"$run_log_tmp"'") > 0) print line; next }
             { print }
         ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+        rm -f "$run_log_tmp"
     fi
 }
 
@@ -237,7 +238,7 @@ cmd_playbook_log() {
     fi
 
     local pending_line
-    pending_line=$(grep -nE "^\|[^|]+\|[^|]+\| - \| - \|" "$playbook_file" | tail -1 | cut -d: -f1)
+    pending_line=$({ grep -nE "^\|[^|]+\|[^|]+\| - \| - \|" "$playbook_file" || true; } | tail -1 | cut -d: -f1)
     if [[ -z "$pending_line" ]]; then
         log_error "No pending run found — run the playbook first"
         exit 1
@@ -284,8 +285,15 @@ cmd_playbook_show() {
     echo ""
 
     if grep -qE "^### Run Log" "$playbook_file"; then
-        echo "Recent runs:"
-        grep -E "^\| [0-9]" "$playbook_file" | tail -5
+        # Extract only rows from the Run Log section (after "### Run Log", before next "---")
+        local run_rows
+        run_rows=$(awk '/^### Run Log/{found=1; next} found && /^---/{exit} found && /^\| [0-9]/{print}' "$playbook_file" | tail -5)
+        if [[ -n "$run_rows" ]]; then
+            echo "Recent runs:"
+            echo "$run_rows"
+        else
+            echo "No runs yet."
+        fi
         echo ""
     else
         echo "No run history."
