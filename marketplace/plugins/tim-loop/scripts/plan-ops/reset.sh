@@ -205,17 +205,23 @@ cmd_reopen() {
         plan_file=$(resolve_plan_path "$plan_file") || exit 1
     fi
 
-    # Verify plan is in completed or abandoned state
+    # Determine current stage from folder location (authoritative) or Status Header
     local current_stage
-    current_stage=$(get_status_field "$plan_file" "Stage")
     if [[ "$plan_file" == *"/plans/completed/"* ]]; then
         current_stage="completed"
     elif [[ "$plan_file" == *"/plans/abandoned/"* ]]; then
         current_stage="abandoned"
+    elif [[ "$plan_file" == *"/plans/active/"* ]]; then
+        current_stage="active"
+    elif [[ "$plan_file" == *"/plans/drafts/"* ]]; then
+        current_stage="draft"
+    else
+        current_stage=$(get_status_field "$plan_file" "Stage")
     fi
 
-    if [[ "$current_stage" != "completed" && "$current_stage" != "abandoned" ]]; then
-        log_error "Can only reopen completed or abandoned plans (current: ${current_stage:-unknown})"
+    # Block reopening to the same stage the plan is already in
+    if [[ "$current_stage" == "$target" ]] || [[ "$current_stage" == "draft" && "$target" == "drafts" ]]; then
+        log_error "Plan is already in ${current_stage}, nothing to reopen"
         exit 1
     fi
 
