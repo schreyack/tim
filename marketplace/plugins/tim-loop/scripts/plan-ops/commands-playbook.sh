@@ -182,6 +182,8 @@ cmd_playbook_import() {
         original_dest="${source_plans_dir}/completed/$(basename "$file")"
         mkdir -p "${source_plans_dir}/completed"
         mv "$file" "$original_dest"
+        add_status_header "$original_dest"
+        ensure_status_header_fields "$original_dest"
         update_status "$original_dest" "completed" "Promoted to playbook"
         log_info "Original plan moved to completed: $original_dest"
     fi
