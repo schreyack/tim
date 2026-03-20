@@ -93,13 +93,23 @@ class RedisRevocationStore:
     async def revoke(self, auth_id: str, ttl_seconds: int) -> None:
         """Revoke an auth_id. Key auto-expires after ttl_seconds.
 
+        Best-effort: logs and returns on Redis errors (matches is_revoked
+        fail-open design). Callers should not need to wrap this in try/except.
+
         Args:
             auth_id: The OIDC subject identifier to revoke.
             ttl_seconds: Time-to-live in seconds. Must exceed the access
                 token lifetime to close the revocation window.
         """
-        client = aioredis.Redis(connection_pool=self._pool)
-        await client.setex(f"{self._key_prefix}{auth_id}", ttl_seconds, 1)
+        try:
+            client = aioredis.Redis(connection_pool=self._pool)
+            await client.setex(f"{self._key_prefix}{auth_id}", ttl_seconds, 1)
+        except Exception:
+            logger.warning(
+                "revocation_set_failed",
+                extra={"auth_id": auth_id},
+                exc_info=True,
+            )
 
     async def close(self) -> None:
         """Shut down the connection pool. Call on app shutdown."""

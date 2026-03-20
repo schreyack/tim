@@ -11,9 +11,11 @@
  * export const { auth, handlers, signIn, signOut } = NextAuth(config);
  */
 
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import type { NextMiddleware } from "next/server";
+
+/** Middleware function type (avoids direct next/server import for portability). */
+type MiddlewareFn = (...args: unknown[]) => unknown;
 
 /** Configuration for Zitadel OIDC auth. */
 export interface ZitadelAuthConfig {
@@ -58,7 +60,7 @@ export interface AuthMiddlewareConfig {
   /** The auth() function from NextAuth — wraps middleware with session data. */
   auth: (
     handler: (req: AuthMiddlewareRequest) => Response | void | Promise<Response | void>,
-  ) => NextMiddleware;
+  ) => MiddlewareFn;
 }
 
 /** Request shape provided by Auth.js auth() wrapper. */
@@ -92,7 +94,7 @@ async function refreshAccessToken(
       return { ...token, error: "RefreshAccessTokenError" as const };
     }
 
-    const data: Record<string, unknown> = await response.json();
+    const data = (await response.json()) as Record<string, unknown>;
 
     return {
       ...token,
@@ -136,7 +138,7 @@ function buildAuthCallbacks(
   config: ZitadelAuthConfig,
 ): NonNullable<NextAuthConfig["callbacks"]> {
   return {
-    jwt({ token, account }) {
+    jwt({ token, account }: { token: JWT; account?: Record<string, unknown> | null }) {
       if (account) {
         token.accessToken = account.access_token as string;
         token.refreshToken = account.refresh_token as string;
@@ -151,7 +153,7 @@ function buildAuthCallbacks(
 
       return refreshAccessToken(token, config.issuerUrl, config.clientId);
     },
-    session({ session, token }) {
+    session({ session, token }: { session: Session; token: JWT }) {
       const s = session as unknown as ZitadelSession;
       s.accessToken = token.accessToken as string;
       s.idToken = token.idToken as string;
@@ -202,13 +204,10 @@ export function createZitadelAuthConfig(config: ZitadelAuthConfig): NextAuthConf
  */
 export function createAuthMiddleware(
   options: AuthMiddlewareConfig,
-): { middleware: NextMiddleware; config: { matcher: string[] } } {
+): { middleware: MiddlewareFn; config: { matcher: string[] } } {
   // Lazy import to avoid pulling next/server at module parse time
   // when this module is loaded in non-Next.js contexts (e.g. type checking)
-  const getNextResponse = async (): Promise<typeof import("next/server")> =>
-    import("next/server");
-
-  const middleware: NextMiddleware = options.auth(async (req) => {
+  const middleware: MiddlewareFn = options.auth((req) => {
     const { pathname } = req.nextUrl;
     const isPublic = options.publicRoutes.some(
       (r) => pathname === r || pathname.startsWith(r + "/"),
@@ -217,14 +216,14 @@ export function createAuthMiddleware(
       !req.auth?.user?.id || req.auth?.error === "RefreshAccessTokenError";
 
     if (needsAuth && !isPublic) {
-      const { NextResponse } = await getNextResponse();
-      return NextResponse.redirect(
+      return Response.redirect(
         new URL(
           "/api/auth/signin?callbackUrl=" + encodeURIComponent(req.url),
           req.url,
-        ),
+        ).toString(),
       );
     }
+    return undefined;
   });
 
   return {
