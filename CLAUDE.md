@@ -51,7 +51,7 @@ ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.
 - `ship` — full pipeline: commit, push, build, deploy, health check, commit overlay
 - `fetch <svc> <path>` — copy file from pod (allowed paths only)
 - `db backup|restore|migrate|shell|query|status` — database operations
-- `delete <job|pod> <name>` — delete a specific job or pod
+- `delete <type> <name>` — delete a resource (job, pod, scaledobject, triggerauthentication)
 - `cleanup [logs]` — remove completed/failed pods and jobs, or truncate node logs
 - `disk` — PVC and volume usage
 
