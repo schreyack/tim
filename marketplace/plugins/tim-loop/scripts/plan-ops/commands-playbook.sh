@@ -121,37 +121,47 @@ cmd_playbook_import() {
         fi
     fi
 
+    # Determine where the source lives (its project's plans dir)
+    local source_plans_dir
+    source_plans_dir=$(get_plans_dir_from_path "$file")
+
     local basename
     basename=$(basename "$file")
     if [[ ! "$basename" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2} ]]; then
         basename="$(date +%Y-%m-%d-%H-%M)-${basename}"
     fi
 
-    mkdir -p "${PLANS_DIR}/drafts"
-    local dest="${PLANS_DIR}/drafts/${basename}"
+    # Copy directly to playbooks/ (not drafts — import is for reviewed plans)
+    mkdir -p "${PLANS_DIR}/playbooks"
+    local dest="${PLANS_DIR}/playbooks/${basename}"
     cp "$file" "$dest"
-    log_info "Copied to: $dest"
 
-    local had_status=false
-    grep -qE "^## Status[[:space:]]*$" "$dest" && had_status=true
-
+    # Set up playbook status
     add_status_header "$dest"
     ensure_status_header_fields "$dest"
     _add_or_update_status_field "Type" "playbook" "Stage" "$dest"
+    update_status "$dest" "playbook" "Imported as playbook"
 
-    if [[ "$had_status" == true ]]; then
-        reset_for_full_review "$dest"
-        log_info "Reset lifecycle for imported playbook with existing Status Header"
-    fi
-
+    # Add Run Log if missing
     if ! grep -qE "^### Run Log" "$dest"; then
         _insert_run_log "$dest"
     fi
 
     log_info "Imported playbook: $dest"
+
+    # Move the original plan to completed (if it's in this project's plans/)
+    if [[ "$file" == "${source_plans_dir}/"* && "$file" != *"/plans/completed/"* && "$file" != *"/plans/playbooks/"* ]]; then
+        local original_dest
+        original_dest="${source_plans_dir}/completed/$(basename "$file")"
+        mkdir -p "${source_plans_dir}/completed"
+        mv "$file" "$original_dest"
+        update_status "$original_dest" "completed" "Promoted to playbook"
+        log_info "Original plan moved to completed: $original_dest"
+    fi
+
     echo ""
-    log_info "NEXT STEP: Run the wizard:"
-    show_command "$SCRIPT_PATH wizard $dest"
+    log_info "Playbook ready to run:"
+    show_command "$SCRIPT_PATH playbook run $(basename "$dest" .md)"
 }
 
 cmd_playbook_list() {
@@ -320,7 +330,7 @@ USAGE:
 
 SUBCOMMANDS:
     create <name>         Create a new playbook scaffold in drafts/
-    import <file>         Import an existing file as a playbook (copies to drafts/)
+    import <file>         Import a reviewed plan as a playbook (moves to playbooks/, original to completed/)
     list                  List all playbooks in the playbooks/ stage
     run <playbook>        Start a playbook run (interactive terminal required)
     log <playbook> --result <success|failure|partial> [--notes "..."]
@@ -330,17 +340,15 @@ SUBCOMMANDS:
 
 EXAMPLES:
     $SCRIPT_PATH playbook create deploy-checklist
-    $SCRIPT_PATH playbook import ~/my-runbook.md
+    $SCRIPT_PATH playbook import auth-e2e-smoke-test
     $SCRIPT_PATH playbook list
     $SCRIPT_PATH playbook run deploy-checklist
     $SCRIPT_PATH playbook log deploy-checklist --result success --notes "All checks passed"
     $SCRIPT_PATH playbook show deploy-checklist
 
 WORKFLOW:
-    1. Create or import a playbook
-    2. Use the wizard to move it through review to playbooks/
-    3. Run the playbook as needed with 'playbook run'
-    4. Log results with 'playbook log'
-    5. View history with 'playbook show'
+    Create new:  create → wizard (review) → playbook run
+    From plan:   import <plan> → playbook run (original moved to completed/)
+    After run:   playbook log → playbook show
 EOF
 }
