@@ -43,6 +43,33 @@ RUNLOG
 # Resolve and validate a playbook is in playbooks/
 _resolve_playbook() {
     local arg="$1"
+
+    # If it's a direct path to a file, use it
+    if [[ "$arg" == */* && -f "$arg" ]]; then
+        local abs_path
+        abs_path=$(to_absolute "$arg")
+        if [[ "$abs_path" == *"/plans/playbooks/"* ]]; then
+            echo "$abs_path"
+            return 0
+        fi
+        log_error "Not a playbook (not in playbooks/): $abs_path"
+        exit 1
+    fi
+
+    # Search by name — look in playbooks/ first to avoid disambiguation
+    # with copies in completed/ or other stages
+    local search_name="${arg%.md}"
+    local playbooks_dir="${PLANS_DIR}/playbooks"
+    if [[ -d "$playbooks_dir" ]]; then
+        local match
+        match=$(find "$playbooks_dir" -maxdepth 1 -name "*${search_name}*" -type f 2>/dev/null | head -1)
+        if [[ -n "$match" ]]; then
+            echo "$match"
+            return 0
+        fi
+    fi
+
+    # Fallback to general resolve (for ~/.claude/plans/playbooks/ etc.)
     local playbook_file
     playbook_file=$(resolve_plan_path "$arg") || exit 1
     if [[ "$playbook_file" != *"/plans/playbooks/"* ]]; then
