@@ -7,35 +7,35 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./config": {
-      "types": "./src/config.ts",
+      "types": "./dist/config.d.ts",
       "import": "./dist/config.js"
     },
     "./logging": {
-      "types": "./src/logging.ts",
+      "types": "./dist/logging.d.ts",
       "import": "./dist/logging.js"
     },
     "./security": {
-      "types": "./src/security.ts",
+      "types": "./dist/security.d.ts",
       "import": "./dist/security.js"
     },
     "./api": {
-      "types": "./src/api.ts",
+      "types": "./dist/api.d.ts",
       "import": "./dist/api.js"
     },
     "./testing": {
-      "types": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
       "import": "./dist/testing.js"
     },
     "./auth": {
-      "types": "./src/auth.ts",
+      "types": "./dist/auth.d.ts",
       "import": "./dist/auth.js"
     },
     "./auth-client": {
-      "types": "./src/auth-client.ts",
+      "types": "./dist/auth-client.d.ts",
       "import": "./dist/auth-client.js"
     }
   },

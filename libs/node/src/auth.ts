@@ -14,8 +14,6 @@
 import type { NextAuthConfig, Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 
-/** Middleware function type (avoids direct next/server import for portability). */
-type MiddlewareFn = (...args: unknown[]) => unknown;
 
 /** Configuration for Zitadel OIDC auth. */
 export interface ZitadelAuthConfig {
@@ -53,18 +51,8 @@ export interface ZitadelJWT {
   error?: "RefreshAccessTokenError";
 }
 
-/** Options for createAuthMiddleware. */
-export interface AuthMiddlewareConfig {
-  /** Routes that do not require authentication. */
-  publicRoutes: string[];
-  /** The auth() function from NextAuth — wraps middleware with session data. */
-  auth: (
-    handler: (req: AuthMiddlewareRequest) => Response | void | Promise<Response | void>,
-  ) => MiddlewareFn;
-}
-
 /** Request shape provided by Auth.js auth() wrapper. */
-interface AuthMiddlewareRequest {
+export interface AuthMiddlewareRequest {
   auth?: {
     user?: { id?: string };
     error?: string;
@@ -190,24 +178,26 @@ export function createZitadelAuthConfig(config: ZitadelAuthConfig): NextAuthConf
 }
 
 /**
- * Create a Next.js middleware that protects routes via Auth.js.
+ * Create a Next.js auth middleware handler that protects routes.
  *
  * Public routes bypass auth. All other matched routes redirect unauthenticated
  * users to the sign-in page.
  *
- * Returns both the middleware function and the Next.js matcher config:
+ * Returns a handler and the Next.js matcher config. The consumer wraps the
+ * handler with NextAuth's auth() to inject session data:
  * ```ts
- * const { middleware, config } = createAuthMiddleware({ publicRoutes, auth });
- * export default middleware;
+ * const { handler, config } = createAuthMiddleware({ publicRoutes });
+ * export default auth((req) => handler(req));
  * export { config };
  * ```
  */
-export function createAuthMiddleware(
-  options: AuthMiddlewareConfig,
-): { middleware: MiddlewareFn; config: { matcher: string[] } } {
-  // Lazy import to avoid pulling next/server at module parse time
-  // when this module is loaded in non-Next.js contexts (e.g. type checking)
-  const middleware: MiddlewareFn = options.auth((req) => {
+export function createAuthMiddleware(options: {
+  publicRoutes: string[];
+}): {
+  handler: (req: AuthMiddlewareRequest) => Response | undefined;
+  config: { matcher: string[] };
+} {
+  const handler = (req: AuthMiddlewareRequest): Response | undefined => {
     const { pathname } = req.nextUrl;
     const isPublic = options.publicRoutes.some(
       (r) => pathname === r || pathname.startsWith(r + "/"),
@@ -221,13 +211,14 @@ export function createAuthMiddleware(
           "/api/auth/signin?callbackUrl=" + encodeURIComponent(req.url),
           req.url,
         ).toString(),
+        302,
       );
     }
     return undefined;
-  });
+  };
 
   return {
-    middleware,
+    handler,
     config: {
       matcher: [
         "/((?!api/auth|_next/static|_next/image|favicon.ico|api/).*)",
