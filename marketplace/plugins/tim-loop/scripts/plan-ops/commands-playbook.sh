@@ -106,9 +106,19 @@ cmd_playbook_import() {
         log_error "Usage: $SCRIPT_PATH playbook import <file>"
         exit 1
     fi
-    if [[ ! -f "$file" ]]; then
-        log_error "File not found: $file"
-        exit 1
+    # Try to resolve - first as literal path, then by searching
+    if [[ -f "$file" ]]; then
+        file=$(to_absolute "$file")
+    else
+        local resolved
+        resolved=$(resolve_plan_path "$file" 2>/dev/null) || true
+        if [[ -n "$resolved" && -f "$resolved" ]]; then
+            file="$resolved"
+        else
+            log_error "File not found: $file"
+            log_info "Searched in: current directory, $PLANS_DIR/*, $CLAUDE_PLANS_DIR"
+            exit 1
+        fi
     fi
 
     local basename
