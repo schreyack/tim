@@ -8,35 +8,43 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./config": {
       "types": "./dist/config.d.ts",
-      "import": "./dist/config.js"
+      "import": "./dist/config.js",
+      "default": "./dist/config.js"
     },
     "./logging": {
       "types": "./dist/logging.d.ts",
-      "import": "./dist/logging.js"
+      "import": "./dist/logging.js",
+      "default": "./dist/logging.js"
     },
     "./security": {
       "types": "./dist/security.d.ts",
-      "import": "./dist/security.js"
+      "import": "./dist/security.js",
+      "default": "./dist/security.js"
     },
     "./api": {
       "types": "./dist/api.d.ts",
-      "import": "./dist/api.js"
+      "import": "./dist/api.js",
+      "default": "./dist/api.js"
     },
     "./testing": {
       "types": "./dist/testing.d.ts",
-      "import": "./dist/testing.js"
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     },
     "./auth": {
       "types": "./dist/auth.d.ts",
-      "import": "./dist/auth.js"
+      "import": "./dist/auth.js",
+      "default": "./dist/auth.js"
     },
     "./auth-client": {
       "types": "./dist/auth-client.d.ts",
-      "import": "./dist/auth-client.js"
+      "import": "./dist/auth-client.js",
+      "default": "./dist/auth-client.js"
     }
   },
   "scripts": {
