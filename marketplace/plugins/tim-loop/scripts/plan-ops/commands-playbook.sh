@@ -133,17 +133,30 @@ cmd_playbook_import() {
         log_error "Usage: $SCRIPT_PATH playbook import <file>"
         exit 1
     fi
-    # Try to resolve - first as literal path, then by searching
+    # Resolve the source plan
     if [[ -f "$file" ]]; then
         file=$(to_absolute "$file")
     else
-        local resolved
-        resolved=$(resolve_plan_path "$file" 2>/dev/null) || true
-        if [[ -n "$resolved" && -f "$resolved" ]]; then
-            file="$resolved"
+        # Search only importable stages (drafts, active) — not playbooks/completed
+        local search_name="${file%.md}" match=""
+        for stage in drafts active; do
+            local stage_dir="${PLANS_DIR}/${stage}"
+            [[ -d "$stage_dir" ]] || continue
+            match=$(find "$stage_dir" -maxdepth 1 -name "*${search_name}*" -type f 2>/dev/null | head -1)
+            [[ -n "$match" ]] && break
+        done
+        if [[ -n "$match" ]]; then
+            file="$match"
         else
+            # Check if already imported
+            local existing
+            existing=$(find "${PLANS_DIR}/playbooks" -maxdepth 1 -name "*${search_name}*" -type f 2>/dev/null | head -1)
+            if [[ -n "$existing" ]]; then
+                log_error "Already imported as playbook: $existing"
+                exit 1
+            fi
             log_error "File not found: $file"
-            log_info "Searched in: current directory, $PLANS_DIR/*, $CLAUDE_PLANS_DIR"
+            log_info "Searched in: $PLANS_DIR/drafts, $PLANS_DIR/active"
             exit 1
         fi
     fi
