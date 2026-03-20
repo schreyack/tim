@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from fastapi import HTTPException, status
 
@@ -34,8 +34,10 @@ from tim_lib.revocation import RevocationStore
 
 logger = logging.getLogger(__name__)
 
+UserT = TypeVar("UserT", bound=AuthUser)
 
-class FastAPIAuth:
+
+class FastAPIAuth(Generic[UserT]):
     """FastAPI authentication orchestrator.
 
     Methods are not FastAPI dependencies themselves; they're called from
@@ -60,8 +62,8 @@ class FastAPIAuth:
     def __init__(
         self,
         verifier: OIDCVerifier,
-        user_loader: Callable[[Any, str], Awaitable[AuthUser | None]],
-        user_creator: Callable[[Any, dict[str, Any]], Awaitable[AuthUser]],
+        user_loader: Callable[[Any, str], Awaitable[UserT | None]],
+        user_creator: Callable[[Any, dict[str, Any]], Awaitable[UserT]],
         revocation_store: RevocationStore | None = None,
         admin_check: Callable[[Any], bool] | None = None,
         email_verified_required: bool = True,
@@ -73,7 +75,7 @@ class FastAPIAuth:
         self._admin_check = admin_check
         self._email_verified_required = email_verified_required
 
-    async def authenticate(self, token: str, db: Any) -> AuthUser:
+    async def authenticate(self, token: str, db: Any) -> UserT:
         """Full authentication flow: verify, check revocation, load/create user.
 
         Flow:
@@ -132,7 +134,7 @@ class FastAPIAuth:
 
     async def _load_or_create_user(
         self, db: Any, claims: dict[str, Any], token: str
-    ) -> AuthUser:
+    ) -> UserT:
         """Load existing user or create a new one from claims."""
         sub: str = claims.get("sub", "")
         user = await self._user_loader(db, sub)
@@ -146,7 +148,7 @@ class FastAPIAuth:
             claims.pop("__token__", None)
         return user
 
-    def check_admin(self, user: AuthUser) -> AuthUser:
+    def check_admin(self, user: UserT) -> UserT:
         """Verify user has admin privileges.
 
         Args:
