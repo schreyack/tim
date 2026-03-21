@@ -1,20 +1,56 @@
 {
-  "name": "@tim/lib",
+  "name": "@timlib/lib",
   "version": "1.0.0",
   "description": "TIM Standards shared Node.js/TypeScript library",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "typesVersions": {
-    "*": {
-      "auth": ["dist/auth.d.ts"],
-      "auth-client": ["dist/auth-client.d.ts"],
-      "config": ["dist/config.d.ts"],
-      "logging": ["dist/logging.d.ts"],
-      "security": ["dist/security.d.ts"],
-      "api": ["dist/api.d.ts"],
-      "testing": ["dist/testing.d.ts"]
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "default": "./dist/config.js"
+    },
+    "./logging": {
+      "types": "./dist/logging.d.ts",
+      "import": "./dist/logging.js",
+      "default": "./dist/logging.js"
+    },
+    "./security": {
+      "types": "./dist/security.d.ts",
+      "import": "./dist/security.js",
+      "default": "./dist/security.js"
+    },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js",
+      "default": "./dist/api.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js",
+      "default": "./dist/auth.js"
+    },
+    "./auth-client": {
+      "types": "./dist/auth-client.d.ts",
+      "import": "./dist/auth-client.js",
+      "default": "./dist/auth-client.js"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schreyack/tim.git",
+    "directory": "libs/node"
   },
   "scripts": {
     "build": "tsc",
@@ -75,8 +111,6 @@
   },
   "files": [
     "dist",
-    "auth.js",
-    "auth-client.js",
     "README.md"
   ],
   "keywords": [
