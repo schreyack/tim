@@ -1,6 +1,6 @@
 {
   "name": "@timlib/lib",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "TIM Standards shared Node.js/TypeScript library",
   "type": "module",
   "main": "dist/index.js",
