@@ -14,3 +14,5 @@ export * from "./logging.js";
 export * from "./security.js";
 export * from "./api.js";
 export * from "./testing.js";
+export * from "./auth.js";
+export * from "./auth-client.js";

@@ -32,7 +32,16 @@ from tim_lib.db import (
     get_db_session,
     get_session_factory,
 )
+from tim_lib.auth_fastapi import FastAPIAuth
 from tim_lib.logging import configure_logging, get_logger
+from tim_lib.oidc import (
+    AuthUser,
+    InvalidTokenError,
+    OIDCVerificationError,
+    OIDCVerifier,
+    TokenExpiredError,
+)
+from tim_lib.revocation import RedisRevocationStore, RevocationStore
 from tim_lib.security import (
     TokenValidationError,
     constant_time_compare,
@@ -47,15 +56,26 @@ from tim_lib.security import (
 __all__ = [
     # API
     "AppError",
+    # Auth (OIDC)
+    "AuthUser",
     # Database
     "Base",
     # Config
     "BaseAppSettings",
     "ConflictError",
     "DatabaseHealthCheck",
+    # Auth (FastAPI)
+    "FastAPIAuth",
     "ForbiddenError",
+    "InvalidTokenError",
     "NotFoundError",
+    "OIDCVerificationError",
+    "OIDCVerifier",
     "RateLimitMiddleware",
+    # Auth (Revocation)
+    "RedisRevocationStore",
+    "RevocationStore",
+    "TokenExpiredError",
     "TokenValidationError",
     "UnauthorizedError",
     "ValidationError",
