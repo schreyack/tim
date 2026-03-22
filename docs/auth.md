@@ -275,6 +275,199 @@ function handleSignOut(idToken: string) {
 
 Note: import from `@timlib/lib/auth-client` (not `auth`) — the client module has no server dependencies and is safe for "use client" components.
 
+## Frontend UI Patterns
+
+tim-lib handles the auth plumbing. You still build your own UI pages. Here are the common patterns.
+
+### Sign-in page
+
+Zitadel handles the actual login form (PKCE redirect). Your sign-in page just triggers it:
+
+```typescript
+// src/app/signin/page.tsx
+import { signIn } from "@/auth";
+
+export default function SignInPage() {
+  return (
+    <form
+      action={async () => {
+        "use server";
+        await signIn("zitadel");
+      }}
+    >
+      <button type="submit">Sign in</button>
+    </form>
+  );
+}
+```
+
+### Auth error page
+
+Auth.js redirects here on failures. Show the error and a retry link:
+
+```typescript
+// src/app/auth/error/page.tsx
+export default function AuthErrorPage({
+  searchParams,
+}: {
+  searchParams: { error?: string };
+}) {
+  return (
+    <div>
+      <h1>Authentication Error</h1>
+      <p>{searchParams.error ?? "Something went wrong"}</p>
+      <a href="/signin">Try again</a>
+    </div>
+  );
+}
+```
+
+### Session-aware navigation
+
+Access the session in a server component, pass tokens to a client component for sign-out:
+
+```typescript
+// src/components/NavAuth.tsx (server wrapper)
+import { auth } from "@/auth";
+import { NavAuthClient } from "./NavAuthClient";
+
+export async function NavAuth() {
+  const session = await auth();
+  if (!session?.user) return <a href="/signin">Sign in</a>;
+  return <NavAuthClient session={session} />;
+}
+```
+
+```typescript
+// src/components/NavAuthClient.tsx (client component)
+"use client";
+
+import { buildOidcSignOutUrl } from "@timlib/lib/auth-client";
+
+export function NavAuthClient({ session }: { session: any }) {
+  const handleSignOut = async () => {
+    // 1. Clear the Next.js session
+    await fetch("/api/auth/signout", { method: "POST" });
+    // 2. Clear the Zitadel session (full OIDC sign-out)
+    const url = buildOidcSignOutUrl(
+      process.env.NEXT_PUBLIC_ZITADEL_ISSUER_URL!,
+      session.idToken,
+      `${window.location.origin}/api/auth/post-logout`,
+    );
+    window.location.href = url;
+  };
+
+  return (
+    <div>
+      <span>{session.user.name}</span>
+      {session.user.image && <img src={session.user.image} alt="" />}
+      <button onClick={handleSignOut}>Sign out</button>
+    </div>
+  );
+}
+```
+
+### Post-logout callback
+
+Zitadel redirects here after OIDC sign-out. Clear any remaining session state and redirect home:
+
+```typescript
+// src/app/api/auth/post-logout/route.ts
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.redirect(new URL("/", process.env.AUTH_URL!));
+}
+```
+
+### Accessing the session
+
+**Server components** — use `auth()` directly:
+
+```typescript
+import { auth } from "@/auth";
+
+export default async function DashboardPage() {
+  const session = await auth();
+  if (!session) redirect("/signin");
+  // session.user.id, session.accessToken, session.idToken
+}
+```
+
+**Client components** — pass the session as a prop from a server parent, or use Auth.js `SessionProvider`:
+
+```typescript
+// layout.tsx (server)
+import { auth } from "@/auth";
+import { SessionProvider } from "next-auth/react";
+
+export default async function Layout({ children }) {
+  const session = await auth();
+  return <SessionProvider session={session}>{children}</SessionProvider>;
+}
+
+// any-client-component.tsx
+"use client";
+import { useSession } from "next-auth/react";
+
+function UserGreeting() {
+  const { data: session } = useSession();
+  return <p>Hello {session?.user?.name}</p>;
+}
+```
+
+**API routes** — use `auth()` as middleware:
+
+```typescript
+import { auth } from "@/auth";
+
+export const GET = auth(async (req) => {
+  if (!req.auth) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  return Response.json({ user: req.auth.user });
+});
+```
+
+### Account deletion with sign-out
+
+Full flow: confirm deletion, call backend, then sign out of both Next.js and Zitadel:
+
+```typescript
+"use client";
+
+import { buildOidcSignOutUrl } from "@timlib/lib/auth-client";
+
+async function handleDeleteAccount(session: any) {
+  const res = await fetch("/api/v1/auth/me", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify({ confirmation: "DELETE" }),
+  });
+
+  if (!res.ok) throw new Error("Deletion failed");
+
+  // Sign out after deletion
+  const url = buildOidcSignOutUrl(
+    process.env.NEXT_PUBLIC_ZITADEL_ISSUER_URL!,
+    session.idToken,
+    `${window.location.origin}/api/auth/post-logout`,
+  );
+  window.location.href = url;
+}
+```
+
+### Sign-out: why two steps?
+
+Calling `signOut()` from Auth.js only clears the **Next.js session cookie**. The user is still logged in at **Zitadel**. If they visit your app again, Zitadel silently re-issues tokens and they're logged back in.
+
+To fully sign out, you need both:
+1. Clear the Next.js session (`/api/auth/signout`)
+2. Redirect to Zitadel's `end_session` endpoint (`buildOidcSignOutUrl`)
+
+The `id_token_hint` parameter tells Zitadel which session to destroy. Without it, Zitadel shows a "which account?" prompt.
+
 ## Environment Variables
 
 ### Backend
