@@ -141,7 +141,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: cd libs/node && npm ci && npm publish --provenance --access public
+      - run: cd libs/node && npm install && npm publish --provenance --access public
 
   # ==========================================================================
   # SHELLCHECK FOR TOOLS
