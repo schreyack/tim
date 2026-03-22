@@ -130,7 +130,6 @@ jobs:
   # ==========================================================================
   publish-node:
     name: Publish @timlib/lib
-    needs: [node-libs]
     if: startsWith(github.ref, 'refs/tags/node-v')
     runs-on: ubuntu-latest
     permissions:
