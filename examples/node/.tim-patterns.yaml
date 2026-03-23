@@ -9,7 +9,7 @@ project:
 patterns:
   # File organization
   structure:
-    max_file_lines: 400
+    max_file_lines: 500
     max_function_lines: 50
 
   # API patterns
@@ -87,4 +87,4 @@ enforcement:
   ci:
     - all pre-commit checks
     - vitest with coverage reporting
-    - file size check (max 400 lines)
+    - file size check (max 500 lines)

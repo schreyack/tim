@@ -69,7 +69,8 @@ sync_project() {
             local https_url="https://github.com/${sub_origin#git@github.com:}"
             git -C "$project" config --file .gitmodules submodule.lib/tim.url "$https_url"
             git -C "$project" config submodule.lib/tim.url "$https_url" 2>/dev/null || true
-            git -C "$project/lib/tim" remote set-url origin "$https_url" 2>/dev/null || true
+            # Only rewrite inside submodule if it's initialized (has .git)
+            [[ -e "$project/lib/tim/.git" ]] && git -C "$project/lib/tim" remote set-url origin "$https_url" 2>/dev/null || true
             echo -e "  ${GREEN}✓${NC} rewrote submodule URL SSH→HTTPS"
         fi
         # Init if empty (never had submodule update --init)

@@ -5,7 +5,7 @@
 # Note: This file is auto-copied to projects on first /tim-loop run
 #
 # Modular refactor: This is the main entry point that sources modular components.
-# Each module is under 400 lines to comply with TIM standards.
+# Each module is under 500 lines to comply with TIM standards.
 set -euo pipefail
 
 # plan-ops.sh - TIM Plan Lifecycle Management

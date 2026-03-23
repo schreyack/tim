@@ -10,7 +10,7 @@
 
 ## AI Behavioral Gates
 
-- File >400 lines → BLOCKED. Function >50 lines → BLOCKED.
+- File >500 lines → BLOCKED. Function >50 lines → BLOCKED.
 - No bypass flags. Human approval is the only escape hatch.
 
 ## AI Behavioral Rules

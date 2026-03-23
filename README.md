@@ -109,7 +109,7 @@ Tim Loop uses hooks to prevent the common ways AI goes off the rails:
 
 **Context compaction survival** - When conversations get long, Claude compresses old messages and loses track of the original goal. Tim Loop's PreCompact hook reinjects the *exact* original task prompt during compaction, so Claude never forgets what it's supposed to be doing.
 
-**Code quality gates** enforce file size (400 lines) and function length (50 lines) limits in real-time. Violations block progress until fixed.
+**Code quality gates** enforce file size (500 lines) and function length (50 lines) limits in real-time. Violations block progress until fixed.
 
 The result: Claude stays focused on your goal even through long sessions, can't declare victory early, and can't make excuses.
 
@@ -428,7 +428,7 @@ The TIM standards require:
 | Test coverage | Reported | Reviewer signal |
 | Security vulns | 0 HIGH/CRITICAL | CI blocks merge |
 | Secrets in code | 0 | Pre-commit blocks |
-| File size | 400 lines max | CI + AI behavioral gates |
+| File size | 500 lines max | CI + AI behavioral gates |
 | Function size | 50 lines max | CI + AI behavioral gates |
 | Complexity | 10 max | CI blocks merge |
 | Shared lib usage | Required | Compliance check |

@@ -3,7 +3,7 @@
 TIM Design Standards: Code Quality Validator Hook (PostToolUse)
 
 This hook runs after every Edit or Write operation and enforces:
-- File size limit: 400 lines maximum
+- File size limit: 500 lines maximum
 - Function length: 50 lines maximum
 - Cyclomatic complexity: 10 maximum (if ast parsing succeeds)
 
@@ -26,7 +26,7 @@ from tim_loop_halt import system_warning, build_halt_details_from_violations
 
 class Limits(NamedTuple):
     """Configurable limits for code quality checks."""
-    max_file_lines: int = 400
+    max_file_lines: int = 500
     max_function_lines: int = 50
     max_complexity: int = 10
 

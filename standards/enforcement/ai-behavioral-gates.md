@@ -25,7 +25,7 @@ These gates enforce accountability through deterministic hooks that AI cannot by
 
 | Check | Limit | Rationale |
 |-------|-------|-----------|
-| File size | 400 lines max | Large files indicate poor modularity |
+| File size | 500 lines max | Large files indicate poor modularity |
 | Function length | 50 lines max | Long functions indicate poor decomposition |
 | Complexity | 10 max (cyclomatic) | Complex code is hard to test and maintain |
 
@@ -191,7 +191,7 @@ Edit `code-quality-validator.py` to adjust limits:
 
 ```python
 class Limits(NamedTuple):
-    max_file_lines: int = 400      # TIM standard
+    max_file_lines: int = 500      # TIM standard
     max_function_lines: int = 50   # TIM standard
     max_complexity: int = 10       # TIM standard
 ```

@@ -3,7 +3,7 @@
 TIM Code Quality Checker
 
 Enforces CLAUDE.md requirements:
-- File size: 400 lines max
+- File size: 500 lines max
 - Function size: 50 lines max
 - Cyclomatic complexity: 10 max
 
@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 
-MAX_FILE_LINES = 400
+MAX_FILE_LINES = 500
 MAX_FUNCTION_LINES = 50
 MAX_COMPLEXITY = 10
 

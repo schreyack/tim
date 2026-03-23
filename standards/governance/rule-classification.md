@@ -25,7 +25,7 @@ Understanding the difference helps teams know:
 | Category | Principle Examples | Contextual Examples |
 |----------|-------------------|---------------------|
 | Philosophy | Trust but verify, Human oversight | - |
-| Code Size | Code must be comprehensible | 400 lines max |
+| Code Size | Code must be comprehensible | 500 lines max |
 | Testing | Must have coverage reporting | Coverage reported |
 | Tools | Must use a linter | ruff vs. black |
 | Deployment | Human approval for prod | Canary 10% split |
@@ -141,7 +141,7 @@ These are calibrations based on current understanding. They may change as AI cap
 
 | Rule | Current Value | Review Trigger |
 |------|---------------|----------------|
-| Max lines per source file | 400 | Context windows > 500K with demonstrated comprehension |
+| Max lines per source file | 500 | Context windows > 500K with demonstrated comprehension |
 | Max lines per test file | 500 | Context windows > 500K with demonstrated comprehension |
 | Max lines per config file | 200 | Context windows > 500K with demonstrated comprehension |
 | Max lines per type definitions | 300 | Context windows > 500K with demonstrated comprehension |

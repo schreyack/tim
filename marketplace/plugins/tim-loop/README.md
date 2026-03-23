@@ -435,7 +435,7 @@ Runs after every `Edit` or `Write` operation:
 
 | Check | Limit | Action |
 |-------|-------|--------|
-| File size | 400 lines max | Blocks until refactored |
+| File size | 500 lines max | Blocks until refactored |
 | Function length | 50 lines max | Blocks until split |
 | Cyclomatic complexity | 10 max | Blocks until simplified |
 
@@ -444,7 +444,7 @@ When a violation is detected, Claude receives a blocking response:
 ```text
 CODE QUALITY VIOLATION in page.tsx:
 
-- File has 542 lines (max: 400). Must be refactored into smaller modules.
+- File has 542 lines (max: 500). Must be refactored into smaller modules.
 
 TIM Standards require this file to be refactored before continuing.
 This is a HARD REQUIREMENT - no exceptions.
@@ -1059,7 +1059,7 @@ When max iterations is reached without verification, tim-loop marks the plan as 
 
 ### Code quality validator keeps blocking
 
-The validator enforces TIM standards (400-line files, 50-line functions, complexity 10). If you're blocked:
+The validator enforces TIM standards (500-line files, 50-line functions, complexity 10). If you're blocked:
 
 1. Refactor the file into smaller modules
 2. Extract large functions into smaller units

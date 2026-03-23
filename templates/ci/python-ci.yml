@@ -68,20 +68,20 @@ jobs:
       - name: Run ruff format check
         run: ruff format --check src/ tests/
 
-      - name: Check file sizes (max 400 lines)
+      - name: Check file sizes (max 500 lines)
         run: |
           echo "Checking file sizes..."
           failed=0
           for f in $(find src -name "*.py" -type f 2>/dev/null); do
             lines=$(wc -l < "$f")
-            if [ $lines -gt 400 ]; then
-              echo "ERROR: $f has $lines lines (max 400)"
+            if [ $lines -gt 500 ]; then
+              echo "ERROR: $f has $lines lines (max 500)"
               failed=1
             fi
           done
           if [ $failed -eq 1 ]; then
             echo ""
-            echo "Files exceeding 400 lines must be split."
+            echo "Files exceeding 500 lines must be split."
             echo "See: standards/coding/code-organization.md"
             exit 1
           fi

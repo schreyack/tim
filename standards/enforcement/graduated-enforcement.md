@@ -129,7 +129,7 @@ description: "Full TIM compliance required"
 rules:
   type_check: block
   test_coverage: report  # Coverage reported, not gated
-  file_size: block  # 400 lines
+  file_size: block  # 500 lines
   complexity: block  # 10 max
   secrets: block
   security_vulns: block
@@ -173,7 +173,7 @@ rules:
 
 - Type coverage: 100%
 - Test coverage: reported (all tests pass)
-- No files > 400 lines
+- No files > 500 lines
 - No functions > 50 lines or complexity > 10
 - All patterns registered (no MIGRATION status)
 
@@ -298,7 +298,7 @@ metrics:
     current: 20
     trend: decreasing
 
-  files_over_400:
+  files_over_500:
     initial: 8
     current: 3
     trend: decreasing
@@ -326,7 +326,7 @@ Projects should report:
 | Enforcement Level | 3 | 4 | 🟡 |
 | Type Errors | 85 | 0 | 🟡 |
 | Test Coverage | 84% | Reported | ✅ |
-| Files > 400 | 3 | 0 | 🟡 |
+| Files > 500 | 3 | 0 | 🟡 |
 
 ## Edge Cases
 

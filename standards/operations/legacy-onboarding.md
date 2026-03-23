@@ -61,7 +61,7 @@ Create `MIGRATION.md` in project root:
 
 ### Files
 - Total Python/TS files: ___
-- Files > 400 lines: ___
+- Files > 500 lines: ___
 - Avg file size: ___ lines
 
 ### Type Coverage
@@ -336,7 +336,7 @@ mypy src --strict 2>&1 | grep "error:" | wc -l
 
 ### 4.2 Split Large Files
 
-Files > 400 lines must be split:
+Files > 500 lines must be split:
 
 1. Identify logical groupings in the file
 2. Create new module structure
@@ -495,7 +495,7 @@ See [Gates - Exception Process](../enforcement/gates.md#exception-process) for f
 |--------|-------|--------|---------|
 | Type coverage | ___% | 100% | ___% |
 | Test coverage | ___% | Reported | ___% |
-| Files > 400 lines | ___ | 0 | ___ |
+| Files > 500 lines | ___ | 0 | ___ |
 | Functions > 50 lines | ___ | 0 | ___ |
 | Pre-commit passing | No | Yes | ___ |
 | CI gates passing | No | Yes | ___ |

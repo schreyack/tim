@@ -93,7 +93,7 @@ poetry run pytest --cov --cov-report=term-missing
 ## Standards Demonstrated
 
 ### Code Organization
-- Max 400 lines per file
+- Max 500 lines per file
 - Max 50 lines per function
 - Cyclomatic complexity limit of 10
 

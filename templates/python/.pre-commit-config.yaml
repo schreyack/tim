@@ -156,7 +156,7 @@ repos:
   # CLAUDE.md Enforcement - Catch AI instruction violations
   - repo: local
     hooks:
-      # Code quality: 400 line files, 50 line functions, complexity 10
+      # Code quality: 500 line files, 50 line functions, complexity 10
       - id: code-quality
         name: Code quality (file size, function size, complexity)
         entry: python3 lib/tim/tools/check-code-quality.py --language python

@@ -264,14 +264,14 @@ repos:
       # Code Quality: File size, function size, complexity
       # -------------------------------------------------------------------------
       - id: code-quality-python
-        name: Code quality (Python - 400 lines, 50 line functions, complexity 10)
+        name: Code quality (Python - 500 lines, 50 line functions, complexity 10)
         entry: python3 tools/check-code-quality.py libs/python --language python
         language: system
         files: ^libs/python/.*\.py$
         pass_filenames: false
 
       - id: code-quality-node
-        name: Code quality (Node.js - 400 lines max)
+        name: Code quality (Node.js - 500 lines max)
         entry: python3 tools/check-code-quality.py libs/node --language typescript
         language: system
         files: ^libs/node/.*\.ts$

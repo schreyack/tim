@@ -256,7 +256,7 @@ For Claude Code specifically, include this in the project's CLAUDE.md:
 Before making any changes, confirm you have read and will follow:
 1. All rules in this CLAUDE.md file
 2. The test naming convention (test_what_when_then)
-3. The file size limits (400 lines max)
+3. The file size limits (500 lines max)
 4. The requirement to use tim-lib for common patterns
 
 If you are uncertain about any rule, ASK before proceeding.

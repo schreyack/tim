@@ -337,8 +337,8 @@ Plans should be committed as they progress - this provides:
 |-----------|------------------|------------|
 | Bug fix | 50-100 lines | 1-2 |
 | Small feature | 100-200 lines | 2-3 |
-| Large feature | 200-400 lines | 4-6 |
-| Architecture change | 400-600 lines | 6-10 |
+| Large feature | 200-500 lines | 4-6 |
+| Architecture change | 500-600 lines | 6-10 |
 
 If a plan exceeds 600 lines, consider splitting into multiple coordinated plans.
 

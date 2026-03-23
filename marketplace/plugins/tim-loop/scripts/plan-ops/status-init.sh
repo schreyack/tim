@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # plan-ops/status-init.sh - Status Header initialization and repair
-# Extracted from status.sh to comply with 400-line limit
+# Extracted from status.sh to comply with 500-line limit
 #
 # Dependencies: core.sh, status.sh
 # Exports: fix_invalid_stage, add_status_header

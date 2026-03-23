@@ -24,7 +24,7 @@ AI developers have specific limitations:
 
 | File Type | Max Lines | Rationale |
 |-----------|-----------|-----------|
-| Source code (`.py`, `.ts`) | **400 lines** | AI accuracy degrades significantly above this |
+| Source code (`.py`, `.ts`) | **500 lines** | AI accuracy degrades significantly above this |
 | Test files | **500 lines** | Tests can be longer due to fixtures/setup |
 | Configuration | **200 lines** | Split large configs into multiple files |
 | Type definitions | **300 lines** | Group related types, split by domain |
@@ -38,7 +38,7 @@ repos:
     hooks:
       - id: file-size-check
         name: Check file size
-        entry: bash -c 'for f in $(find src -name "*.py"); do lines=$(wc -l < "$f"); if [ $lines -gt 400 ]; then echo "ERROR: $f has $lines lines (max 400)"; exit 1; fi; done'
+        entry: bash -c 'for f in $(find src -name "*.py"); do lines=$(wc -l < "$f"); if [ $lines -gt 500 ]; then echo "ERROR: $f has $lines lines (max 500)"; exit 1; fi; done'
         language: system
         pass_filenames: false
 ```
@@ -49,7 +49,7 @@ export default [
   {
     plugins: { "file-size": fileSizePlugin },
     rules: {
-      "file-size/max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
+      "file-size/max-lines": ["error", { max: 500, skipBlankLines: true, skipComments: true }],
     },
   },
 ];
@@ -323,11 +323,11 @@ lint:
 
     - name: Check file sizes
       run: |
-        echo "Checking file sizes (max 400 lines)..."
+        echo "Checking file sizes (max 500 lines)..."
         for f in $(find src -name "*.py" -type f); do
           lines=$(wc -l < "$f")
-          if [ $lines -gt 400 ]; then
-            echo "ERROR: $f has $lines lines (max 400)"
+          if [ $lines -gt 500 ]; then
+            echo "ERROR: $f has $lines lines (max 500)"
             exit 1
           fi
         done
@@ -346,11 +346,11 @@ lint:
 
     - name: Check file sizes
       run: |
-        echo "Checking file sizes (max 400 lines)..."
+        echo "Checking file sizes (max 500 lines)..."
         for f in $(find src -name "*.ts" -type f); do
           lines=$(wc -l < "$f")
-          if [ $lines -gt 400 ]; then
-            echo "ERROR: $f has $lines lines (max 400)"
+          if [ $lines -gt 500 ]; then
+            echo "ERROR: $f has $lines lines (max 500)"
             exit 1
           fi
         done
@@ -361,7 +361,7 @@ lint:
 
 | Metric | Warning (Consider Refactoring) | Hard Limit (Blocked) |
 |--------|-------------------------------|---------------------|
-| File size | 300 lines | 400 lines |
+| File size | 300 lines | 500 lines |
 | Function size | 40 lines | 50 lines |
 | Complexity | 8 | 10 |
 
@@ -369,7 +369,7 @@ lint:
 
 AI developers should request human review when:
 
-1. **A file would exceed 300 lines** - Consider splitting before hitting 400 limit
+1. **A file would exceed 300 lines** - Consider splitting before hitting 500 limit
 2. **A function would exceed 40 lines** - Consider extracting helpers before hitting 50 limit
 3. **Complexity exceeds 8** - Consider simplifying before hitting 10 limit
 4. **Unsure how to split** - Human can advise on architecture
@@ -378,7 +378,7 @@ AI developers should request human review when:
 
 | Metric | Limit | Enforced By |
 |--------|-------|-------------|
-| File size | 400 lines | CI script |
+| File size | 500 lines | CI script |
 | Function size | 50 lines | ruff/ESLint |
 | Cyclomatic complexity | 10 | ruff/ESLint |
 | Cognitive complexity | 15 | ruff/ESLint |

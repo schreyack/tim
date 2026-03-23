@@ -11,7 +11,7 @@
 
 ## AI Behavioral Gates
 
-- File >400 lines → BLOCKED. Function >50 lines → BLOCKED.
+- File >500 lines → BLOCKED. Function >50 lines → BLOCKED.
 - NO bypass flags anywhere. If AI can bypass, AI will bypass.
 - Human approval is the only escape hatch for blocked operations.
 - Deflection patterns → BLOCKED.
@@ -145,6 +145,6 @@ your-project/
 |-------------|-----------|
 | Type safety | 100% (strict) |
 | Test coverage | Reported |
-| File size | 400 lines max |
+| File size | 500 lines max |
 | Function size | 50 lines max |
 | Complexity | 10 max (cyclomatic) |

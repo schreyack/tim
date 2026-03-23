@@ -29,7 +29,7 @@ _build_verify_prompt() {
     prompt+="1. Verify type safety (mypy --strict / tsc --strict passes)\n"
     prompt+="2. Verify test coverage is reported (tests actually test the functionality)\n"
     prompt+="3. Verify no secrets in code\n"
-    prompt+="4. Verify file size limits (400 lines max)\n"
+    prompt+="4. Verify file size limits (500 lines max)\n"
     prompt+="5. Verify no bypass flags or shortcuts\n\n"
     prompt+="### Phase 4: Gap Remediation\n"
     prompt+="If ANY gaps are found:\n"
