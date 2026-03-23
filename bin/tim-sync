@@ -116,10 +116,36 @@ sync_project() {
         echo -e "  ${RED}✗${NC} CLAUDE.md sync failed"
     fi
 
-    # 4. Stage changes
+    # 4. Scaffold .claude/settings.local.json if missing
+    local settings_path="$project/.claude/settings.local.json"
+    if [[ ! -f "$settings_path" ]]; then
+        local project_name=""
+        if [[ -f "$project/ops-config.yaml" ]]; then
+            project_name=$(grep -A1 '^project:' "$project/ops-config.yaml" | grep 'name:' | sed 's/.*name:[[:space:]]*//' | tr -d '"' | tr -d "'")
+        fi
+        project_name="${project_name:-$name}"
+        mkdir -p "$project/.claude"
+        sed "s/{{PROJECT_NAME}}/$project_name/g" "$TIM_ROOT/templates/settings.local.json.template" > "$settings_path"
+        echo -e "  ${GREEN}✓${NC} scaffolded .claude/settings.local.json (project: $project_name)"
+    else
+        echo -e "  ${YELLOW}—${NC} .claude/settings.local.json exists"
+    fi
+
+    # 5. Ensure pre-commit hooks are installed
+    if [[ -f "$project/.git/hooks/pre-commit" ]] && grep -q "pre-commit" "$project/.git/hooks/pre-commit" 2>/dev/null; then
+        echo -e "  ${YELLOW}—${NC} pre-commit hooks installed"
+    else
+        if (cd "$project" && pre-commit install) >/dev/null 2>&1; then
+            echo -e "  ${GREEN}✓${NC} pre-commit hooks installed"
+        else
+            echo -e "  ${RED}✗${NC} pre-commit install failed"
+        fi
+    fi
+
+    # 6. Stage changes
     git -C "$project" add -f lib/tim .pre-commit-config.yaml CLAUDE.md 2>/dev/null || true
 
-    # 5. Commit if anything staged
+    # 7. Commit if anything staged
     if git -C "$project" diff --cached --quiet 2>/dev/null; then
         echo -e "  ${YELLOW}—${NC} nothing to commit"
         CURRENT_PROJECTS+=("$name")
@@ -130,7 +156,7 @@ sync_project() {
     echo -e "  ${GREEN}✓${NC} committed: chore: sync TIM standards"
     UPDATED_PROJECTS+=("$name")
 
-    # 6. Push
+    # 8. Push
     if $NO_PUSH; then
         echo -e "  ${YELLOW}—${NC} push skipped (--no-push)"
     elif git -C "$project" push --quiet 2>/dev/null; then
@@ -365,7 +391,9 @@ case "${1:-}" in
         echo "  1. Update lib/tim submodule"
         echo "  2. Regenerate .pre-commit-config.yaml"
         echo "  3. Regenerate CLAUDE.md"
-        echo "  4. Commit and push"
+        echo "  4. Scaffold .claude/settings.local.json (if missing)"
+        echo "  5. Install pre-commit hooks (if missing)"
+        echo "  6. Commit and push"
         ;;
     "")
         sync_all

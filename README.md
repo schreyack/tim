@@ -341,16 +341,17 @@ cat > CLAUDE-PROJECT.md << 'EOF'
 <!-- Add your project context here -->
 EOF
 
-# 6. Sync CLAUDE.md from tim standards
-/path/to/tim/bin/sync-claude-md
+# 6. Sync standards (CLAUDE.md, settings, pre-commit hooks)
+#    tim-sync handles all of these when run for a registered project:
+#    - Generates CLAUDE.md from tim standards + CLAUDE-PROJECT.md
+#    - Scaffolds .claude/settings.local.json (LLM judge, permissions)
+#    - Runs pre-commit install if hooks are missing
+/path/to/tim/bin/tim-sync <project-name>
 
-# 7. Install pre-commit hooks
-pre-commit install
-
-# 8. Create .tim-patterns.yaml and register your patterns
+# 7. Create .tim-patterns.yaml and register your patterns
 cp lib/tim/templates/tim-patterns.yaml.template .tim-patterns.yaml
 
-# 9. Configure CI pipeline
+# 8. Configure CI pipeline
 cp lib/tim/templates/ci/python-ci.yml .github/workflows/ci.yml  # or node-ci.yml
 ```
 

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(tim-loop:tim-loop)",
+      "Bash({{PROJECT_NAME}}:*)",
+      "Bash(ls:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [
+      "WriteFile(./ops.sh)",
+      "EditFile(./ops.sh)",
+      "Bash(* > ./ops.sh*)",
+      "Bash(*sed*ops.sh*)"
+    ]
+  }
+}
