@@ -121,6 +121,8 @@ class OIDCVerifier:
             signing_key = await loop.run_in_executor(
                 None, self._jwks_client.get_signing_key_from_jwt, token
             )
+        except jwt.exceptions.DecodeError as exc:
+            raise InvalidTokenError(f"Malformed token: {exc}") from exc
         except (PyJWKClientConnectionError, PyJWKClientError) as exc:
             logger.warning("jwks_fetch_failed", exc_info=exc)
             raise InvalidTokenError(f"JWKS fetch failed: {exc}") from exc
