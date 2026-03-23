@@ -30,6 +30,7 @@ class CheatDetectorVisitor(ast.NodeVisitor):
         self._defaultdict_names: set[str] = set()
         self._cast_modules: set[str] = set()
         self._defaultdict_modules: set[str] = set()
+        self._loop_depth: int = 0
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.module in ("typing", "typing_extensions"):
@@ -82,6 +83,16 @@ class CheatDetectorVisitor(ast.NodeVisitor):
                     node.lineno, "defaultdict() silently hides missing keys"
                 )
 
+    def visit_For(self, node: ast.For) -> None:
+        self._loop_depth += 1
+        self.generic_visit(node)
+        self._loop_depth -= 1
+
+    def visit_While(self, node: ast.While) -> None:
+        self._loop_depth += 1
+        self.generic_visit(node)
+        self._loop_depth -= 1
+
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         self._check_empty_except(node)
         self._check_broad_exception(node)
@@ -115,25 +126,46 @@ class CheatDetectorVisitor(ast.NodeVisitor):
                 self._add(node.lineno, f"Broad exception catch: {name}")
 
     def _check_log_and_swallow(self, node: ast.ExceptHandler) -> None:
-        has_log = False
-        for child in node.body:
-            if isinstance(child, ast.Expr) and isinstance(
-                child.value, ast.Call
-            ):
-                func = child.value.func
-                if isinstance(func, ast.Attribute):
-                    if func.attr in LOG_METHODS:
-                        has_log = True
-                        break
-        if not has_log:
+        if not _has_log_call(node):
             return
-        for descendant in ast.walk(node):
-            if isinstance(descendant, ast.Raise):
-                return
+        if _has_reraise(node):
+            return
+        if self._loop_depth > 0 and _is_batch_handler(node):
+            return
         self._add(node.lineno, "Log-and-swallow: logs error without re-raise")
 
     def _add(self, lineno: int, message: str) -> None:
         self.violations.append(f"{self.filepath}:{lineno}: {message}")
+
+
+def _has_log_call(node: ast.ExceptHandler) -> bool:
+    """Check if an except handler body contains a logging call."""
+    for child in node.body:
+        if not isinstance(child, ast.Expr):
+            continue
+        if not isinstance(child.value, ast.Call):
+            continue
+        func = child.value.func
+        if isinstance(func, ast.Attribute) and func.attr in LOG_METHODS:
+            return True
+    return False
+
+
+def _has_reraise(node: ast.ExceptHandler) -> bool:
+    """Check if an except handler contains a raise statement."""
+    return any(isinstance(d, ast.Raise) for d in ast.walk(node))
+
+
+def _is_batch_handler(node: ast.ExceptHandler) -> bool:
+    """Detect catch-and-continue in loops: explicit continue or counter increment."""
+    for child in node.body:
+        if isinstance(child, ast.Continue):
+            return True
+        if isinstance(child, ast.AugAssign) and isinstance(
+            child.op, ast.Add
+        ):
+            return True
+    return False
 
 
 def _extract_exception_names(node: ast.expr) -> list[str]:
