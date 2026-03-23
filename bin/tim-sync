@@ -18,32 +18,20 @@ FAILED_PROJECTS=()
 UPDATED_PROJECTS=()
 CURRENT_PROJECTS=()
 
-print_header() {
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  $1${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-}
+print_header() { echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  $1\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; }
 
 # --- Pre-flight ---
 
 preflight() {
-    local status
-    status=$(git -C "$TIM_ROOT" status --porcelain 2>/dev/null)
-    if [[ -n "$status" ]]; then
-        echo -e "${RED}Error: TIM repo has uncommitted changes. Commit or stash first.${NC}"
-        exit 1
-    fi
-
+    [[ -z "$(git -C "$TIM_ROOT" status --porcelain 2>/dev/null)" ]] \
+        || { echo -e "${RED}Error: TIM repo has uncommitted changes.${NC}"; exit 1; }
     local unpushed
     unpushed=$(git -C "$TIM_ROOT" log @{u}..HEAD --oneline 2>/dev/null || echo "")
     if [[ -n "$unpushed" ]]; then
         echo -e "${BLUE}Pushing TIM repo...${NC}"
-        if git -C "$TIM_ROOT" push --quiet 2>/dev/null; then
-            echo -e "${GREEN}✓${NC} TIM repo pushed"
-        else
-            echo -e "${RED}Error: TIM repo push failed. Push manually first.${NC}"
-            exit 1
-        fi
+        git -C "$TIM_ROOT" push --quiet 2>/dev/null \
+            || { echo -e "${RED}Error: TIM repo push failed.${NC}"; exit 1; }
+        echo -e "${GREEN}✓${NC} TIM repo pushed"
     fi
 }
 
@@ -76,7 +64,22 @@ sync_project() {
     if [[ -d "$project/lib/tim" ]]; then
         # Init if empty (never had submodule update --init)
         if [[ ! -f "$project/lib/tim/CLAUDE.md" ]]; then
-            git -C "$project" submodule update --init lib/tim 2>/dev/null || true
+            if ! git -C "$project" submodule update --init lib/tim 2>/dev/null; then
+                # SSH URL may fail — rewrite to HTTPS and retry
+                local sub_url
+                sub_url=$(git -C "$project" config --file .gitmodules submodule.lib/tim.url 2>/dev/null || true)
+                if [[ "$sub_url" == git@github.com:* ]]; then
+                    local https_url="https://github.com/${sub_url#git@github.com:}"
+                    git -C "$project" config submodule.lib/tim.url "$https_url"
+                    git -C "$project" submodule update --init lib/tim 2>/dev/null \
+                        && echo -e "  ${GREEN}✓${NC} submodule initialized (rewrote SSH→HTTPS)" \
+                        || echo -e "  ${RED}✗${NC} submodule init failed"
+                else
+                    echo -e "  ${RED}✗${NC} submodule init failed"
+                fi
+            else
+                echo -e "  ${GREEN}✓${NC} submodule initialized"
+            fi
         fi
         local before after
         before=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
@@ -208,19 +211,11 @@ OVERRIDE
 # --- Summary ---
 
 print_summary() {
-    local total=$1
-    local updated=${#UPDATED_PROJECTS[@]}
-    local current=${#CURRENT_PROJECTS[@]}
-    local failed=${#FAILED_PROJECTS[@]}
-
-    local summary="Synced $total projects ($updated updated, $current current"
+    local total=$1 updated=${#UPDATED_PROJECTS[@]} failed=${#FAILED_PROJECTS[@]}
+    local summary="Synced $total projects ($updated updated, $((total - updated - failed)) current"
     [[ $failed -gt 0 ]] && summary+=", $failed failed"
-    summary+=")"
-    print_header "$summary"
-
-    if [[ $failed -gt 0 ]]; then
-        echo -e "\n${RED}Failed: ${FAILED_PROJECTS[*]}${NC}"
-    fi
+    print_header "$summary)"
+    [[ $failed -gt 0 ]] && echo -e "\n${RED}Failed: ${FAILED_PROJECTS[*]}${NC}"
 }
 
 # --- Register ---
