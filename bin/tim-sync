@@ -62,14 +62,14 @@ sync_project() {
 
     # 1. Init + update submodule
     if [[ -d "$project/lib/tim" ]]; then
-        # Rewrite SSH→HTTPS if needed (before any git operations)
+        # Rewrite SSH→HTTPS if needed (check .gitmodules — the authoritative source)
         local sub_origin
-        sub_origin=$(git -C "$project/lib/tim" remote get-url origin 2>/dev/null || \
-            git -C "$project" config --file .gitmodules submodule.lib/tim.url 2>/dev/null || true)
+        sub_origin=$(git -C "$project" config --file .gitmodules submodule.lib/tim.url 2>/dev/null || true)
         if [[ "$sub_origin" == git@github.com:* ]]; then
             local https_url="https://github.com/${sub_origin#git@github.com:}"
-            git -C "$project/lib/tim" remote set-url origin "$https_url" 2>/dev/null || true
+            git -C "$project" config --file .gitmodules submodule.lib/tim.url "$https_url"
             git -C "$project" config submodule.lib/tim.url "$https_url" 2>/dev/null || true
+            git -C "$project/lib/tim" remote set-url origin "$https_url" 2>/dev/null || true
             echo -e "  ${GREEN}✓${NC} rewrote submodule URL SSH→HTTPS"
         fi
         # Init if empty (never had submodule update --init)
