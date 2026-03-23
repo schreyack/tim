@@ -72,11 +72,14 @@ sync_project() {
         return 1
     fi
 
-    # 1. Update submodule
+    # 1. Init + update submodule
     if [[ -d "$project/lib/tim" ]]; then
+        # Init if empty (never had submodule update --init)
+        if [[ ! -f "$project/lib/tim/CLAUDE.md" ]]; then
+            git -C "$project" submodule update --init lib/tim 2>/dev/null || true
+        fi
         local before after
         before=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
-        # Reset working tree — submodule should always match upstream exactly
         git -C "$project/lib/tim" checkout -- . 2>/dev/null || true
         if git -C "$project/lib/tim" pull origin main --quiet 2>/dev/null; then
             after=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
@@ -87,6 +90,10 @@ sync_project() {
             fi
         else
             echo -e "  ${RED}✗${NC} submodule pull failed"
+        fi
+        # Verify critical content exists
+        if [[ ! -d "$project/lib/tim/tools" ]]; then
+            echo -e "  ${RED}✗${NC} submodule content missing (tools/ not found)"
         fi
     else
         echo -e "  ${YELLOW}—${NC} no lib/tim submodule"
@@ -166,7 +173,15 @@ OVERRIDE
         fi
     fi
 
-    # 7. Stage changes
+    # 7. Ensure .gitignore has required entries + plans/ exists
+    local gi="$project/.gitignore"
+    [[ -f "$gi" ]] && for entry in ".secrets.baseline.bak" ".env" ".env.*"; do
+        grep -qxF "$entry" "$gi" 2>/dev/null || echo "$entry" >> "$gi"
+    done
+    for dir in drafts active completed abandoned; do mkdir -p "$project/plans/$dir"; done
+    [[ -f "$project/plans/drafts/.gitkeep" ]] || touch "$project/plans/drafts/.gitkeep"
+
+    # 8. Stage changes
     git -C "$project" add -f lib/tim .pre-commit-config.yaml CLAUDE.md 2>/dev/null || true
 
     # 8. Commit if anything staged
