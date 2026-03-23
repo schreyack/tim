@@ -6,12 +6,13 @@
 # Run this after committing and pushing changes to the TIM repo.
 #
 # Usage:
-#   tim-sync                # Sync all projects
-#   tim-sync <project>      # Sync one project by name or path
-#   tim-sync --list         # List projects and sync status
-#   tim-sync --check        # Dry run — show what would change
-#   tim-sync --no-push      # Sync and commit but don't push
-#   tim-sync --help         # Show help
+#   tim-sync                       # Sync all projects
+#   tim-sync <project>             # Sync one project by name or path
+#   tim-sync --register <path>     # Register a project in .tim-projects
+#   tim-sync --list                # List projects and sync status
+#   tim-sync --check               # Dry run — show what would change
+#   tim-sync --no-push             # Sync and commit but don't push
+#   tim-sync --help                # Show help
 
 set -euo pipefail
 
@@ -157,6 +158,43 @@ print_summary() {
     fi
 }
 
+# --- Register ---
+
+register_project() {
+    local raw_path="$1"
+
+    # Resolve to absolute path
+    local abs_path
+    abs_path="$(cd "$raw_path" 2>/dev/null && pwd)" || {
+        echo -e "${RED}Error: directory not found: $raw_path${NC}"
+        return 1
+    }
+
+    # Check for lib/tim submodule
+    if [[ ! -d "$abs_path/lib/tim" ]]; then
+        echo -e "${RED}Error: $abs_path has no lib/tim submodule${NC}"
+        echo "Add the submodule first: git submodule add <tim-url> lib/tim"
+        return 1
+    fi
+
+    local projects_file="$TIM_ROOT/.tim-projects"
+
+    # Check if already registered
+    if [[ -f "$projects_file" ]]; then
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            if [[ "$line" == "$abs_path" ]]; then
+                echo -e "${YELLOW}Already registered: $abs_path${NC}"
+                return 0
+            fi
+        done < "$projects_file"
+    fi
+
+    # Append
+    echo "$abs_path" >> "$projects_file"
+    echo -e "${GREEN}✓${NC} Registered: $(basename "$abs_path") ($abs_path)"
+}
+
 # --- Modes ---
 
 sync_all() {
@@ -298,6 +336,13 @@ case "${1:-}" in
     --check|-c)
         check_projects
         ;;
+    --register|-r)
+        if [[ -z "${2:-}" ]]; then
+            echo -e "${RED}Usage: tim-sync --register <project-path>${NC}"
+            exit 1
+        fi
+        register_project "$2"
+        ;;
     --no-push)
         NO_PUSH=true
         sync_all
@@ -308,12 +353,13 @@ case "${1:-}" in
         echo "Push TIM standards to all registered projects."
         echo ""
         echo "Options:"
-        echo "  (none)       Sync all projects"
-        echo "  <project>    Sync one project by name or path"
-        echo "  --list, -l   List projects and sync status"
-        echo "  --check, -c  Dry run — show what would change"
-        echo "  --no-push    Sync and commit but don't push"
-        echo "  --help, -h   Show this help"
+        echo "  (none)              Sync all projects"
+        echo "  <project>           Sync one project by name or path"
+        echo "  --register, -r <p>  Register a project in .tim-projects"
+        echo "  --list, -l          List projects and sync status"
+        echo "  --check, -c         Dry run — show what would change"
+        echo "  --no-push           Sync and commit but don't push"
+        echo "  --help, -h          Show this help"
         echo ""
         echo "Steps per project:"
         echo "  1. Update lib/tim submodule"

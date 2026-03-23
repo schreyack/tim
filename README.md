@@ -323,31 +323,34 @@ To create a TIM-compliant project:
 git submodule add /path/to/tim lib/tim   # local
 # OR: git submodule add https://github.com/your-org/tim lib/tim  # remote
 
-# 2. Symlink enforcement configs (Python project)
+# 2. Register project for tim-sync
+/path/to/tim/bin/tim-sync --register .
+
+# 3. Symlink enforcement configs (Python project)
 ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml
 
-# 2. OR for Node.js project
+# 3. OR for Node.js project
 ln -s lib/tim/templates/node/.pre-commit-config.yaml .pre-commit-config.yaml
 
-# 3. Make symlinks immutable (prevents AI from bypassing)
+# 4. Make symlinks immutable (prevents AI from bypassing)
 sudo chflags -h schg .pre-commit-config.yaml
 
-# 4. Create project-specific CLAUDE.md content
+# 5. Create project-specific CLAUDE.md content
 cat > CLAUDE-PROJECT.md << 'EOF'
 # Project-Specific Instructions
 <!-- Add your project context here -->
 EOF
 
-# 5. Sync CLAUDE.md from tim standards
+# 6. Sync CLAUDE.md from tim standards
 /path/to/tim/bin/sync-claude-md
 
-# 6. Install pre-commit hooks
+# 7. Install pre-commit hooks
 pre-commit install
 
-# 7. Create .tim-patterns.yaml and register your patterns
+# 8. Create .tim-patterns.yaml and register your patterns
 cp lib/tim/templates/tim-patterns.yaml.template .tim-patterns.yaml
 
-# 8. Configure CI pipeline
+# 9. Configure CI pipeline
 cp lib/tim/templates/ci/python-ci.yml .github/workflows/ci.yml  # or node-ci.yml
 ```
 
@@ -362,11 +365,12 @@ cp lib/tim/templates/ci/python-ci.yml .github/workflows/ci.yml  # or node-ci.yml
 To migrate an existing project to TIM compliance:
 
 1. Run `tools/tim-compliance-check.sh` to assess current state
-2. Follow [Legacy Onboarding Playbook](standards/operations/legacy-onboarding.md)
-3. Start at enforcement Level 0 (audit only)
-4. Use [Graduated Enforcement](standards/enforcement/graduated-enforcement.md) to progressively tighten
-5. Migrate tests using [Test Migration Standard](standards/testing/test-migration.md)
-6. Reach Level 4 (full enforcement) before production
+2. Register the project: `tim-sync --register /path/to/project`
+3. Follow [Legacy Onboarding Playbook](standards/operations/legacy-onboarding.md)
+4. Start at enforcement Level 0 (audit only)
+5. Use [Graduated Enforcement](standards/enforcement/graduated-enforcement.md) to progressively tighten
+6. Migrate tests using [Test Migration Standard](standards/testing/test-migration.md)
+7. Reach Level 4 (full enforcement) before production
 
 **Enforcement Levels:**
 
