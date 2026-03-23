@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
 #
 # tim-sync - Push TIM standards to all registered projects
-#
-# Updates submodules, regenerates configs, commits, and pushes.
-# Run this after committing and pushing changes to the TIM repo.
-#
-# Usage:
-#   tim-sync                       # Sync all projects
-#   tim-sync <project>             # Sync one project by name or path
-#   tim-sync --register <path>     # Register a project in .tim-projects
-#   tim-sync --list                # List projects and sync status
-#   tim-sync --check               # Dry run — show what would change
-#   tim-sync --no-push             # Sync and commit but don't push
-#   tim-sync --help                # Show help
+# Run after committing/pushing changes to the TIM repo.
+# Use --help for usage.
 
 set -euo pipefail
 
@@ -142,10 +132,23 @@ sync_project() {
         fi
     fi
 
-    # 6. Stage changes
+    # 6. Generate .secrets.baseline if detect-secrets hook exists but baseline doesn't
+    if grep -q "detect-secrets" "$project/.pre-commit-config.yaml" 2>/dev/null; then
+        if [[ ! -f "$project/.secrets.baseline" ]]; then
+            if (cd "$project" && detect-secrets scan > .secrets.baseline) 2>/dev/null; then
+                echo -e "  ${GREEN}✓${NC} generated .secrets.baseline"
+            else
+                echo -e "  ${RED}✗${NC} detect-secrets scan failed"
+            fi
+        else
+            echo -e "  ${YELLOW}—${NC} .secrets.baseline exists"
+        fi
+    fi
+
+    # 7. Stage changes
     git -C "$project" add -f lib/tim .pre-commit-config.yaml CLAUDE.md 2>/dev/null || true
 
-    # 7. Commit if anything staged
+    # 8. Commit if anything staged
     if git -C "$project" diff --cached --quiet 2>/dev/null; then
         echo -e "  ${YELLOW}—${NC} nothing to commit"
         CURRENT_PROJECTS+=("$name")
@@ -156,7 +159,7 @@ sync_project() {
     echo -e "  ${GREEN}✓${NC} committed: chore: sync TIM standards"
     UPDATED_PROJECTS+=("$name")
 
-    # 8. Push
+    # 9. Push
     if $NO_PUSH; then
         echo -e "  ${YELLOW}—${NC} push skipped (--no-push)"
     elif git -C "$project" push --quiet 2>/dev/null; then
@@ -188,35 +191,24 @@ print_summary() {
 
 register_project() {
     local raw_path="$1"
-
-    # Resolve to absolute path
     local abs_path
     abs_path="$(cd "$raw_path" 2>/dev/null && pwd)" || {
-        echo -e "${RED}Error: directory not found: $raw_path${NC}"
-        return 1
+        echo -e "${RED}Error: directory not found: $raw_path${NC}"; return 1
     }
-
-    # Check for lib/tim submodule
     if [[ ! -d "$abs_path/lib/tim" ]]; then
         echo -e "${RED}Error: $abs_path has no lib/tim submodule${NC}"
         echo "Add the submodule first: git submodule add <tim-url> lib/tim"
         return 1
     fi
-
     local projects_file="$TIM_ROOT/.tim-projects"
-
-    # Check if already registered
     if [[ -f "$projects_file" ]]; then
         while IFS= read -r line || [[ -n "$line" ]]; do
             [[ -z "$line" || "$line" == \#* ]] && continue
             if [[ "$line" == "$abs_path" ]]; then
-                echo -e "${YELLOW}Already registered: $abs_path${NC}"
-                return 0
+                echo -e "${YELLOW}Already registered: $abs_path${NC}"; return 0
             fi
         done < "$projects_file"
     fi
-
-    # Append
     echo "$abs_path" >> "$projects_file"
     echo -e "${GREEN}✓${NC} Registered: $(basename "$abs_path") ($abs_path)"
 }
@@ -374,26 +366,24 @@ case "${1:-}" in
         sync_all
         ;;
     --help|-h)
-        echo "Usage: tim-sync [OPTIONS] [PROJECT]"
-        echo ""
-        echo "Push TIM standards to all registered projects."
-        echo ""
-        echo "Options:"
-        echo "  (none)              Sync all projects"
-        echo "  <project>           Sync one project by name or path"
-        echo "  --register, -r <p>  Register a project in .tim-projects"
-        echo "  --list, -l          List projects and sync status"
-        echo "  --check, -c         Dry run — show what would change"
-        echo "  --no-push           Sync and commit but don't push"
-        echo "  --help, -h          Show this help"
-        echo ""
-        echo "Steps per project:"
-        echo "  1. Update lib/tim submodule"
-        echo "  2. Regenerate .pre-commit-config.yaml"
-        echo "  3. Regenerate CLAUDE.md"
-        echo "  4. Scaffold .claude/settings.local.json (if missing)"
-        echo "  5. Install pre-commit hooks (if missing)"
-        echo "  6. Commit and push"
+        cat <<'HELP'
+Usage: tim-sync [OPTIONS] [PROJECT]
+
+Push TIM standards to all registered projects.
+
+Options:
+  (none)              Sync all projects
+  <project>           Sync one project by name or path
+  --register, -r <p>  Register a project in .tim-projects
+  --list, -l          List projects and sync status
+  --check, -c         Dry run — show what would change
+  --no-push           Sync and commit but don't push
+  --help, -h          Show this help
+
+Per project: update submodule, regenerate pre-commit + CLAUDE.md,
+scaffold .claude/settings.local.json, install pre-commit hooks,
+generate .secrets.baseline, commit and push.
+HELP
         ;;
     "")
         sync_all
