@@ -36,8 +36,6 @@ preflight() {
     fi
 }
 
-# --- Unlock / relock ---
-
 do_unlock() {
     sudo "$TIM_ROOT/bin/tim-lock-enforcement" --unlock
     UNLOCKED=true
@@ -47,6 +45,13 @@ do_relock() {
     $UNLOCKED || return 0
     echo ""
     sudo "$TIM_ROOT/bin/tim-lock-enforcement" --schg
+    print_warnings
+}
+
+print_warnings() {
+    [[ ${#WARNINGS[@]} -gt 0 ]] || return 0
+    echo -e "\n${YELLOW}Warnings:${NC}"
+    for w in "${WARNINGS[@]}"; do echo -e "  ${YELLOW}⚠${NC} $w"; done
 }
 
 # --- Per-project sync ---
@@ -216,10 +221,6 @@ print_summary() {
     [[ ${#WARNINGS[@]} -gt 0 ]] && summary+=", ${#WARNINGS[@]} warnings"
     print_header "$summary)"
     [[ $failed -gt 0 ]] && echo -e "\n${RED}Failed: ${FAILED_PROJECTS[*]}${NC}"
-    if [[ ${#WARNINGS[@]} -gt 0 ]]; then
-        echo -e "\n${YELLOW}Warnings:${NC}"
-        for w in "${WARNINGS[@]}"; do echo -e "  ${YELLOW}⚠${NC} $w"; done
-    fi
 }
 
 # --- Register ---
