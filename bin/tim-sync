@@ -17,6 +17,7 @@ UNLOCKED=false
 FAILED_PROJECTS=()
 UPDATED_PROJECTS=()
 CURRENT_PROJECTS=()
+WARNINGS=()
 
 print_header() { echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  $1\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; }
 
@@ -75,14 +76,15 @@ sync_project() {
         fi
         # Init if empty (never had submodule update --init)
         if [[ ! -f "$project/lib/tim/CLAUDE.md" ]]; then
-            git -C "$project" submodule update --init lib/tim 2>/dev/null \
-                && echo -e "  ${GREEN}✓${NC} submodule initialized" \
-                || echo -e "  ${RED}✗${NC} submodule init failed"
+            local init_err
+            if init_err=$(git -C "$project" submodule update --init lib/tim 2>&1); then echo -e "  ${GREEN}✓${NC} submodule initialized"
+            else echo -e "  ${RED}✗${NC} submodule init failed"; WARNINGS+=("$name: init failed — $init_err"); fi
         fi
         local before after
         before=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
         git -C "$project/lib/tim" checkout -- . 2>/dev/null || true
-        if git -C "$project/lib/tim" pull origin main --quiet 2>/dev/null; then
+        local pull_err
+        if pull_err=$(git -C "$project/lib/tim" pull origin main --quiet 2>&1); then
             after=$(git -C "$project/lib/tim" rev-parse HEAD 2>/dev/null)
             if [[ "$before" != "$after" ]]; then
                 echo -e "  ${GREEN}✓${NC} submodule updated"
@@ -91,11 +93,10 @@ sync_project() {
             fi
         else
             echo -e "  ${RED}✗${NC} submodule pull failed"
+            WARNINGS+=("$name: submodule pull failed — $pull_err")
         fi
         # Verify critical content exists
-        if [[ ! -d "$project/lib/tim/tools" ]]; then
-            echo -e "  ${RED}✗${NC} submodule content missing (tools/ not found)"
-        fi
+        [[ -d "$project/lib/tim/tools" ]] || echo -e "  ${RED}✗${NC} submodule content missing (tools/ not found)"
     else
         echo -e "  ${YELLOW}—${NC} no lib/tim submodule"
     fi
@@ -212,8 +213,13 @@ print_summary() {
     local total=$1 updated=${#UPDATED_PROJECTS[@]} failed=${#FAILED_PROJECTS[@]}
     local summary="Synced $total projects ($updated updated, $((total - updated - failed)) current"
     [[ $failed -gt 0 ]] && summary+=", $failed failed"
+    [[ ${#WARNINGS[@]} -gt 0 ]] && summary+=", ${#WARNINGS[@]} warnings"
     print_header "$summary)"
     [[ $failed -gt 0 ]] && echo -e "\n${RED}Failed: ${FAILED_PROJECTS[*]}${NC}"
+    if [[ ${#WARNINGS[@]} -gt 0 ]]; then
+        echo -e "\n${YELLOW}Warnings:${NC}"
+        for w in "${WARNINGS[@]}"; do echo -e "  ${YELLOW}⚠${NC} $w"; done
+    fi
 }
 
 # --- Register ---
