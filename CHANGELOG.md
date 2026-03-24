@@ -5,6 +5,13 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.90.0] - 2026-03-24
+
+### Added
+
+- **Block piped ops.sh commands** — PreToolUse hook prevents piping ops.sh output through tail, head, grep, tee, etc. Piping buffers streaming output and causes Claude Code sessions to hang. Detects both `ops.sh` and project aliases (via `ops-config.yaml` discovery and `--env` heuristic).
+- **tim-loop plugin** v2.89.7 → v2.90.0
+
 ## [2.88.0] - 2026-03-05
 
 ### Added
