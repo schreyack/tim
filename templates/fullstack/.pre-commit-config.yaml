@@ -64,13 +64,14 @@ repos:
           - .secrets.baseline
           - --exclude-lines
           - "secretKey:|secretKeyRef:|remoteRef:|valueFrom:|secretName:"
-        exclude: package-lock\.json|poetry\.lock
+        exclude: package-lock\.json|poetry\.lock|\.patch$
 
   # Codespell - Catch common misspellings
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
       - id: codespell
+        exclude: \.patch$
 
   # Python-specific regex checks
   - repo: https://github.com/pre-commit/pygrep-hooks

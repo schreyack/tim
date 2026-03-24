@@ -70,7 +70,7 @@ repos:
           - .secrets.baseline
           - --exclude-lines
           - "secretKey:|secretKeyRef:|remoteRef:|valueFrom:|secretName:"
-        exclude: package-lock\.json|poetry\.lock
+        exclude: package-lock\.json|poetry\.lock|\.patch$
 
   # Commitizen - Enforce commit message format
   - repo: https://github.com/commitizen-tools/commitizen
@@ -109,6 +109,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+        exclude: \.patch$
 
   # Python-specific regex checks
   - repo: https://github.com/pre-commit/pygrep-hooks
