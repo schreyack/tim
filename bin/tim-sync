@@ -170,7 +170,7 @@ OVERRIDE
     # 6. Generate .secrets.baseline if detect-secrets hook exists but baseline doesn't
     if grep -q "detect-secrets" "$project/.pre-commit-config.yaml" 2>/dev/null; then
         if [[ ! -f "$project/.secrets.baseline" ]]; then
-            if (cd "$project" && detect-secrets scan > .secrets.baseline) 2>/dev/null; then
+            if (cd "$project" && detect-secrets scan --exclude-lines 'secretKey:|secretKeyRef:|remoteRef:|valueFrom:|secretName:' > .secrets.baseline) 2>/dev/null; then
                 echo -e "  ${GREEN}✓${NC} generated .secrets.baseline"
             else
                 echo -e "  ${RED}✗${NC} detect-secrets scan failed"
