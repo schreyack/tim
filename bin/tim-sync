@@ -14,10 +14,12 @@ load_projects
 
 NO_PUSH=false
 UNLOCKED=false
+SYNC_FAILED=false
 FAILED_PROJECTS=()
 UPDATED_PROJECTS=()
 CURRENT_PROJECTS=()
 WARNINGS=()
+SYNC_MODIFIED_FILES=()
 
 print_header() { echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  $1\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; }
 
@@ -43,9 +45,78 @@ do_unlock() {
 
 do_relock() {
     $UNLOCKED || return 0
+    if $SYNC_FAILED; then
+        echo -e "\n${YELLOW}⚠ Skipping relock — commit or push failed in one or more projects${NC}"
+        echo -e "  ${YELLOW}Files left unlocked so you can investigate.${NC}"
+        echo -e "  ${YELLOW}Run 'sudo tim-lock-enforcement --schg' when ready.${NC}"
+        print_warnings
+        return 0
+    fi
     echo ""
     sudo "$TIM_ROOT/bin/tim-lock-enforcement" --schg
     print_warnings
+}
+
+# --- File tracking & commit helpers ---
+
+track_if_changed() {
+    local project="$1" file="$2"
+    [[ -e "$project/$file" ]] || return 0
+    # Submodule: check pointer with --ignore-submodules=none
+    if [[ "$file" == "lib/tim" ]]; then
+        if [[ -n "$(git -C "$project" diff --ignore-submodules=none -- "$file" 2>/dev/null)" ]]; then
+            SYNC_MODIFIED_FILES+=("$file")
+        fi
+        return 0
+    fi
+    # Modified tracked file
+    if ! git -C "$project" diff --quiet -- "$file" 2>/dev/null; then
+        SYNC_MODIFIED_FILES+=("$file"); return 0
+    fi
+    # New untracked file
+    if [[ -n "$(git -C "$project" ls-files --others --exclude-standard -- "$file" 2>/dev/null)" ]]; then
+        SYNC_MODIFIED_FILES+=("$file"); return 0
+    fi
+}
+
+commit_and_push() {
+    local project="$1" name="$2"
+
+    if [[ ${#SYNC_MODIFIED_FILES[@]} -eq 0 ]]; then
+        echo -e "  ${YELLOW}—${NC} nothing to commit"
+        CURRENT_PROJECTS+=("$name")
+        return 0
+    fi
+
+    # Stage files that need explicit add (submodule is gitignored, new files are untracked)
+    for f in "${SYNC_MODIFIED_FILES[@]}"; do
+        if [[ "$f" == "lib/tim" ]]; then
+            git -C "$project" add -f "$f"
+        elif [[ -n "$(git -C "$project" ls-files --others --exclude-standard -- "$f" 2>/dev/null)" ]]; then
+            git -C "$project" add -- "$f"
+        fi
+    done
+
+    # Commit only the named files — ignores any pre-existing staged changes
+    if ! git -C "$project" commit --no-verify --quiet \
+            -m "chore: sync TIM standards" -- "${SYNC_MODIFIED_FILES[@]}"; then
+        echo -e "  ${RED}✗${NC} commit failed"
+        SYNC_FAILED=true
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} committed: chore: sync TIM standards (${SYNC_MODIFIED_FILES[*]})"
+    UPDATED_PROJECTS+=("$name")
+
+    # Push
+    if $NO_PUSH; then
+        echo -e "  ${YELLOW}—${NC} push skipped (--no-push)"
+    elif ! git -C "$project" push --quiet 2>/dev/null; then
+        echo -e "  ${RED}✗${NC} push failed"
+        SYNC_FAILED=true
+        return 1
+    else
+        echo -e "  ${GREEN}✓${NC} pushed"
+    fi
 }
 
 print_warnings() {
@@ -188,28 +259,16 @@ OVERRIDE
     for dir in drafts active completed abandoned; do mkdir -p "$project/plans/$dir"; done
     [[ -f "$project/plans/drafts/.gitkeep" ]] || touch "$project/plans/drafts/.gitkeep"
 
-    # 8. Stage changes
-    git -C "$project" add -f lib/tim .pre-commit-config.yaml CLAUDE.md 2>/dev/null || true
+    # 8. Track which files were actually modified by the sync
+    SYNC_MODIFIED_FILES=()
+    for f in lib/tim .gitmodules .pre-commit-config.yaml CLAUDE.md \
+             .gitignore .pre-commit-overrides.yaml .secrets.baseline \
+             .claude/settings.local.json plans/drafts/.gitkeep; do
+        track_if_changed "$project" "$f"
+    done
 
-    # 8. Commit if anything staged
-    if git -C "$project" diff --cached --quiet 2>/dev/null; then
-        echo -e "  ${YELLOW}—${NC} nothing to commit"
-        CURRENT_PROJECTS+=("$name")
-        return 0
-    fi
-
-    git -C "$project" commit --no-verify -m "chore: sync TIM standards" --quiet
-    echo -e "  ${GREEN}✓${NC} committed: chore: sync TIM standards"
-    UPDATED_PROJECTS+=("$name")
-
-    # 9. Push
-    if $NO_PUSH; then
-        echo -e "  ${YELLOW}—${NC} push skipped (--no-push)"
-    elif git -C "$project" push --quiet 2>/dev/null; then
-        echo -e "  ${GREEN}✓${NC} pushed"
-    else
-        echo -e "  ${RED}✗${NC} push failed"
-    fi
+    # 9. Commit only sync'd files, then push
+    commit_and_push "$project" "$name"
 }
 
 # --- Summary ---
