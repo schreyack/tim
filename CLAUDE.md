@@ -97,6 +97,15 @@ Every project has `.tim-patterns.yaml`. Unregistered patterns block deployment. 
 - Don't narrate tool calls. Just do it.
 - Keep explanations proportional to complexity.
 
+## Comms
+
+Every project has a `comms/` folder (gitignored) with two files:
+
+- **`inter-team.md`** — Cross-project requests relayed via Tim. When work in one project needs something from another project, log the request here. Tim carries these between sessions.
+- **`intra-team.md`** — Session-to-session notes within this project. Append notes at the top so the next session has context on what happened, what's next, and any blockers.
+
+Comms files are ephemeral working files, not project artifacts. They are scaffolded by `tim-sync` and gitignored. Do not commit them.
+
 ## Plans
 
 Plans use `plans/` folder: `drafts/` → `active/` → `completed/` or `abandoned/`. Everything in a plan is required — no optional work.

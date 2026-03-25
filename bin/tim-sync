@@ -253,11 +253,56 @@ OVERRIDE
 
     # 7. Ensure .gitignore has required entries + plans/ exists
     local gi="$project/.gitignore"
-    [[ -f "$gi" ]] && for entry in ".secrets.baseline.bak" ".env" ".env.*"; do
+    [[ -f "$gi" ]] && for entry in ".secrets.baseline.bak" ".env" ".env.*" "comms/"; do
         grep -qxF "$entry" "$gi" 2>/dev/null || echo "$entry" >> "$gi"
     done
     for dir in drafts active completed abandoned; do mkdir -p "$project/plans/$dir"; done
     [[ -f "$project/plans/drafts/.gitkeep" ]] || touch "$project/plans/drafts/.gitkeep"
+
+    # Scaffold comms/ folder with inter-team and intra-team templates
+    mkdir -p "$project/comms"
+    local comms_project_name=""
+    if [[ -f "$project/ops-config.yaml" ]]; then
+        comms_project_name=$(grep -A1 '^project:' "$project/ops-config.yaml" | grep 'name:' | sed 's/.*name:[[:space:]]*//' | tr -d '"' | tr -d "'")
+    fi
+    comms_project_name="${comms_project_name:-$name}"
+    if [[ ! -f "$project/comms/inter-team.md" ]]; then
+        cat > "$project/comms/inter-team.md" <<INTEREOF
+# ${comms_project_name} — Inter-Team Comms
+
+Cross-project requests relayed via Tim. One entry per request.
+
+## Template
+
+### [Date] → [Target Project]
+
+**Request:** What you need from the other project
+**Context:** Why you need it (brief)
+**Status:** pending | acknowledged | done
+**Resolution:** (filled in when done)
+
+---
+INTEREOF
+        echo -e "  ${GREEN}✓${NC} created comms/inter-team.md"
+    fi
+    if [[ ! -f "$project/comms/intra-team.md" ]]; then
+        cat > "$project/comms/intra-team.md" <<INTRAEOF
+# ${comms_project_name} — Intra-Team Comms
+
+Session-to-session notes within this project. Append new entries at the top.
+
+## Template
+
+### [Date] Session Notes
+
+**What happened:**
+**What's next:**
+**Blockers:**
+
+---
+INTRAEOF
+        echo -e "  ${GREEN}✓${NC} created comms/intra-team.md"
+    fi
 
     # 8. Track which files were actually modified by the sync
     SYNC_MODIFIED_FILES=()
