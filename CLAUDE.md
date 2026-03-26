@@ -101,8 +101,20 @@ Every project has `.tim-patterns.yaml`. Unregistered patterns block deployment. 
 
 Every project has a `comms/` folder (gitignored) with two files:
 
-- **`inter-team.md`** — Cross-project requests relayed via Tim. When work in one project needs something from another project, log the request here. Tim carries these between sessions.
-- **`intra-team.md`** — Session-to-session notes within this project. Append notes at the top so the next session has context on what happened, what's next, and any blockers.
+- **`inter-team.md`** — Cross-project messages between infra and this project. Infra writes directly into the project's file. **Always read this file when starting a session** — it may contain corrections or updates from infra.
+- **`intra-team.md`** — Session-to-session notes within this project.
+
+### Message ordering
+
+**New messages go at the top** (prepend, not append). Sessions read top-down — the first entry must be the latest. When a message supersedes or corrects an older one, mark the old entry as stale:
+
+```markdown
+### ~~[old heading]~~ — STALE (corrected above on [date])
+```
+
+### Staleness
+
+Messages accumulate across sessions. When reading comms, trust the topmost entry on a topic. If two entries contradict each other, the higher one wins. When writing a correction, always prepend — do not edit old entries in place (the history is useful context for why something changed).
 
 Comms files are ephemeral working files, not project artifacts. They are scaffolded by `tim-sync` and gitignored. Do not commit them.
 
