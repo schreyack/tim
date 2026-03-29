@@ -79,12 +79,87 @@ _resolve_playbook() {
     echo "$playbook_file"
 }
 
+# Add goal/success_criteria to YAML frontmatter if missing; returns 0 if added
+_fix_automation_frontmatter() {
+    local file="$1"
+    head -n 1 "$file" | grep -qE "^---[[:space:]]*$" || return 1
+    local end_line
+    end_line=$(awk 'NR > 1 && /^---[[:space:]]*$/ { print NR; exit }' "$file")
+    [[ -z "$end_line" ]] && return 1
+
+    local need_goal=false need_sc=false
+    if ! awk "NR>1 && NR<$end_line" "$file" | grep -qE "^goal:"; then
+        need_goal=true
+    fi
+    if ! awk "NR>1 && NR<$end_line" "$file" | grep -qE "^success_criteria:"; then
+        need_sc=true
+    fi
+    $need_goal || $need_sc || return 1
+
+    awk -v end="$end_line" -v ng="$need_goal" -v ns="$need_sc" '
+        NR == end {
+            if (ng == "true") print "goal: \"TODO: define playbook goal\""
+            if (ns == "true") print "success_criteria: \"TODO: define success criteria\""
+        }
+        { print }
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+}
+
+# Append missing automation sections; prints names of added sections to stdout
+_append_automation_sections() {
+    local file="$1"
+    local added=()
+
+    if ! grep -qE "^## Results Tracker" "$file"; then
+        local scenarios
+        scenarios=$(grep -E "^## Scenario" "$file" | sed 's/^## //')
+        {
+            echo ""
+            echo "## Results Tracker"
+            echo ""
+            echo "| Scenario | Status | Evidence |"
+            echo "|----------|--------|----------|"
+            if [[ -n "$scenarios" ]]; then
+                while IFS= read -r scenario; do
+                    echo "| ${scenario} | - | - |"
+                done <<< "$scenarios"
+            fi
+        } >> "$file"
+        added+=("Results Tracker")
+    fi
+
+    if ! grep -qE "^## Remediation" "$file"; then
+        cat >> "$file" << 'EOF'
+
+## Remediation
+
+| Failure | Likely Cause | Action |
+|---------|--------------|--------|
+EOF
+        added+=("Remediation")
+    fi
+
+    if ! grep -qE "^## Run Log" "$file"; then
+        cat >> "$file" << 'EOF'
+
+## Run Log
+
+| Date | Executor | Result | Findings |
+|------|----------|--------|----------|
+EOF
+        added+=("Run Log")
+    fi
+
+    [[ ${#added[@]} -gt 0 ]] && echo "${added[*]}"
+}
+
 cmd_playbook() {
     local subcmd="${1:-help}"
     shift || true
     case "$subcmd" in
         create)  cmd_playbook_create "$@" ;;
         import)  cmd_playbook_import "$@" ;;
+        fix)     cmd_playbook_fix "$@" ;;
         list)    cmd_playbook_list ;;
         run)     cmd_playbook_run "$@" ;;
         log)     cmd_playbook_log "$@" ;;
@@ -363,6 +438,33 @@ cmd_playbook_show() {
     fi
 }
 
+cmd_playbook_fix() {
+    local playbook_arg="${1:-}"
+    if [[ -z "$playbook_arg" ]]; then
+        log_error "Usage: $SCRIPT_PATH playbook fix <playbook>"
+        exit 1
+    fi
+
+    local playbook_file
+    playbook_file=$(_resolve_playbook "$playbook_arg")
+
+    local changes=()
+    if _fix_automation_frontmatter "$playbook_file"; then
+        changes+=("frontmatter")
+    fi
+
+    local sections
+    sections=$(_append_automation_sections "$playbook_file")
+    # shellcheck disable=SC2086
+    [[ -n "$sections" ]] && changes+=($sections)
+
+    if [[ ${#changes[@]} -eq 0 ]]; then
+        log_info "Playbook already has all required sections"
+    else
+        log_info "Added: ${changes[*]}"
+    fi
+}
+
 cmd_playbook_help() {
     cat << EOF
 plan-ops.sh playbook - Playbook Management
@@ -373,6 +475,7 @@ USAGE:
 SUBCOMMANDS:
     create <name>         Create a new playbook scaffold in drafts/
     import <file>         Import a reviewed plan as a playbook (moves to playbooks/, original to completed/)
+    fix <playbook>        Add missing standard sections (frontmatter, Results Tracker, Remediation, Run Log)
     list                  List all playbooks in the playbooks/ stage
     run <playbook>        Start a playbook run (interactive terminal required)
     log <playbook> --result <success|failure|partial> [--notes "..."]
@@ -383,6 +486,7 @@ SUBCOMMANDS:
 EXAMPLES:
     $SCRIPT_PATH playbook create deploy-checklist
     $SCRIPT_PATH playbook import auth-e2e-smoke-test
+    $SCRIPT_PATH playbook fix plans/playbooks/automations/deploy-check.md
     $SCRIPT_PATH playbook list
     $SCRIPT_PATH playbook run deploy-checklist
     $SCRIPT_PATH playbook log deploy-checklist --result success --notes "All checks passed"
