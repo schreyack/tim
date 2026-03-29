@@ -10,7 +10,7 @@
     {
       "name": "tim-loop",
       "description": "Goal in, working code out: iterative convergence with verification loop and AI behavioral enforcement. Includes plan-ops.sh for plan lifecycle management. Four-phase workflow: Plan -> Review -> Implement -> Verify.",
-      "version": "2.92.1",
+      "version": "3.0.0",
       "author": {
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"
@@ -21,7 +21,7 @@
     {
       "name": "tim-pbt",
       "description": "Property-based bug hunting: discover invariants in your code, find real bugs with Hypothesis/fast-check.",
-      "version": "2.2.2",
+      "version": "3.0.0",
       "author": {
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"
@@ -42,8 +42,8 @@
     },
     {
       "name": "tim-plancheck",
-      "description": "Plan audit: verify every plan's completion against actual codebase state.",
-      "version": "1.0.0",
+      "description": "Plan audit: verify every plan's claims against actual codebase state.",
+      "version": "2.0.0",
       "author": {
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"

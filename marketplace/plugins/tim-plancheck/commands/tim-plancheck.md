@@ -1,95 +1,94 @@
 ---
-description: "Plan audit: verify every plan's completion against actual codebase state"
-argument-hint: "[--drafts-only | --active-only]"
+description: "Plan audit: verify every plan's claims against actual codebase state"
+argument-hint: "[--drafts-only | --active-only | --deep]"
 ---
 
 # Plan Check
 
-You are a plan auditor. Your job is to review every plan in `plans/drafts/` and `plans/active/`, verify whether each plan's steps are actually complete by checking the codebase, and move plans to their correct lifecycle state. You do not delete plans. Ever.
+You are verifying claims. Every plan is a claim: "this work is done" or "this work is in progress." Your job is to check those claims against the codebase and move plans to the state the evidence supports.
 
-**Do not assume completion.** A plan is complete only when every required step has verifiable evidence in the codebase — files exist, code is implemented, configs are in place. "Probably done" is not done. If you cannot verify a step, it is not done.
+**Do not assume completion.** A plan is complete only when every step has verifiable evidence — files exist, code is implemented, configs are in place. "Probably done" is not done.
+
+**Do not assume abandonment.** A plan whose approach changed is not abandoned if the goal is still relevant. Check git activity before classifying.
 
 ---
 
 ## Phase 1: Inventory
 
-Scan `plans/drafts/` and `plans/active/` for all `.md` files (excluding `MASTER.md` files — those are multi-plan parent docs, not individual plans).
+Scan `plans/drafts/` and `plans/active/` for `.md` files (exclude `MASTER.md` — those are package parents). Respect `--drafts-only` / `--active-only` flags.
 
-If `$ARGUMENTS` contains `--drafts-only`, only scan `plans/drafts/`. If `--active-only`, only scan `plans/active/`.
+Also scan `plans/completed/` and `plans/abandoned/` for the summary table. Do not re-audit those unless `--deep` is passed (see below).
 
-If both directories are empty or don't exist, report "No plans to audit" and stop.
-
-Also scan `plans/completed/` and `plans/abandoned/` to build a full inventory for the summary table, but do NOT re-audit those — they are included only for completeness in the final report.
+Empty directories → "No plans to audit" → stop.
 
 ---
 
-## Phase 2: Deep Verification
+## Phase 2: Verification
 
-For each plan found in drafts or active:
+For each plan in drafts or active:
 
-1. **Read the full plan.** Understand every step, deliverable, and acceptance criterion.
+### 2a. Read and understand
 
-2. **Spawn verification agents.** Use the Agent tool (subagent_type: "Explore", model: "opus") to verify each major step or group of related steps against the actual codebase. Each agent should:
-   - Search for the specific files, functions, configs, or changes the step requires
-   - Check that implementations match what the plan specifies (not just that a file exists, but that it contains the right code)
-   - Report back with evidence: file paths, line numbers, or clear "not found" results
+Read the full plan. Identify every step, deliverable, and acceptance criterion.
 
-   Spawn agents in parallel where steps are independent. Cap each agent's task to a focused verification — don't send one agent to verify an entire 20-step plan.
+### 2b. Check git activity
 
-3. **Classify the plan** based on verification results:
+```bash
+# Find files the plan references, check recent activity
+git log --oneline --since="30 days ago" -- <referenced-files-or-dirs>
+```
 
-   | Classification | Criteria |
-   |---|---|
-   | **COMPLETED** | Every step has verifiable evidence in the codebase. No gaps. |
-   | **ACTIVE** | Some steps are done, work is clearly in progress, remaining steps are still relevant. |
-   | **ABANDONED** | The plan's goals have been superseded by other work, the approach was replaced, or the plan is no longer relevant to the current codebase state. |
-   | **BLOCKED** | Steps cannot proceed due to missing dependencies, unresolved decisions, or external blockers. |
-   | **DRAFT** | No meaningful progress has been made. Plan is still a proposal. |
+Recent commits on plan-related files = evidence of active work. No commits in 60+ days = likely stalled or abandoned.
+
+### 2c. Verify steps
+
+**Use lightweight tools first.** For existence checks (does this file exist? does this function exist?), use Glob and Grep directly. Only spawn Explore agents for complex verifications (does this implementation match the spec? is this config correct?).
+
+For each step, record: DONE (with evidence), PARTIAL (what's done, what's missing), or NOT DONE.
+
+### 2d. Classify
+
+| Classification | Criteria |
+|---|---|
+| **COMPLETED** | Every step verified. No gaps. |
+| **ACTIVE (N/M)** | N of M steps done, recent git activity, remaining steps still relevant |
+| **STALLED (N/M)** | N of M steps done, no recent git activity |
+| **ABANDONED** | Goals superseded, approach replaced, or no longer relevant to current codebase |
+| **BLOCKED** | Cannot proceed: missing dependencies, unresolved decisions, external blockers |
+| **DRAFT** | No meaningful progress. Still a proposal. |
+
+The N/M count matters — "ACTIVE 9/10" and "ACTIVE 1/10" are very different situations.
+
+### --deep flag
+
+When `--deep` is passed, also spot-check plans in `plans/completed/`. For each, verify that the key deliverables still exist and haven't regressed. If a completed plan's deliverables are broken by subsequent changes, note it in the report as a regression.
 
 ---
 
 ## Phase 3: Move Plans
 
-For each plan that needs to move:
+- **COMPLETED** → `mv` to `plans/completed/`
+- **ABANDONED** → `mv` to `plans/abandoned/`, append an `## Abandoned` section with date and reason
+- **ACTIVE/STALLED** → move to `plans/active/` if currently in drafts. Already in active → leave.
+- **BLOCKED / DRAFT** → leave in current location.
 
-- **COMPLETED** → `mv` from current location to `plans/completed/`
-- **ABANDONED** → `mv` from current location to `plans/abandoned/`
-  - Before moving: append a section to the bottom of the plan file:
-
-    ```markdown
-
-    ---
-
-    ## Abandoned
-
-    **Date:** YYYY-MM-DD
-    **Reason:** [Clear explanation of why this plan is no longer needed]
-    ```
-
-- **ACTIVE** → if currently in `plans/drafts/`, move to `plans/active/`. If already in `plans/active/`, leave it.
-- **BLOCKED** / **DRAFT** → leave in current location.
-
-Create destination directories if they don't exist.
+Create directories if needed.
 
 ---
 
-## Phase 4: Summary Report
-
-Output a markdown table with ALL plans across all directories (including completed/abandoned that you didn't re-audit). Format:
+## Phase 4: Summary
 
 ```markdown
 ## Plan Audit Summary
 
-| Plan | Previous Location | Current Location | Status | Notes |
-|------|-------------------|------------------|--------|-------|
-| plan-name.md | drafts/ | completed/ | COMPLETED | All 5 steps verified |
-| other-plan.md | active/ | active/ | ACTIVE | 3/7 steps done, remaining work is relevant |
-| old-plan.md | completed/ | completed/ | (previously completed) | — |
-| ...  | ... | ... | ... | ... |
+| Plan | From | To | Status | Progress | Last Activity | Notes |
+|------|------|----|--------|----------|---------------|-------|
+| plan.md | drafts/ | completed/ | COMPLETED | 5/5 | 2026-03-25 | All steps verified |
+| other.md | active/ | active/ | ACTIVE | 3/7 | 2026-03-28 | Auth steps done, UI pending |
+| stale.md | active/ | active/ | STALLED | 2/6 | 2026-01-15 | No activity in 73 days |
+| old.md | completed/ | completed/ | (completed) | — | — | — |
+
+Audited X plans: Y completed, Z active, W stalled, V abandoned, U blocked, T draft.
 ```
 
-For plans that were NOT moved, still include them with "No change" in the notes.
-
-For plans in completed/abandoned that you didn't re-audit, show their status as "(previously completed)" or "(previously abandoned)" and use "—" for notes.
-
-After the table, provide a one-line summary: "Audited X plans: Y completed, Z active, W abandoned, V blocked, U unchanged."
+For `--deep` audits, add a Regressions section if any completed plans have broken deliverables.
