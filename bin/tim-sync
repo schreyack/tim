@@ -253,10 +253,11 @@ OVERRIDE
 
     # 7. Ensure .gitignore has required entries + plans/ exists
     local gi="$project/.gitignore"
-    [[ -f "$gi" ]] && for entry in ".secrets.baseline.bak" ".env" ".env.*" "comms/"; do
+    [[ -f "$gi" ]] && for entry in ".secrets.baseline.bak" ".env" ".env.*" "comms/" "plans/playbooks/results/"; do
         grep -qxF "$entry" "$gi" 2>/dev/null || echo "$entry" >> "$gi"
     done
     for dir in drafts active completed abandoned; do mkdir -p "$project/plans/$dir"; done
+    for dir in automations orchestrations fixtures results; do mkdir -p "$project/plans/playbooks/$dir"; done
     [[ -f "$project/plans/drafts/.gitkeep" ]] || touch "$project/plans/drafts/.gitkeep"
 
     # Scaffold comms/ folder with inter-team and intra-team templates

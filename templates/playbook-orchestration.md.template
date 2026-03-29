@@ -1,0 +1,22 @@
+---
+name: [NAME]
+description: [One-line description of this test flow]
+on_failure: stop
+cleanup: always
+---
+
+# [NAME]
+
+## Flow
+
+1. **[automation-name]** — [description]
+2. **[automation-name]** — [description]
+3. **cleanup** — [teardown description]
+
+## State
+
+Each automation's `outputs` carry forward as state for subsequent automations.
+
+## On Failure
+
+Stop execution. Run cleanup regardless.

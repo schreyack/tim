@@ -1,0 +1,21 @@
+---
+name: [NAME]
+description: [One-line description of what this automation tests]
+pre_conditions: []
+inputs: {}
+outputs: []
+estimated_duration: [e.g., 5m]
+tags: []
+credentials: []
+---
+
+# [NAME]
+
+## Scenario 1: [Title]
+
+| Step | Action | Expected Result |
+|------|--------|----------------|
+| 1    | [What to do] | [What should happen] |
+| 2    | [What to do] | [What should happen] |
+
+**Output:** Capture `[key]` from [where].
