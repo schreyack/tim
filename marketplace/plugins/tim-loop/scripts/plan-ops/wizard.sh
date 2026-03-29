@@ -5,107 +5,121 @@
 # shellcheck source=plan-ops/core.sh
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && { echo "ERROR: Must be sourced" >&2; exit 1; }
 
-# Show a numbered list of recent plans and let user pick one (no-argument wizard)
+# Show plans and playbooks in separate sections, return selected path
 wizard_pick_plan() {
-    local all_plans=()
+    local plan_files=() playbook_files=()
 
     if [[ -d "$PLANS_DIR" ]]; then
         local abs_plans_dir
         abs_plans_dir=$(to_absolute "$PLANS_DIR")
 
-        for stage in drafts active playbooks; do
+        # Plans: drafts and active
+        for stage in drafts active; do
             local stage_dir="${abs_plans_dir}/${stage}"
             [[ -d "$stage_dir" ]] || continue
-
             while IFS= read -r -d '' file; do
-                all_plans+=("$file")
+                plan_files+=("$file")
             done < <(find "$stage_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
-
             while IFS= read -r -d '' dir; do
-                if [[ -f "${dir}/MASTER.md" ]]; then
-                    all_plans+=("${dir}/MASTER.md")
-                fi
+                [[ -f "${dir}/MASTER.md" ]] && plan_files+=("${dir}/MASTER.md")
             done < <(find "$stage_dir" -maxdepth 1 -type d ! -name "$stage" -print0 2>/dev/null)
         done
+
+        # Playbooks: root + orchestrations/ + automations/
+        local pb_dir="${abs_plans_dir}/playbooks"
+        if [[ -d "$pb_dir" ]]; then
+            while IFS= read -r -d '' file; do
+                playbook_files+=("$file")
+            done < <(find "$pb_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+            for subdir in orchestrations automations; do
+                [[ -d "${pb_dir}/${subdir}" ]] || continue
+                while IFS= read -r -d '' file; do
+                    playbook_files+=("$file")
+                done < <(find "${pb_dir}/${subdir}" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+            done
+        fi
     fi
 
+    # CLAUDE_PLANS_DIR — always plan territory
     if [[ -d "$CLAUDE_PLANS_DIR" ]]; then
         while IFS= read -r -d '' file; do
-            all_plans+=("$file")
+            plan_files+=("$file")
         done < <(find "$CLAUDE_PLANS_DIR" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
-
         while IFS= read -r -d '' subdir; do
             if [[ -f "${subdir}/MASTER.md" ]]; then
-                all_plans+=("${subdir}/MASTER.md")
+                plan_files+=("${subdir}/MASTER.md")
             else
                 while IFS= read -r -d '' file; do
-                    all_plans+=("$file")
+                    plan_files+=("$file")
                 done < <(find "$subdir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
-
                 while IFS= read -r -d '' pkgdir; do
-                    if [[ -f "${pkgdir}/MASTER.md" ]]; then
-                        all_plans+=("${pkgdir}/MASTER.md")
-                    fi
+                    [[ -f "${pkgdir}/MASTER.md" ]] && plan_files+=("${pkgdir}/MASTER.md")
                 done < <(find "$subdir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
             fi
         done < <(find "$CLAUDE_PLANS_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
     fi
 
-    if [[ ${#all_plans[@]} -eq 0 ]]; then
-        log_error "No plans found."
-        log_info "Searched in: $(to_absolute "$PLANS_DIR")/{drafts,active}, $CLAUDE_PLANS_DIR"
+    if [[ ${#plan_files[@]} -eq 0 && ${#playbook_files[@]} -eq 0 ]]; then
+        log_error "No plans or playbooks found."
+        log_info "Searched in: $(to_absolute "$PLANS_DIR")/{drafts,active,playbooks}, $CLAUDE_PLANS_DIR"
         exit 1
     fi
 
-    # Build sortable entries: "sortkey|path"
-    # Sort key is the plan/package name (starts with timestamp)
-    local sort_entries=()
-    for plan in "${all_plans[@]}"; do
-        local name
-        if [[ "$(basename "$plan")" == "MASTER.md" ]]; then
-            name=$(basename "$(dirname "$plan")")
-        else
-            name=$(basename "$plan" .md)
-        fi
-        sort_entries+=("${name}|${plan}")
-    done
+    # Build unified numbered list across both sections (stderr — stdout is captured)
+    local paths=() i=1
 
-    # Sort reverse by name (timestamp prefix = most recent first)
-    local sorted
-    sorted=$(printf '%s\n' "${sort_entries[@]}" | sort -t'|' -k1 -r)
+    # --- Plans section ---
+    if [[ ${#plan_files[@]} -gt 0 ]]; then
+        local plan_sort=()
+        for f in "${plan_files[@]}"; do
+            local name
+            [[ "$(basename "$f")" == "MASTER.md" ]] && name=$(basename "$(dirname "$f")") || name=$(basename "$f" .md)
+            plan_sort+=("${name}|${f}")
+        done
+        echo "" >&2
+        echo "=== Plans ===" >&2
+        echo "" >&2
+        while IFS='|' read -r name path; do
+            local label=""
+            case "$path" in
+                */drafts/*) label="draft" ;; */active/*) label="active" ;; *) label="import" ;;
+            esac
+            local pkg=""
+            [[ "$(basename "$path")" == "MASTER.md" ]] && pkg=" [PKG]"
+            printf "  [%2d] %-10s %s%s\n" "$i" "($label)" "$name" "$pkg" >&2
+            paths+=("$path"); ((i++))
+        done < <(printf '%s\n' "${plan_sort[@]}" | sort -t'|' -k1 -r)
+    fi
 
-    # Display numbered list (all display output to stderr since stdout is captured)
-    echo "" >&2
-    echo "=== Recent Plans ===" >&2
-    echo "" >&2
-    local i=1
-    local paths=()
-    while IFS='|' read -r name path; do
-        local stage_label=""
-        case "$path" in
-            */drafts/*)    stage_label="draft" ;;
-            */active/*)    stage_label="active" ;;
-            */completed/*) stage_label="done" ;;
-            */abandoned/*) stage_label="abandoned" ;;
-            */playbooks/*) stage_label="playbook" ;;
-            *)             stage_label="import" ;;
-        esac
-
-        local pkg_label=""
-        if [[ "$(basename "$path")" == "MASTER.md" ]]; then
-            pkg_label=" [PACKAGE]"
-        fi
-
-        printf "  [%2d] %-12s %s%s\n" "$i" "($stage_label)" "$name" "$pkg_label" >&2
-        paths+=("$path")
-        ((i++))
-    done <<< "$sorted"
+    # --- Playbooks section ---
+    if [[ ${#playbook_files[@]} -gt 0 ]]; then
+        local pb_sort=()
+        for f in "${playbook_files[@]}"; do
+            local name tier_key
+            name=$(basename "$f" .md)
+            case "$f" in
+                */orchestrations/*) tier_key="0" ;; */automations/*) tier_key="1" ;; *) tier_key="2" ;;
+            esac
+            pb_sort+=("${tier_key}|${name}|${f}")
+        done
+        echo "" >&2
+        echo "=== Playbooks ===" >&2
+        echo "" >&2
+        while IFS='|' read -r tier_key name path; do
+            local tier=""
+            case "$tier_key" in
+                0) tier="orch" ;; 1) tier="auto" ;; 2) tier="root" ;;
+            esac
+            printf "  [%2d] %-10s %s\n" "$i" "($tier)" "$name" >&2
+            paths+=("$path"); ((i++))
+        done < <(printf '%s\n' "${pb_sort[@]}" | sort -t'|' -k1,1 -k2,2)
+    fi
 
     echo "" >&2
     local count=${#paths[@]}
     local choice
     while true; do
-        echo -n "Select plan [1-${count}]: " >&2
+        echo -n "Select [1-${count}]: " >&2
         read -r choice </dev/tty
         if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$count" ]]; then
             echo "${paths[$((choice-1))]}"
@@ -131,6 +145,12 @@ cmd_wizard() {
     # No argument: show interactive plan picker
     if [[ -z "$plan_file" ]]; then
         plan_file=$(wizard_pick_plan)
+    fi
+
+    # Playbook launcher: automations/orchestrations bypass plan lifecycle
+    if [[ "$plan_file" == *"/playbooks/orchestrations/"* || "$plan_file" == *"/playbooks/automations/"* ]]; then
+        wizard_playbook_launcher "$plan_file"
+        return
     fi
 
     # Handle package directories - if user passes a folder with MASTER.md, use that

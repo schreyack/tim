@@ -62,7 +62,7 @@ _resolve_playbook() {
     local playbooks_dir="${PLANS_DIR}/playbooks"
     if [[ -d "$playbooks_dir" ]]; then
         local match
-        match=$(find "$playbooks_dir" -maxdepth 1 -name "*${search_name}*" -type f 2>/dev/null | head -1)
+        match=$(find "$playbooks_dir" -maxdepth 3 -name "*${search_name}*" -type f 2>/dev/null | head -1)
         if [[ -n "$match" ]]; then
             echo "$match"
             return 0

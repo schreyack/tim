@@ -53,6 +53,7 @@ MODULES=(
     reset
     verification
     wizard
+    wizard-playbook
     wizard-steps
     commands-lifecycle
     commands-approval
