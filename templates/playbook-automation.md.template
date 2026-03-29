@@ -1,6 +1,10 @@
 ---
 name: [NAME]
 description: [One-line description of what this automation tests]
+goal: [WHY this test exists — what are we trying to prove?]
+success_criteria:
+  - "[Measurable condition 1 that defines PASS]"
+  - "[Measurable condition 2]"
 pre_conditions: []
 inputs: {}
 outputs: []
@@ -19,3 +23,20 @@ credentials: []
 | 2    | [What to do] | [What should happen] |
 
 **Output:** Capture `[key]` from [where].
+
+## Results Tracker
+
+| Scenario | Status | Evidence |
+|----------|--------|----------|
+| 1. [Title] | - | - |
+
+## Remediation
+
+| Failure | Likely Cause | Action |
+|---------|-------------|--------|
+| [What failed] | [Why] | [How to investigate/fix] |
+
+## Run Log
+
+| Date | Executor | Result | Findings |
+|------|----------|--------|----------|

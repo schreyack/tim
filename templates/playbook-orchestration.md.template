@@ -1,11 +1,16 @@
 ---
 name: [NAME]
 description: [One-line description of this test flow]
+goal: [What end-to-end flow is being validated and why?]
 on_failure: stop
 cleanup: always
 ---
 
 # [NAME]
+
+## Goal
+
+[Why this orchestration exists — what end-to-end behavior does it validate?]
 
 ## Flow
 
