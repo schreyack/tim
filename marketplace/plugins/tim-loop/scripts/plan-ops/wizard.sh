@@ -25,18 +25,17 @@ wizard_pick_plan() {
             done < <(find "$stage_dir" -maxdepth 1 -type d ! -name "$stage" -print0 2>/dev/null)
         done
 
-        # Playbooks: root + orchestrations/ + automations/
+        # Playbooks: root + orchestrations/ (automations are internal, not listed)
         local pb_dir="${abs_plans_dir}/playbooks"
         if [[ -d "$pb_dir" ]]; then
             while IFS= read -r -d '' file; do
                 playbook_files+=("$file")
             done < <(find "$pb_dir" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
-            for subdir in orchestrations automations; do
-                [[ -d "${pb_dir}/${subdir}" ]] || continue
+            if [[ -d "${pb_dir}/orchestrations" ]]; then
                 while IFS= read -r -d '' file; do
                     playbook_files+=("$file")
-                done < <(find "${pb_dir}/${subdir}" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
-            done
+                done < <(find "${pb_dir}/orchestrations" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+            fi
         fi
     fi
 
@@ -68,7 +67,10 @@ wizard_pick_plan() {
     # Build unified numbered list across both sections (stderr — stdout is captured)
     local paths=() i=1
 
-    # --- Plans section ---
+    # --- Plans section (always shown) ---
+    echo "" >&2
+    echo "=== Plans ===" >&2
+    echo "" >&2
     if [[ ${#plan_files[@]} -gt 0 ]]; then
         local plan_sort=()
         for f in "${plan_files[@]}"; do
@@ -76,9 +78,6 @@ wizard_pick_plan() {
             [[ "$(basename "$f")" == "MASTER.md" ]] && name=$(basename "$(dirname "$f")") || name=$(basename "$f" .md)
             plan_sort+=("${name}|${f}")
         done
-        echo "" >&2
-        echo "=== Plans ===" >&2
-        echo "" >&2
         while IFS='|' read -r name path; do
             local label=""
             case "$path" in
@@ -89,6 +88,8 @@ wizard_pick_plan() {
             printf "  [%2d] %-10s %s%s\n" "$i" "($label)" "$name" "$pkg" >&2
             paths+=("$path"); ((i++))
         done < <(printf '%s\n' "${plan_sort[@]}" | sort -t'|' -k1 -r)
+    else
+        echo "  (none)" >&2
     fi
 
     # --- Playbooks section ---
@@ -98,7 +99,7 @@ wizard_pick_plan() {
             local name tier_key
             name=$(basename "$f" .md)
             case "$f" in
-                */orchestrations/*) tier_key="0" ;; */automations/*) tier_key="1" ;; *) tier_key="2" ;;
+                */orchestrations/*) tier_key="0" ;; *) tier_key="1" ;;
             esac
             pb_sort+=("${tier_key}|${name}|${f}")
         done
@@ -108,7 +109,7 @@ wizard_pick_plan() {
         while IFS='|' read -r tier_key name path; do
             local tier=""
             case "$tier_key" in
-                0) tier="orch" ;; 1) tier="auto" ;; 2) tier="root" ;;
+                0) tier="orch" ;; 1) tier="playbook" ;;
             esac
             printf "  [%2d] %-10s %s\n" "$i" "($tier)" "$name" >&2
             paths+=("$path"); ((i++))
