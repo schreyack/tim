@@ -131,6 +131,15 @@ _ACTION_INTENT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# User approval keywords — when the user explicitly approves a proposed plan,
+# follow-up implementation is expected (not drift)
+_APPROVAL_INTENT_RE = re.compile(
+    r"\b(?:proceed|go\s+ahead|go\s+for\s+it|do\s+it|approved|lgtm|"
+    r"looks\s+good|sounds\s+good|ship\s+it|yes\s+do|yes\s+please|"
+    r"yes,?\s+(?:go|do|implement|build|fix|proceed))\b",
+    re.IGNORECASE,
+)
+
 
 def _extract_last_human_text(transcript: list[dict]) -> str:
     """Extract text from the most recent human turn in the transcript."""
@@ -149,15 +158,16 @@ def _extract_last_human_text(transcript: list[dict]) -> str:
 
 
 def _user_requested_action(transcript: list[dict]) -> bool:
-    """Check if the user's last message requested a mutating action.
+    """Check if the user's last message requested or approved a mutating action.
 
-    When the user asks to commit, fix, build, etc., follow-up actions like
-    'let me fix the pre-commit failures' are completing the request, not drift.
+    When the user asks to commit, fix, build, etc., or explicitly approves
+    a proposed plan ("proceed", "go ahead", "do it"), follow-up implementation
+    is completing the request, not drift.
     """
     user_text = _extract_last_human_text(transcript)
     if not user_text:
         return False
-    return bool(_ACTION_INTENT_RE.search(user_text))
+    return bool(_ACTION_INTENT_RE.search(user_text) or _APPROVAL_INTENT_RE.search(user_text))
 
 
 def _check_mode_violations(recent_text: str, review_mode: str) -> tuple[str, str] | None:
