@@ -42,7 +42,7 @@ Deployments use `ops.sh ship` — the standard single-command deploy pipeline. `
 
 ## ops.sh (MANDATORY)
 
-ops.sh is the **only** way to interact with the k3s cluster. All cluster operations — deployment, debugging, logs, database access — go through ops.sh. Never bypass it with direct SSH, kubectl, or raw SQL.
+ops.sh is the **only** way to interact with the k3s cluster. All cluster operations go through ops.sh — run `<alias> --env <env> --help` for available commands. Never bypass it with direct SSH, kubectl, or raw SQL.
 
 ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.yaml`. Each project has a shell alias that wraps ops.sh — the alias name is the `project.name` field from that project's `ops-config.yaml`. To find the alias for the current project, read `ops-config.yaml` and use the `project.name` value. Example: if `project.name: "myapp"`, then `myapp --env dev ship`.
 
