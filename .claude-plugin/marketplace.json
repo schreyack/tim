@@ -31,8 +31,8 @@
     },
     {
       "name": "tim-e2e",
-      "description": "E2E bug hunting with Playwright MCP: Claude drives a real browser, finds bugs, proves them with tests.",
-      "version": "2.0.0",
+      "description": "E2E testing with Playwright MCP: playbook execution or ad-hoc bug hunting.",
+      "version": "3.0.0",
       "author": {
         "name": "Tim Schreyack",
         "email": "schreyack@users.noreply.github.com"
