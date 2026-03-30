@@ -69,11 +69,9 @@ TASK_DRIFT_PATTERNS = [
         description="Proceeding to implementation without request",
         example="I'll proceed with the implementation.",
     ),
-    TaskDriftPattern(
-        pattern=r"(?:next|now)\s+(?:I'll|I will|let me)\s+(?:implement|fix|code|make\s+the\s+changes)",
-        description="Moving to next step (implementation) without being asked",
-        example="Next, I'll implement these improvements.",
-    ),
+    # "Next/now let me implement/fix" — removed from regex; too many false positives
+    # on natural continuations like "Now let me fix it". The LLM judge in the Stop
+    # hook handles this with full context instead.
 
     # Making changes after reading/understanding
     TaskDriftPattern(
