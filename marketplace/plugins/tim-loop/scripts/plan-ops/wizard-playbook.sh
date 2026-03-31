@@ -30,9 +30,25 @@ _pb_root_dir() {
     done
 }
 
+# Offer review before run (y/N, same pattern as plans)
+_pb_offer_review() {
+    local file="$1"
+    echo ""
+    echo -n "Would you like to run a review on this playbook first? [y/N] "
+    read -r pb_review </dev/tty
+    if [[ "$pb_review" =~ ^[Yy] ]]; then
+        echo ""
+        echo "Run /clear first, then paste this command in Claude Code:"
+        show_command "/tim-loop:tim-loop --full-review ${file} --max-iterations 15"
+        echo -n "Press Enter when review completes..."
+        read -r </dev/tty
+    fi
+}
+
 # Emit the tim-e2e command and copy to clipboard
 _pb_emit_command() {
     local file="$1"
+    _pb_offer_review "$file"
     local cmd="/tim-e2e:tim-e2e ${file}"
     echo ""
     echo "Run /clear first, then paste this command in Claude Code:"

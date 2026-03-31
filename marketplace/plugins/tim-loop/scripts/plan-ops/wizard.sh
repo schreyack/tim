@@ -281,7 +281,7 @@ cmd_wizard() {
         fi
     fi
 
-    # Playbook-ready state - offer run/history/reopen
+    # Playbook-ready state - offer review, run, history, reopen
     if [[ "$state" == "playbook-ready" ]]; then
         echo ""
         log_info "This is a completed playbook, ready to run."
@@ -292,6 +292,19 @@ cmd_wizard() {
         last_result=$(get_status_field "$WIZARD_PLAN_FILE" "Last Result")
         [[ "$run_count" != "-" && "$run_count" != "0" ]] && \
             echo "  Run Count: $run_count | Last Run: $last_run | Last Result: $last_result"
+
+        # Offer review before run (same pattern as plans)
+        echo ""
+        echo -n "Would you like to run a review on this playbook? [y/N] "
+        read -r pb_review </dev/tty
+        if [[ "$pb_review" =~ ^[Yy] ]]; then
+            echo ""
+            echo "Run /clear first, then paste this command in Claude Code:"
+            show_command "/tim-loop:tim-loop --full-review $WIZARD_PLAN_FILE --max-iterations 15"
+            echo -n "Press Enter when review completes..."
+            read -r </dev/tty
+        fi
+
         echo ""
         echo "  [1] Run playbook  [2] Show run history  [3] Reopen to drafts  [4] Exit"
         echo -n "Choice [1-4]: "
