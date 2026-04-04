@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,6 +54,103 @@ def load_template(template_type: str) -> dict[str, Any]:
     return load_yaml_file(template_path)
 
 
+def _merge_overrides(
+    preset: dict[str, Any],
+    manual: dict[str, Any],
+) -> dict[str, Any]:
+    """Merge preset overrides with manual overrides. Manual wins."""
+    merged: dict[str, Any] = {}
+    # disable: union (order irrelevant — becomes a set in merge_config)
+    merged["disable"] = list(
+        set(preset.get("disable", [])) | set(manual.get("disable", []))
+    )
+    # enable: manual only (presets don't re-enable)
+    enable = manual.get("enable", [])
+    if enable:
+        merged["enable"] = enable
+    # repos: concatenate (preset first, then manual)
+    preset_repos = preset.get("repos", [])
+    manual_repos = manual.get("repos", [])
+    if preset_repos or manual_repos:
+        merged["repos"] = preset_repos + manual_repos
+    # hooks: merge dicts, manual properties win per hook
+    preset_hooks = dict(preset.get("hooks", {}))
+    for hook_id, props in manual.get("hooks", {}).items():
+        if hook_id in preset_hooks:
+            preset_hooks[hook_id] = {**preset_hooks[hook_id], **props}
+        else:
+            preset_hooks[hook_id] = props
+    if preset_hooks:
+        merged["hooks"] = preset_hooks
+    # project_type is NOT carried forward (already consumed)
+    return merged
+
+
+def _validate_override_keys(overrides: dict[str, Any]) -> None:
+    """Warn about unrecognized keys in the overrides dict."""
+    known_keys = {"project_type", "disable", "enable", "hooks", "repos"}
+    for key in sorted(set(overrides) - known_keys):
+        print(f"{YELLOW}Warning: unknown override key '{key}' (ignored){NC}")
+
+
+def _resolve_preset(overrides: dict[str, Any]) -> dict[str, Any]:
+    """Load and merge preset if project_type is specified."""
+    project_type = overrides.get("project_type")
+    if not project_type:
+        return overrides
+    from sync_pre_commit.presets import PRESETS
+
+    preset = PRESETS.get(project_type)
+    if preset is None:
+        print(
+            f"{YELLOW}Warning: unknown project_type '{project_type}'{NC}"
+        )
+        return overrides
+    return _merge_overrides(preset, overrides)
+
+
+def _filter_disabled_hooks(
+    result: dict[str, Any],
+    disable_ids: set[str],
+) -> None:
+    """Remove hooks whose IDs are in the disable set (mutates result)."""
+    if not disable_ids:
+        return
+    filtered_repos: list[dict[str, Any]] = []
+    for repo in result.get("repos", []):
+        filtered_hooks = [
+            hook
+            for hook in repo.get("hooks", [])
+            if hook.get("id") not in disable_ids
+        ]
+        if filtered_hooks:
+            repo_copy = dict(repo)
+            repo_copy["hooks"] = filtered_hooks
+            filtered_repos.append(repo_copy)
+    result["repos"] = filtered_repos
+
+
+def _apply_hook_overrides(
+    result: dict[str, Any],
+    hook_overrides: dict[str, Any],
+) -> None:
+    """Apply per-hook property overrides (mutates result)."""
+    if not hook_overrides:
+        return
+    applied_ids: set[str] = set()
+    for repo in result.get("repos", []):
+        for hook in repo.get("hooks", []):
+            hook_id = hook.get("id")
+            if hook_id in hook_overrides:
+                hook.update(hook_overrides[hook_id])
+                applied_ids.add(hook_id)
+    for hook_id in sorted(set(hook_overrides) - applied_ids):
+        print(
+            f"{YELLOW}Warning: hook override '{hook_id}' "
+            f"not found in config{NC}"
+        )
+
+
 def merge_config(
     base: dict[str, Any],
     overrides: dict[str, Any],
@@ -61,24 +159,20 @@ def merge_config(
 
     Overrides can:
     - disable: list of hook IDs to remove from base
+    - enable: list of hook IDs to re-enable (subtracts from disable)
+    - hooks: dict of hook ID -> property overrides (replaces per-property)
+    - project_type: name of a preset to apply before manual overrides
     - repos: additional repos to append
     """
-    result = dict(base)
-    disable_ids = set(overrides.get("disable", []))
+    result = copy.deepcopy(base)
+    _validate_override_keys(overrides)
+    overrides = _resolve_preset(overrides)
 
-    if disable_ids:
-        filtered_repos: list[dict[str, Any]] = []
-        for repo in result.get("repos", []):
-            filtered_hooks = [
-                hook
-                for hook in repo.get("hooks", [])
-                if hook.get("id") not in disable_ids
-            ]
-            if filtered_hooks:
-                repo_copy = dict(repo)
-                repo_copy["hooks"] = filtered_hooks
-                filtered_repos.append(repo_copy)
-        result["repos"] = filtered_repos
+    disable_ids = set(overrides.get("disable", [])) - set(
+        overrides.get("enable", [])
+    )
+    _filter_disabled_hooks(result, disable_ids)
+    _apply_hook_overrides(result, overrides.get("hooks", {}))
 
     extra_repos = overrides.get("repos", [])
     if extra_repos:

@@ -87,6 +87,17 @@ def _template_mtimes(template_type: str) -> list[float]:
     return [p.stat().st_mtime for p in paths if p.exists()]
 
 
+def _presets_newer_than(overrides_path: Path, config_mtime: float) -> bool:
+    """Check if presets.py is newer than config for preset-using projects."""
+    if not overrides_path.exists():
+        return False
+    overrides_data = load_yaml_file(overrides_path)
+    if not overrides_data.get("project_type"):
+        return False
+    presets_path = Path(__file__).parent / "presets.py"
+    return presets_path.exists() and presets_path.stat().st_mtime > config_mtime
+
+
 def needs_sync(project: Path, template_type: str) -> tuple[bool, str]:
     """Check if a project's pre-commit config needs regeneration."""
     config_path = project / ".pre-commit-config.yaml"
@@ -109,6 +120,9 @@ def needs_sync(project: Path, template_type: str) -> tuple[bool, str]:
     overrides_path = project / ".pre-commit-overrides.yaml"
     if overrides_path.exists() and overrides_path.stat().st_mtime > config_mtime:
         return True, "overrides file is newer"
+
+    if _presets_newer_than(overrides_path, config_mtime):
+        return True, "presets module is newer"
 
     return False, "up to date"
 
@@ -196,9 +210,18 @@ def _print_overrides_summary(name: str, overrides: dict[str, Any]) -> None:
     """Print a summary of applied overrides."""
     disabled = overrides.get("disable", [])
     extra = len(overrides.get("repos", []))
-    parts = []
+    hook_mods = overrides.get("hooks", {})
+    enabled = overrides.get("enable", [])
+    project_type = overrides.get("project_type")
+    parts: list[str] = []
+    if project_type:
+        parts.append(f"type={project_type}")
     if disabled:
         parts.append(f"disabled {len(disabled)} hooks")
+    if enabled:
+        parts.append(f"enabled {len(enabled)} hooks")
+    if hook_mods:
+        parts.append(f"modified {len(hook_mods)} hooks")
     if extra:
         parts.append(f"added {extra} repos")
     print(f"  {BLUE}⚙{NC} {name} - applying overrides: {', '.join(parts)}")
