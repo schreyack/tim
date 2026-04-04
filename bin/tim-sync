@@ -458,25 +458,29 @@ list_projects() {
 
 # --- Main ---
 
-case "${1:-}" in
-    --list|-l)
-        list_projects
-        ;;
-    --check|-c)
-        check_projects
-        ;;
-    --register|-r)
-        if [[ -z "${2:-}" ]]; then
-            echo -e "${RED}Usage: tim-sync --register <project-path>${NC}"
-            exit 1
-        fi
-        register_project "$2"
-        ;;
-    --no-push)
-        NO_PUSH=true
-        sync_all
-        ;;
-    --help|-h)
+COMMAND="sync_all"
+TARGET=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-push)      NO_PUSH=true ;;
+        --list|-l)      COMMAND="list_projects" ;;
+        --check|-c)     COMMAND="check_projects" ;;
+        --register|-r)
+            COMMAND="register"
+            TARGET="${2:?'--register requires a path'}"
+            shift
+            ;;
+        --help|-h)      COMMAND="help" ;;
+        *)              COMMAND="sync_one"; TARGET="$1" ;;
+    esac
+    shift
+done
+
+case "$COMMAND" in
+    list_projects)  list_projects ;;
+    check_projects) check_projects ;;
+    register)       register_project "$TARGET" ;;
+    help)
         cat <<'HELP'
 Usage: tim-sync [OPTIONS] [PROJECT]
 
@@ -496,10 +500,6 @@ scaffold .claude/settings.local.json, install pre-commit hooks,
 generate .secrets.baseline, commit and push.
 HELP
         ;;
-    "")
-        sync_all
-        ;;
-    *)
-        sync_one "$1"
-        ;;
+    sync_one)       sync_one "$TARGET" ;;
+    sync_all)       sync_all ;;
 esac
