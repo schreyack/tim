@@ -337,9 +337,15 @@ register_project() {
         echo -e "${RED}Error: directory not found: $raw_path${NC}"; return 1
     }
     if [[ ! -d "$abs_path/lib/tim" ]]; then
-        echo -e "${RED}Error: $abs_path has no lib/tim submodule${NC}"
-        echo "Add the submodule first: git submodule add <tim-url> lib/tim"
-        return 1
+        echo -e "${BLUE}Adding tim submodule to $abs_path...${NC}"
+        local tim_url
+        tim_url=$(git -C "$TIM_ROOT" remote get-url origin 2>/dev/null) || {
+            echo -e "${RED}Error: cannot determine tim repo URL${NC}"; return 1
+        }
+        if ! git -C "$abs_path" submodule add "$tim_url" lib/tim 2>&1; then
+            echo -e "${RED}Error: failed to add tim submodule${NC}"; return 1
+        fi
+        echo -e "${GREEN}✓${NC} Added lib/tim submodule"
     fi
     local projects_file="$TIM_ROOT/.tim-projects"
     if [[ -f "$projects_file" ]]; then
