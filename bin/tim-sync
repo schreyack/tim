@@ -184,7 +184,21 @@ sync_project() {
         echo -e "  ${RED}✗${NC} pre-commit config sync failed"
     fi
 
-    # 3. Sync CLAUDE.md
+    # 3. Scaffold CLAUDE-PROJECT.md if missing, then sync CLAUDE.md
+    if [[ ! -f "$project/CLAUDE-PROJECT.md" ]]; then
+        local cp_name=""
+        if [[ -f "$project/ops-config.yaml" ]]; then
+            cp_name=$(grep -A1 '^project:' "$project/ops-config.yaml" | grep 'name:' | sed 's/.*name:[[:space:]]*//' | tr -d '"' | tr -d "'")
+        fi
+        cp_name="${cp_name:-$name}"
+        cat > "$project/CLAUDE-PROJECT.md" <<CPEOF
+# ${cp_name} — Project-Specific Instructions
+
+<!-- Add project-specific Claude instructions here.
+     This file is combined with TIM standards by sync-claude-md. -->
+CPEOF
+        echo -e "  ${GREEN}✓${NC} scaffolded CLAUDE-PROJECT.md"
+    fi
     if "$TIM_ROOT/bin/sync-claude-md" "$name" >/dev/null 2>&1; then
         echo -e "  ${GREEN}✓${NC} CLAUDE.md synced"
     else
@@ -308,8 +322,9 @@ INTRAEOF
     # 8. Track which files were actually modified by the sync
     SYNC_MODIFIED_FILES=()
     for f in lib/tim .gitmodules .pre-commit-config.yaml CLAUDE.md \
-             .gitignore .pre-commit-overrides.yaml .secrets.baseline \
-             .claude/settings.local.json plans/drafts/.gitkeep; do
+             CLAUDE-PROJECT.md .gitignore .pre-commit-overrides.yaml \
+             .secrets.baseline .claude/settings.local.json \
+             plans/drafts/.gitkeep; do
         track_if_changed "$project" "$f"
     done
 
