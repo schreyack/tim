@@ -5,6 +5,17 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.91.0] - 2026-04-08
+
+### Fixed
+
+- **tim-loop** v3.1.0 → v3.1.1 — Task drift hook reliability. Three layered fixes to eliminate false positives where the hook fired on legitimate continuations of approved fix work:
+  1. **Drift context gating**: pattern 4 (`"let me fix the/these/those/this"`) now requires a drift indicator (`I found / I noticed / while I'm here / too / as well / also`) within ±120 chars of the match. Bare `"Let me fix those SIM401 violations"` no longer trips drift; `"Let me fix the bugs I noticed"` still does.
+  2. **Multi-turn human intent scanning**: `_user_requested_action` now scans the last 3 human turns for action verbs (`fix / commit / deploy / ...`) instead of only the most recent. A clarifying question (`"why is it failing?"`) mid-session no longer invalidates an earlier `"commit and push"`.
+  3. **Active task awareness**: drifts whose action verb (`fix / implement / refactor / ...`) appears in any non-completed `TaskCreate` subject or description are filtered out. The task list is the authoritative scope — if `Fix mypy violations` is in-progress, `"Let me fix the issues I found"` is on-task, not drift. Reconstructs task state by walking `TaskCreate` / tool-result / `TaskUpdate` entries in the transcript.
+- Same active-task filter wired into the Stop-hook (`excuse_detector_v2.check_task_drift`) so PostToolUse and Stop stay consistent.
+- 10 new tests covering each layer (drift context gating, multi-turn scanning, active/completed/unrelated/pending task coverage); 24 total in `test_fast_pattern_detector.py`, all 210 tim-loop tests passing.
+
 ## [2.90.0] - 2026-03-24
 
 ### Added

@@ -227,5 +227,243 @@ class TestUserActionIntentBypass(unittest.TestCase):
         self.assertIsNone(result, "Should not fire task drift when user asked to deploy")
 
 
+class TestDriftContextGating(unittest.TestCase):
+    """Pattern 4 ('let me fix X') should only fire when drift context is present."""
+
+    @patch("fast_pattern_detector.load_state")
+    def test_bare_let_me_fix_does_not_fire(self, mock_state: unittest.mock.MagicMock) -> None:
+        """'Let me fix those' with no discovery context is not drift.
+
+        In a long fix-the-lint-errors run the assistant will naturally say
+        'Let me fix those' many times. Without an 'I found/noticed/while I'm
+        here' signal there is no reason to call that drift.
+        """
+        mock_state.return_value = _mock_state(review_mode="")
+        text = "Now rewriting the parser. Let me fix those SIM401 violations."
+        result = run_fast_checks(text)
+        self.assertIsNone(result, "Bare 'let me fix those' must not trigger task drift")
+
+    @patch("fast_pattern_detector.load_state")
+    def test_let_me_fix_with_discovery_still_fires(self, mock_state: unittest.mock.MagicMock) -> None:
+        """'Let me fix the bugs I noticed' has discovery context and is drift."""
+        mock_state.return_value = _mock_state(review_mode="")
+        text = "I'll fix the bugs I noticed while reviewing the parser."
+        result = run_fast_checks(text)
+        self.assertIsNotNone(result, "Drift with 'I noticed' context must still fire")
+
+    @patch("fast_pattern_detector.load_state")
+    def test_let_me_fix_while_im_here_fires(self, mock_state: unittest.mock.MagicMock) -> None:
+        """'While I'm here' is a classic drift marker."""
+        mock_state.return_value = _mock_state(review_mode="")
+        text = "Let me fix this typo while I'm here."
+        result = run_fast_checks(text)
+        self.assertIsNotNone(result, "'while I'm here' must fire drift")
+
+
+class TestRecentHumanTurnScanning(unittest.TestCase):
+    """Action intent from earlier human turns should survive clarifying questions."""
+
+    @staticmethod
+    def _make_transcript(turns: list[tuple[str, str]]) -> list[dict]:
+        """Build a transcript from (role, text) tuples."""
+        return [{"message": {"role": role, "content": text}} for role, text in turns]
+
+    @patch("fast_pattern_detector.load_state")
+    def test_action_intent_survives_clarifying_question(
+        self, mock_state: unittest.mock.MagicMock
+    ) -> None:
+        """User's 'commit and push' 2 turns ago still counts as action intent."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = self._make_transcript(
+            [
+                ("user", "commit and push"),
+                ("assistant", "Running pre-commit..."),
+                ("user", "why is it failing?"),
+                ("assistant", "Lint errors. Let me fix the issues I found in the parser."),
+            ]
+        )
+        result = run_fast_checks(
+            "Lint errors. Let me fix the issues I found in the parser.",
+            transcript=transcript,
+        )
+        self.assertIsNone(
+            result,
+            "Drift should be skipped when earlier human turn had action intent",
+        )
+
+    @patch("fast_pattern_detector.load_state")
+    def test_drift_fires_when_no_recent_action_intent(
+        self, mock_state: unittest.mock.MagicMock
+    ) -> None:
+        """Drift still fires when no recent human turn requested action."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = self._make_transcript(
+            [
+                ("user", "review this code"),
+                ("assistant", "Reviewing..."),
+                ("user", "anything weird?"),
+                ("assistant", "Let me fix the bugs I found in the auth module."),
+            ]
+        )
+        result = run_fast_checks(
+            "Let me fix the bugs I found in the auth module.",
+            transcript=transcript,
+        )
+        self.assertIsNotNone(
+            result,
+            "Review-only sessions should still catch fix-drift",
+        )
+
+
+class TestActiveTaskAwareness(unittest.TestCase):
+    """Drifts whose verb matches an active TaskCreate subject should be skipped."""
+
+    @staticmethod
+    def _task_create(tool_use_id: str, subject: str, description: str = "") -> dict:
+        return {
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": tool_use_id,
+                        "name": "TaskCreate",
+                        "input": {
+                            "subject": subject,
+                            "description": description,
+                            "activeForm": subject,
+                        },
+                    }
+                ],
+            }
+        }
+
+    @staticmethod
+    def _task_create_result(tool_use_id: str, task_num: int, subject: str) -> dict:
+        return {
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_use_id,
+                        "content": f"Task #{task_num} created successfully: {subject}",
+                    }
+                ],
+            }
+        }
+
+    @staticmethod
+    def _task_update(task_id: str, status: str) -> dict:
+        return {
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": f"toolu_update_{task_id}_{status}",
+                        "name": "TaskUpdate",
+                        "input": {"taskId": task_id, "status": status},
+                    }
+                ],
+            }
+        }
+
+    @staticmethod
+    def _user_turn(text: str) -> dict:
+        return {"message": {"role": "user", "content": text}}
+
+    @staticmethod
+    def _assistant_turn(text: str) -> dict:
+        return {"message": {"role": "assistant", "content": text}}
+
+    @patch("fast_pattern_detector.load_state")
+    def test_active_fix_task_covers_fix_drift(
+        self, mock_state: unittest.mock.MagicMock
+    ) -> None:
+        """An active 'Fix mypy violations' task means 'let me fix the bugs I found' is on-task."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = [
+            self._user_turn("take a look at this module"),
+            self._task_create("tc_1", "Fix mypy strict violations", "Zero-warning type check"),
+            self._task_create_result("tc_1", 1, "Fix mypy strict violations"),
+            self._task_update("1", "in_progress"),
+            self._assistant_turn("Let me fix the issues I found in the auth module."),
+        ]
+        result = run_fast_checks(
+            "Let me fix the issues I found in the auth module.",
+            transcript=transcript,
+        )
+        self.assertIsNone(
+            result,
+            "Active 'Fix ...' task should cover fix-drift as planned work",
+        )
+
+    @patch("fast_pattern_detector.load_state")
+    def test_completed_task_does_not_cover_drift(
+        self, mock_state: unittest.mock.MagicMock
+    ) -> None:
+        """A completed 'Fix X' task does NOT cover new fix-drift."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = [
+            self._user_turn("take a look at this module"),
+            self._task_create("tc_1", "Fix mypy strict violations", ""),
+            self._task_create_result("tc_1", 1, "Fix mypy strict violations"),
+            self._task_update("1", "completed"),
+            self._assistant_turn("Let me fix the bugs I found in the auth module."),
+        ]
+        result = run_fast_checks(
+            "Let me fix the bugs I found in the auth module.",
+            transcript=transcript,
+        )
+        self.assertIsNotNone(
+            result,
+            "Completed task should not cover new fix-drift",
+        )
+
+    @patch("fast_pattern_detector.load_state")
+    def test_unrelated_task_does_not_cover_drift(
+        self, mock_state: unittest.mock.MagicMock
+    ) -> None:
+        """An active 'Review X' task does NOT cover 'let me fix' drift."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = [
+            self._user_turn("look at this module"),
+            self._task_create("tc_1", "Review API endpoints", "Security review"),
+            self._task_create_result("tc_1", 1, "Review API endpoints"),
+            self._task_update("1", "in_progress"),
+            self._assistant_turn("Let me fix the bugs I found while reviewing."),
+        ]
+        result = run_fast_checks(
+            "Let me fix the bugs I found while reviewing.",
+            transcript=transcript,
+        )
+        self.assertIsNotNone(
+            result,
+            "Review task should not cover fix-drift",
+        )
+
+    @patch("fast_pattern_detector.load_state")
+    def test_pending_task_create_result_still_covers_drift(
+        self, mock_state: unittest.mock.MagicMock
+    ) -> None:
+        """A TaskCreate without its result yet should still be treated as active."""
+        mock_state.return_value = _mock_state(review_mode="")
+        transcript = [
+            self._user_turn("look at this"),
+            self._task_create("tc_1", "Fix all lint violations", ""),
+            # No result entry — task creation is "in flight"
+            self._assistant_turn("Let me fix the issues I found in the parser."),
+        ]
+        result = run_fast_checks(
+            "Let me fix the issues I found in the parser.",
+            transcript=transcript,
+        )
+        self.assertIsNone(
+            result,
+            "Pending (unresolved) TaskCreate should still count as active",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

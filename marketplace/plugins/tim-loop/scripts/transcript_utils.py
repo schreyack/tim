@@ -233,6 +233,172 @@ def extract_latest_user_request(transcript: list[dict]) -> str:
     return ""
 
 
+def _human_turn_text(entry: dict) -> str:
+    """Return non-empty text from a human turn entry, or empty string if none."""
+    _, content = get_entry_role_and_content(entry)
+    if isinstance(content, str):
+        return content if content.strip() else ""
+    if not isinstance(content, list):
+        return ""
+    parts = [
+        block.get("text", "")
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "text"
+    ]
+    joined = "\n".join(p for p in parts if p)
+    return joined if joined.strip() else ""
+
+
+def extract_recent_human_texts(transcript: list[dict], n: int = 3) -> list[str]:
+    """Return text from the last N human turns (most recent first).
+
+    A tim-loop session may have many tool_result entries and one or two
+    clarifying questions between the original action request and the current
+    state. Scanning more than one human turn lets callers verify intent
+    across short interludes without leaking intent across unrelated tasks.
+    """
+    texts: list[str] = []
+    for entry in reversed(transcript):
+        if not is_human_turn(entry):
+            continue
+        text = _human_turn_text(entry)
+        if text:
+            texts.append(text)
+        if len(texts) >= n:
+            break
+    return texts
+
+
+# Regex for extracting the task number from TaskCreate tool results.
+# Claude Code returns "Task #N created successfully: <subject>" on success.
+_TASK_CREATED_RE = re.compile(r"Task\s*#(\d+)\s+created", re.IGNORECASE)
+
+
+def _extract_tool_result_text(block: dict) -> str:
+    """Normalize a tool_result block's content to a plain string."""
+    content = block.get("content", "")
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, dict) and item.get("type") == "text":
+            parts.append(item.get("text", ""))
+        elif isinstance(item, str):
+            parts.append(item)
+    return "\n".join(parts)
+
+
+def _handle_task_create(
+    block: dict, pending: dict[str, dict[str, str]]
+) -> None:
+    """Record a TaskCreate tool_use block for later resolution by tool_result."""
+    inp = block.get("input", {})
+    if not isinstance(inp, dict):
+        return
+    tool_use_id = block.get("id", "")
+    if not tool_use_id:
+        return
+    pending[tool_use_id] = {
+        "subject": str(inp.get("subject", "")),
+        "description": str(inp.get("description", "")),
+    }
+
+
+def _handle_task_update(
+    block: dict, tasks: dict[str, dict[str, str]]
+) -> None:
+    """Apply a TaskUpdate tool_use block's status change to the tracked task map."""
+    inp = block.get("input", {})
+    if not isinstance(inp, dict):
+        return
+    task_id = str(inp.get("taskId", ""))
+    status = str(inp.get("status", ""))
+    if task_id and task_id in tasks:
+        tasks[task_id]["status"] = status
+
+
+def _handle_tool_result(
+    block: dict,
+    pending: dict[str, dict[str, str]],
+    tasks: dict[str, dict[str, str]],
+) -> None:
+    """Resolve a TaskCreate's task number from its matching tool_result block."""
+    tool_use_id = block.get("tool_use_id", "")
+    if tool_use_id not in pending:
+        return
+    result_text = _extract_tool_result_text(block)
+    match = _TASK_CREATED_RE.search(result_text)
+    if match is None:
+        pending.pop(tool_use_id, None)
+        return
+    task_id = match.group(1)
+    task_data = pending.pop(tool_use_id)
+    tasks[task_id] = {
+        "subject": task_data["subject"],
+        "description": task_data["description"],
+        "status": "pending",
+    }
+
+
+def _process_task_block(
+    block: dict,
+    pending: dict[str, dict[str, str]],
+    tasks: dict[str, dict[str, str]],
+) -> None:
+    """Dispatch a content block to the correct task-state handler."""
+    btype = block.get("type", "")
+    if btype == "tool_use":
+        name = block.get("name", "")
+        if name == "TaskCreate":
+            _handle_task_create(block, pending)
+        elif name == "TaskUpdate":
+            _handle_task_update(block, tasks)
+    elif btype == "tool_result":
+        _handle_tool_result(block, pending, tasks)
+
+
+def _task_to_text(task: dict[str, str]) -> str:
+    """Format a task's subject+description as a lowercase search string."""
+    combined = f"{task.get('subject', '')} {task.get('description', '')}".strip().lower()
+    return combined
+
+
+def extract_active_task_texts(transcript: list[dict]) -> list[str]:
+    """Reconstruct the task list from TaskCreate/TaskUpdate entries and return
+    subject+description strings for tasks that are NOT completed.
+
+    Walks the transcript in order, tracking each TaskCreate by its tool_use_id
+    and resolving its task number from the matching tool_result entry. Applies
+    TaskUpdate status changes by task number. Tasks whose creation result has
+    not yet been seen (pending) are treated as active.
+    """
+    pending: dict[str, dict[str, str]] = {}
+    tasks: dict[str, dict[str, str]] = {}
+
+    for entry in transcript:
+        _, content = get_entry_role_and_content(entry)
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if isinstance(block, dict):
+                _process_task_block(block, pending, tasks)
+
+    active: list[str] = []
+    for task in tasks.values():
+        if task.get("status", "pending") == "completed":
+            continue
+        text = _task_to_text(task)
+        if text:
+            active.append(text)
+    for pending_task in pending.values():
+        text = _task_to_text(pending_task)
+        if text:
+            active.append(text)
+    return active
+
+
 def get_original_task_from_tim_loop() -> str:
     """Get the original task from tim-loop prompt file if active.
 

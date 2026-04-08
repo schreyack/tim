@@ -23,7 +23,11 @@ import sys
 from pathlib import Path
 
 from patterns_mode_violation import find_mode_violations
-from patterns_task_drift import find_task_drift
+from patterns_task_drift import (
+    TaskDrift,
+    drift_covered_by_active_task,
+    find_task_drift,
+)
 from excuse_pattern_loader import find_excuses, get_excuse_category
 from tim_loop_state import (
     load_state,
@@ -34,7 +38,13 @@ from tim_loop_state import (
     TIM_LOOP_ACTIVE_MARKER,
 )
 from tim_loop_halt import system_halt, build_halt_details_from_patterns
-from transcript_utils import read_transcript, get_entry_role_and_content, is_human_turn
+from transcript_utils import (
+    read_transcript,
+    get_entry_role_and_content,
+    is_human_turn,
+    extract_active_task_texts,
+    extract_recent_human_texts,
+)
 
 # Escalation configuration
 BLOCK_COUNT_FILE = Path.home() / ".claude" / ".tim-loop-block-count"
@@ -141,33 +151,35 @@ _APPROVAL_INTENT_RE = re.compile(
 )
 
 
-def _extract_last_human_text(transcript: list[dict]) -> str:
-    """Extract text from the most recent human turn in the transcript."""
-    for entry in reversed(transcript):
-        if is_human_turn(entry):
-            _, content = get_entry_role_and_content(entry)
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):
-                texts = []
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        texts.append(block.get("text", ""))
-                return "\n".join(texts)
-    return ""
+# Number of recent human turns to scan for action intent. Handles sessions
+# where the original "commit and push" request is separated from the current
+# state by one or two clarifying questions.
+_HUMAN_INTENT_SCAN_DEPTH = 3
 
 
 def _user_requested_action(transcript: list[dict]) -> bool:
-    """Check if the user's last message requested or approved a mutating action.
+    """Check if any recent human turn requested or approved a mutating action.
 
     When the user asks to commit, fix, build, etc., or explicitly approves
     a proposed plan ("proceed", "go ahead", "do it"), follow-up implementation
-    is completing the request, not drift.
+    is completing the request, not drift. Scans the most recent N human turns
+    so that a single clarifying question in the middle of a long autonomous
+    run doesn't invalidate the original action intent.
     """
-    user_text = _extract_last_human_text(transcript)
-    if not user_text:
-        return False
-    return bool(_ACTION_INTENT_RE.search(user_text) or _APPROVAL_INTENT_RE.search(user_text))
+    for user_text in extract_recent_human_texts(transcript, n=_HUMAN_INTENT_SCAN_DEPTH):
+        if _ACTION_INTENT_RE.search(user_text) or _APPROVAL_INTENT_RE.search(user_text):
+            return True
+    return False
+
+
+def _filter_drifts_by_active_tasks(
+    drifts: list[TaskDrift], transcript: list[dict]
+) -> list[TaskDrift]:
+    """Remove drifts whose action verb is covered by an active (non-completed) task."""
+    active_tasks = extract_active_task_texts(transcript)
+    if not active_tasks:
+        return drifts
+    return [d for d in drifts if not drift_covered_by_active_task(d, active_tasks)]
 
 
 def _check_mode_violations(recent_text: str, review_mode: str) -> tuple[str, str] | None:
@@ -179,9 +191,13 @@ def _check_mode_violations(recent_text: str, review_mode: str) -> tuple[str, str
     return None
 
 
-def _check_task_drift(recent_text: str) -> tuple[str, str] | None:
-    """Pass 2: Task drift check."""
+def _check_task_drift(
+    recent_text: str, transcript: list[dict] | None = None
+) -> tuple[str, str] | None:
+    """Pass 2: Task drift check, filtered against the active task list."""
     task_drifts = find_task_drift(recent_text)
+    if task_drifts and transcript is not None:
+        task_drifts = _filter_drifts_by_active_tasks(task_drifts, transcript)
     if task_drifts:
         details = "\n".join(f"  - {d}" for d in task_drifts)
         return ("TASK DRIFT", f"Doing more than was asked:\n{details}")
@@ -229,7 +245,7 @@ def run_fast_checks(
         # Skip task drift when the user explicitly requested a mutating action
         # (e.g. "commit push" — fixing pre-commit failures is part of the task)
         if not (transcript and _user_requested_action(transcript)):
-            result = _check_task_drift(recent_text)
+            result = _check_task_drift(recent_text, transcript=transcript)
             if result:
                 return result
 

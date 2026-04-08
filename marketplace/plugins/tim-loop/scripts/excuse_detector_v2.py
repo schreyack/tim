@@ -19,8 +19,12 @@ from pathlib import Path
 from excuse_pattern_loader import find_excuses, get_excuse_category
 from guardrails_judge import check_with_guardrails
 from patterns_mode_violation import find_mode_violations
-from patterns_task_drift import find_task_drift
+from patterns_task_drift import (
+    drift_covered_by_active_task,
+    find_task_drift,
+)
 from transcript_utils import (
+    extract_active_task_texts,
     extract_assistant_text,
     extract_latest_assistant_text,
     extract_latest_user_request,
@@ -123,9 +127,15 @@ def check_guardrails(transcript: list[dict]) -> dict | None:
     return check_with_guardrails(stripped_text, user_request)
 
 
-def check_task_drift(latest_text: str) -> tuple[str, str] | None:
-    """Check for task drift. Returns (category, details) or None."""
+def check_task_drift(
+    latest_text: str, transcript: list[dict] | None = None
+) -> tuple[str, str] | None:
+    """Check for task drift. Filter out drifts whose action is covered by an active task."""
     drifts = find_task_drift(latest_text)
+    if drifts and transcript is not None:
+        active_tasks = extract_active_task_texts(transcript)
+        if active_tasks:
+            drifts = [d for d in drifts if not drift_covered_by_active_task(d, active_tasks)]
     if drifts:
         details = "\n".join(f"  - {d}" for d in drifts)
         return ("TASK DRIFT", f"Doing more than was asked:\n{details}")
@@ -146,7 +156,7 @@ def run_detection_passes(
     # Pass 0.5: Task drift check (skip in full-review and implement modes)
     review_mode = get_review_mode()
     if review_mode != "full-review" and not is_implement_mode():
-        result = check_task_drift(recent_text)
+        result = check_task_drift(recent_text, transcript=transcript)
         if result:
             return result
 
