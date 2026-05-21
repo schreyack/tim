@@ -63,15 +63,16 @@ def _parse_list_patterns(raw: list[object]) -> dict[str, str]:
     }
 
 
-def load_patterns(project: Path) -> dict[str, str]:
+def load_patterns(project: Path) -> dict[str, str] | None:
     """Load registered patterns, returning {pattern_key: standard}.
 
+    Returns None if the file is missing (distinct from empty patterns).
     Supports both dict format (standard: value) and list format
     (- name: x, scope: y).
     """
     path = project / ".tim-patterns.yaml"
     if not path.exists():
-        return {}
+        return None
     with open(path) as f:
         data = yaml.safe_load(f) or {}
     raw = data.get("patterns", {})
@@ -243,8 +244,10 @@ def check_drift(project: Path) -> list[str]:
     """Check for pattern drift. Returns list of issues."""
     lib_map = load_library_map()
     patterns = load_patterns(project)
-    if not patterns:
+    if patterns is None:
         return ["No .tim-patterns.yaml found"]
+    if not patterns:
+        return []
 
     deps = collect_deps(project, detect_project_type(project))
     categories = _registered_categories(patterns)
