@@ -71,6 +71,10 @@ ops.sh lives in the infra repo, not in projects. Projects have only `ops-config.
 
 Every project uses `tim-lib` (Python) or `@tim/lib` (Node) for: settings, logging, auth, errors, exception handlers, database pooling.
 
+## Infrastructure Services
+
+Shared services (Postgres, Redis, Vault, Zitadel, MinIO) are documented in `lib/tim/standards/architecture/infra-services.md` with connection patterns, Vault paths, and onboarding steps. Each service is versioned — check `service.yaml.meta` in the service's directory in the infra repo. To request access for a new app, file an inter-team comms entry to infra.
+
 ## Pattern Registry
 
 Every project has `.tim-patterns.yaml`. Unregistered patterns block deployment. Custom patterns require human approval.
