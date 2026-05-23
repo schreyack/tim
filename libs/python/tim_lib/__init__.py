@@ -41,6 +41,7 @@ from tim_lib.oidc import (
     OIDCVerifier,
     TokenExpiredError,
 )
+from tim_lib.bus import EventBus
 from tim_lib.revocation import RedisRevocationStore, RevocationStore
 from tim_lib.security import (
     TokenValidationError,
@@ -64,6 +65,8 @@ __all__ = [
     "BaseAppSettings",
     "ConflictError",
     "DatabaseHealthCheck",
+    # Bus
+    "EventBus",
     # Auth (FastAPI)
     "FastAPIAuth",
     "ForbiddenError",
