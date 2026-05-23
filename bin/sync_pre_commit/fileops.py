@@ -9,15 +9,11 @@ from sync_pre_commit.config import GREEN, NC, RED, YELLOW, BLUE
 
 
 def unlock_file(path: Path) -> None:
-    """Remove immutable flags if present (both system and user)."""
+    """Remove user immutable flag (uchg). System flag (schg) is managed
+    by tim-lock-enforcement, not by sync-pre-commit."""
     if not path.exists():
         return
     try:
-        subprocess.run(
-            ["sudo", "chflags", "noschg", str(path)],
-            check=False,
-            capture_output=True,
-        )
         subprocess.run(
             ["chflags", "nouchg", str(path)],
             check=False,
