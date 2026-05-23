@@ -2,9 +2,19 @@
 
 Shared infrastructure services available to all TIM apps. These run in the k3s cluster and are consumed via ExternalSecrets + environment variables. To request access for a new app, file an inter-team comms entry to infra.
 
+## Versioning
+
+Each service has a `service.yaml.meta` file in its directory with a semver version and changelog. The version tracks the **service contract** (connection patterns, credentials, capabilities) — not the upstream software version.
+
+- **Patch** (1.0.x): Bug fixes, config tweaks, no app changes needed
+- **Minor** (1.x.0): New capabilities, new consumers onboarded, backward compatible
+- **Major** (x.0.0): Breaking changes to connection patterns, credential formats, or APIs
+
+Query a service's version: `yq '.version' {service}/service.yaml.meta`
+
 ## Services
 
-### Central PostgreSQL
+### Central PostgreSQL `v1.0.0`
 
 Shared PostgreSQL cluster for all app databases. Each app gets its own database and user.
 
@@ -22,7 +32,7 @@ Shared PostgreSQL cluster for all app databases. Each app gets its own database 
 
 **To onboard**: Infra creates the database, user, and Vault entry. App gets an ExternalSecret that syncs credentials into a `central-db-credentials` k8s Secret.
 
-### Central Redis
+### Central Redis `v1.1.0`
 
 Shared Redis for caching, pub/sub, and session storage. TLS-only, password-authenticated.
 
@@ -48,7 +58,7 @@ Shared Redis for caching, pub/sub, and session storage. TLS-only, password-authe
 
 **To onboard**: Infra assigns a DB index, adds the app namespace to the Redis NetworkPolicy, creates an ExternalSecret syncing the password into `central-redis-credentials`, and updates the Vault project policy.
 
-### Vault
+### Vault `v1.0.0`
 
 Centralized secrets management. Apps never store secrets in code or k8s manifests — all secrets live in Vault and are synced to k8s Secrets via External Secrets Operator.
 
@@ -64,7 +74,7 @@ Centralized secrets management. Apps never store secrets in code or k8s manifest
 
 **To onboard**: Infra creates a Vault policy (`project-{app}`), generates a scoped token, and deploys the SecretStore CRD in the app namespace.
 
-### Zitadel (OIDC)
+### Zitadel (OIDC) `v1.0.0`
 
 Shared OIDC identity provider for all apps. Single instance, multi-org.
 
@@ -80,7 +90,7 @@ Shared OIDC identity provider for all apps. Single instance, multi-org.
 
 **To onboard**: Infra creates a Zitadel org, OIDC app, and stores credentials in Vault. Apps use PKCE — no client secret needed.
 
-### MinIO (S3 Object Storage)
+### MinIO (S3 Object Storage) `v1.0.0`
 
 S3-compatible object storage for file uploads, backups, and media.
 
@@ -96,7 +106,7 @@ S3-compatible object storage for file uploads, backups, and media.
 
 **To onboard**: Infra creates a MinIO user, policy, and bucket. Credentials stored in Vault.
 
-### Container Registry
+### Container Registry `v1.0.0`
 
 In-cluster Docker registry for app images. No authentication (cluster-internal only).
 
@@ -111,7 +121,7 @@ In-cluster Docker registry for app images. No authentication (cluster-internal o
 
 **No onboarding needed** — all apps use this automatically via ops.sh build.
 
-### BuildKit
+### BuildKit `v1.0.0`
 
 Persistent build daemon for container image builds. Used by ops.sh, not directly by apps.
 
