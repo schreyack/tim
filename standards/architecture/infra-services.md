@@ -4,13 +4,16 @@ Shared infrastructure services available to all TIM apps. These run in the k3s c
 
 ## Versioning
 
-Each service has a `service.yaml.meta` file in its directory with a semver version and changelog. The version tracks the **service contract** (connection patterns, credentials, capabilities) — not the upstream software version.
+Each service is versioned via **git tags** in the infra repo. Tags follow the format `{service}/v{major}.{minor}.{patch}` (e.g., `redis/v1.1.0`). The version tracks the **service contract** (connection patterns, credentials, capabilities) — not the upstream software version.
 
 - **Patch** (1.0.x): Bug fixes, config tweaks, no app changes needed
 - **Minor** (1.x.0): New capabilities, new consumers onboarded, backward compatible
 - **Major** (x.0.0): Breaking changes to connection patterns, credential formats, or APIs
 
-Query a service's version: `yq '.version' {service}/service.yaml.meta`
+```bash
+git tag -l 'redis/*'           # list all Redis versions
+git log redis/ --oneline redis/v1.0.0..redis/v1.1.0  # changelog between versions
+```
 
 ## Services
 
