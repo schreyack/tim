@@ -69,17 +69,20 @@ check_projects() {
             continue
         fi
 
-        # Check timestamps
-        tim_mtime=$(stat -f %m "$TIM_CLAUDE_MD" 2>/dev/null || stat -c %Y "$TIM_CLAUDE_MD")
-        proj_mtime=$(stat -f %m "$proj/CLAUDE-PROJECT.md" 2>/dev/null || stat -c %Y "$proj/CLAUDE-PROJECT.md")
-        claude_mtime=$(stat -f %m "$proj/CLAUDE.md" 2>/dev/null || stat -c %Y "$proj/CLAUDE.md")
-
-        if [ "$tim_mtime" -gt "$claude_mtime" ] || [ "$proj_mtime" -gt "$claude_mtime" ]; then
-            echo -e "  ${YELLOW}↻${NC} $name - needs sync (source files newer)"
-            needs_update=1
-        else
+        # Compare by CONTENT, not mtime: assemble what a sync would produce and diff
+        # it against the current CLAUDE.md. mtimes are unreliable — a submodule
+        # checkout can bump them without changing content, which previously caused
+        # false "up to date" results.
+        local temp_file
+        temp_file=$(mktemp)
+        assemble_claude_md "$proj" "$temp_file"
+        if diff -q "$temp_file" "$proj/CLAUDE.md" >/dev/null 2>&1; then
             echo -e "  ${GREEN}✓${NC} $name - up to date"
+        else
+            echo -e "  ${YELLOW}↻${NC} $name - needs sync (content differs)"
+            needs_update=1
         fi
+        rm -f "$temp_file"
     done
 
     return $needs_update
@@ -91,27 +94,16 @@ strip_tim_only_sections() {
     sed '/<!-- TIM-ONLY-START -->/,/<!-- TIM-ONLY-END -->/d'
 }
 
-sync_project() {
+# Assemble the full CLAUDE.md for a project (header + TIM standards + project
+# content) into the file path given as $2. Output is deterministic, so callers
+# can compare it against the existing CLAUDE.md by content to decide whether a
+# sync is needed — never by mtime.
+assemble_claude_md() {
     local proj="$1"
-    local name=$(basename "$proj")
-
-    if [ ! -d "$proj" ]; then
-        echo -e "  ${RED}✗${NC} $name - directory not found: $proj"
-        return 1
-    fi
-
-    if [ ! -f "$proj/CLAUDE-PROJECT.md" ]; then
-        echo -e "  ${RED}✗${NC} $name - missing CLAUDE-PROJECT.md"
-        echo "      Create this file with project-specific content first."
-        return 1
-    fi
-
-    # Assemble CLAUDE.md
-    local output="$proj/CLAUDE.md"
-    local temp_file=$(mktemp)
+    local target="$2"
 
     # Add auto-generated header
-    cat > "$temp_file" << 'HEADER'
+    cat > "$target" << 'HEADER'
 <!--
   ┌─────────────────────────────────────────────────────────────────┐
   │  AUTO-GENERATED FILE - DO NOT EDIT DIRECTLY                     │
@@ -131,10 +123,10 @@ sync_project() {
 HEADER
 
     # Add TIM standards (strip tim-only sections for other projects)
-    strip_tim_only_sections < "$TIM_CLAUDE_MD" >> "$temp_file"
+    strip_tim_only_sections < "$TIM_CLAUDE_MD" >> "$target"
 
     # Add separator
-    cat >> "$temp_file" << 'SEPARATOR'
+    cat >> "$target" << 'SEPARATOR'
 
 ---
 
@@ -146,27 +138,61 @@ HEADER
 SEPARATOR
 
     # Add project-specific content
-    cat "$proj/CLAUDE-PROJECT.md" >> "$temp_file"
+    cat "$proj/CLAUDE-PROJECT.md" >> "$target"
+}
 
-    # Move to final location
-    mv "$temp_file" "$output"
+sync_project() {
+    local proj="$1"
+    local name=$(basename "$proj")
 
-    echo -e "  ${GREEN}✓${NC} $name - synced successfully"
+    if [ ! -d "$proj" ]; then
+        echo -e "  ${RED}✗${NC} $name - directory not found: $proj"
+        return 1
+    fi
 
-    # Commit and push if CLAUDE.md changed
-    if git -C "$proj" diff --quiet -- CLAUDE.md 2>/dev/null; then
+    if [ ! -f "$proj/CLAUDE-PROJECT.md" ]; then
+        echo -e "  ${RED}✗${NC} $name - missing CLAUDE-PROJECT.md"
+        echo "      Create this file with project-specific content first."
+        return 1
+    fi
+
+    # Assemble the new CLAUDE.md, then write it only if the content actually changed
+    local output="$proj/CLAUDE.md"
+    local temp_file
+    temp_file=$(mktemp)
+    assemble_claude_md "$proj" "$temp_file"
+
+    if [ -f "$output" ] && diff -q "$temp_file" "$output" >/dev/null 2>&1; then
+        rm -f "$temp_file"
+        echo -e "  ${GREEN}✓${NC} $name - already up to date"
         return 0
     fi
+
+    mv "$temp_file" "$output"
+    echo -e "  ${GREEN}✓${NC} $name - synced successfully"
+
+    # Commit and push the regenerated CLAUDE.md. Surface any git failure loudly and
+    # return non-zero so sync_all reports it instead of claiming success.
     git -C "$proj" add CLAUDE.md
     if git -C "$proj" diff --cached --quiet -- CLAUDE.md 2>/dev/null; then
         return 0
     fi
-    git -C "$proj" commit -m "chore: sync TIM standards" -- CLAUDE.md >/dev/null 2>&1 \
-        || { echo -e "  ${YELLOW}!${NC} $name - commit failed"; return 0; }
+    local git_out
+    if ! git_out=$(git -C "$proj" commit -m "chore: sync TIM standards" -- CLAUDE.md 2>&1); then
+        echo -e "  ${RED}✗${NC} $name - commit failed:"
+        echo "$git_out" | sed 's/^/        /'
+        return 1
+    fi
     local branch
-    branch="$(git -C "$proj" rev-parse --abbrev-ref HEAD 2>/dev/null)" || return 0
-    git -C "$proj" push origin "$branch" >/dev/null 2>&1 \
-        || { echo -e "  ${YELLOW}!${NC} $name - push failed (committed locally)"; return 0; }
+    if ! branch="$(git -C "$proj" rev-parse --abbrev-ref HEAD 2>/dev/null)"; then
+        echo -e "  ${RED}✗${NC} $name - could not determine branch (committed locally)"
+        return 1
+    fi
+    if ! git_out=$(git -C "$proj" push origin "$branch" 2>&1); then
+        echo -e "  ${RED}✗${NC} $name - push failed (committed locally):"
+        echo "$git_out" | sed 's/^/        /'
+        return 1
+    fi
     echo -e "  ${GREEN}✓${NC} $name - committed and pushed CLAUDE.md"
 }
 
