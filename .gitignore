@@ -9,6 +9,9 @@
 # Plans folder (should not be in this repo)
 plans/
 
+# Comms (ephemeral cross-session working files, never committed)
+comms/
+
 # Claude Code local settings (contains personal permissions)
 .claude/settings.local.json
 
