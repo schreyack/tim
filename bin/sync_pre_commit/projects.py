@@ -49,14 +49,32 @@ def _detect_from_symlink(project: Path) -> str | None:
     if not config.is_symlink():
         return None
     target = str(os.readlink(config))
-    for ttype in ("fullstack", "node", "python"):
+    for ttype in ("fullstack", "native", "node", "python"):
         if f"templates/{ttype}" in target:
             return ttype
     return None
 
 
+def _is_native(project: Path) -> bool:
+    """Detect a native (C++/Swift) project.
+
+    A native project is identified by a build/package manifest for compiled
+    desktop code: a root CMakeLists.txt, an Xcode project, or a Package.swift
+    at the root or up to two directory levels down (e.g. native/App/Package.swift).
+    """
+    if (project / "CMakeLists.txt").exists():
+        return True
+    if any(project.glob("*.xcodeproj")):
+        return True
+    return (
+        (project / "Package.swift").exists()
+        or any(project.glob("*/Package.swift"))
+        or any(project.glob("*/*/Package.swift"))
+    )
+
+
 def detect_template_type(project: Path) -> str | None:
-    """Auto-detect whether a project is python, node, or fullstack."""
+    """Auto-detect whether a project is python, node, fullstack, or native."""
     has_backend = (
         (project / "backend" / "pyproject.toml").exists()
         or (project / "backend" / "requirements.txt").exists()
@@ -65,6 +83,11 @@ def detect_template_type(project: Path) -> str | None:
 
     if has_backend and has_frontend:
         return "fullstack"
+
+    # Native is checked above node/python: a native project may carry stray
+    # Python tooling (or none packaged) but is keyed by its C++/Swift manifest.
+    if _is_native(project):
+        return "native"
 
     if (project / "package.json").exists():
         return "node"
@@ -190,7 +213,10 @@ def sync_project(project: Path) -> Path | None:
     ttype = detect_template_type(project)
     if not ttype:
         print(f"  {RED}✗{NC} {name} - unable to detect project type")
-        print(f"      Add package.json (node) or pyproject.toml (python)")
+        print(
+            "      Add package.json (node), pyproject.toml (python), "
+            "or CMakeLists.txt/Package.swift (native)"
+        )
         return None
 
     base = load_template(ttype)

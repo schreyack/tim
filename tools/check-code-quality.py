@@ -8,7 +8,7 @@ Enforces CLAUDE.md requirements:
 - Cyclomatic complexity: 10 max
 
 Usage:
-    python check-code-quality.py <directory> [--language python|typescript]
+    python check-code-quality.py <directory> [--language python|typescript|native]
 """
 
 import argparse
@@ -23,6 +23,12 @@ MAX_COMPLEXITY = 10
 
 PYTHON_SKIP_DIRS = {"__pycache__", ".venv", "venv", ".git", "lib", "node_modules"}
 TS_SKIP_DIRS = {"node_modules", "dist", ".git", "lib"}
+NATIVE_SKIP_DIRS = {".git", "lib", "build", ".build", "DerivedData", "node_modules"}
+
+# C++/Swift source extensions. Function size & cyclomatic complexity for these
+# are owned by clang-tidy / swiftlint (as ESLint owns TS complexity); here we
+# enforce only the language-agnostic file-size limit.
+NATIVE_SOURCE_EXTENSIONS = {".h", ".hpp", ".hh", ".cc", ".cpp", ".cxx", ".swift"}
 
 
 class PythonAnalyzer(ast.NodeVisitor):
@@ -142,6 +148,19 @@ def check_typescript_file(filepath: Path) -> list[str]:
     return violations
 
 
+def check_native_file(filepath: Path) -> list[str]:
+    """Check a C++/Swift file for size issues.
+
+    Note: clang-tidy / swiftlint handle function size and complexity. We only
+    check file size here.
+    """
+    violations: list[str] = []
+    size_violation = check_file_size(filepath)
+    if size_violation:
+        violations.append(size_violation)
+    return violations
+
+
 def should_skip_path(filepath: Path, skip_dirs: set[str]) -> bool:
     """Check if path should be skipped based on directory names."""
     return any(skip_dir in filepath.parts for skip_dir in skip_dirs)
@@ -166,6 +185,22 @@ def collect_typescript_violations(directory: Path) -> list[str]:
     return violations
 
 
+def collect_native_violations(directory: Path) -> list[str]:
+    """Collect violations from a native project.
+
+    Python files get the full AST check; C++/Swift files get file-size only.
+    """
+    violations: list[str] = []
+    for filepath in directory.rglob("*.py"):
+        if not should_skip_path(filepath, NATIVE_SKIP_DIRS):
+            violations.extend(check_python_file(filepath))
+    for ext in NATIVE_SOURCE_EXTENSIONS:
+        for filepath in directory.rglob(f"*{ext}"):
+            if not should_skip_path(filepath, NATIVE_SKIP_DIRS):
+                violations.extend(check_native_file(filepath))
+    return violations
+
+
 def report_violations(violations: list[str]) -> int:
     """Report violations and return exit code."""
     if not violations:
@@ -182,7 +217,7 @@ def main() -> int:
     parser.add_argument("paths", nargs="+", help="Files or directories to check")
     parser.add_argument(
         "--language",
-        choices=["python", "typescript", "both"],
+        choices=["python", "typescript", "native", "both"],
         default="both",
         help="Language to check",
     )
@@ -197,17 +232,27 @@ def main() -> int:
             return 1
 
         if path.is_file():
-            if path.suffix == ".py" and args.language in ("python", "both"):
-                violations.extend(check_python_file(path))
-            elif path.suffix in (".ts", ".tsx") and args.language in ("typescript", "both"):
-                violations.extend(check_typescript_file(path))
+            violations.extend(check_file(path, args.language))
         else:
             if args.language in ("python", "both"):
                 violations.extend(collect_python_violations(path))
             if args.language in ("typescript", "both"):
                 violations.extend(collect_typescript_violations(path))
+            if args.language == "native":
+                violations.extend(collect_native_violations(path))
 
     return report_violations(violations)
+
+
+def check_file(path: Path, language: str) -> list[str]:
+    """Dispatch a single file to the right checker based on suffix and language."""
+    if path.suffix == ".py" and language in ("python", "native", "both"):
+        return check_python_file(path)
+    if path.suffix in (".ts", ".tsx") and language in ("typescript", "both"):
+        return check_typescript_file(path)
+    if path.suffix in NATIVE_SOURCE_EXTENSIONS and language == "native":
+        return check_native_file(path)
+    return []
 
 
 if __name__ == "__main__":
