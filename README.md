@@ -332,6 +332,9 @@ ln -s lib/tim/templates/python/.pre-commit-config.yaml .pre-commit-config.yaml
 # 3. OR for Node.js project
 ln -s lib/tim/templates/node/.pre-commit-config.yaml .pre-commit-config.yaml
 
+# 3. OR for native project (C++/Swift, optional Python)
+ln -s lib/tim/templates/native/.pre-commit-config.yaml .pre-commit-config.yaml
+
 # 4. Make symlinks immutable (prevents AI from bypassing)
 sudo chflags -h schg .pre-commit-config.yaml
 

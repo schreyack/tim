@@ -5,6 +5,17 @@ All notable changes to TIM Standards will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.92.0] - 2026-05-30
+
+### Added
+
+- **Native (C++/Swift/Python) project support.** Onboard native macOS desktop projects (C++17/20 + Swift/SwiftUI, optional unpackaged Python; no backend, no k3s).
+  - `detect_template_type()` returns `native` for a root `CMakeLists.txt`, an `*.xcodeproj`, or a `Package.swift` at depth ≤2 — checked above node/python so stray `.py` does not misclassify.
+  - New `templates/native/.pre-commit-config.yaml`: clang-format/clang-tidy (C++), swift-format/swiftlint (Swift), Python gates scoped via `types: [python]` so the template stays layout-agnostic, plus the shared secrets/commit/hygiene, TIM enforcement, and pattern-drift (Gate 4) hooks. C++/Swift function size and complexity are owned by clang-tidy/swiftlint (as ESLint owns TS complexity); the 500/50/10 thresholds apply.
+  - `check-code-quality.py --language native`: file-size (500) for `.h/.hpp/.hh/.cc/.cpp/.cxx/.swift`, full file+function+complexity for Python.
+  - `check-pattern-drift.py` parses CMake (`find_package`/`FetchContent`), `Package.swift`, and `Package.resolved` dependencies; new `native` section in `pattern-library-map.yaml` (starter set for desktop/audio libraries).
+  - New `native-app` preset: excludes the vendored `lib/` submodule from the Python linters. No remote-first deploy — Gate 3 (ops.sh/k3s/canary) does not apply to a desktop app.
+
 ## [2.91.0] - 2026-04-08
 
 ### Fixed

@@ -15,6 +15,7 @@ Exit codes: 0 = clean, 1 = drift detected
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -145,8 +146,67 @@ def parse_package_json(path: Path) -> set[str]:
     return packages
 
 
+_CMAKE_FIND_PACKAGE = re.compile(r"find_package\s*\(\s*([A-Za-z0-9_\-]+)", re.IGNORECASE)
+_CMAKE_FETCHCONTENT = re.compile(r"FetchContent_Declare\s*\(\s*([A-Za-z0-9_\-]+)", re.IGNORECASE)
+_SWIFT_PKG_URL = re.compile(r'\.package\(\s*url:\s*"([^"]+)"')
+_SWIFT_PKG_NAME = re.compile(r'\.package\(\s*name:\s*"([^"]+)"')
+
+
+def parse_cmake(path: Path) -> set[str]:
+    """Extract dependency names from a CMakeLists.txt (find_package, FetchContent)."""
+    if not path.exists():
+        return set()
+    text = path.read_text()
+    packages = {m.group(1).lower() for m in _CMAKE_FIND_PACKAGE.finditer(text)}
+    packages |= {m.group(1).lower() for m in _CMAKE_FETCHCONTENT.finditer(text)}
+    return packages
+
+
+def parse_swift_package(path: Path) -> set[str]:
+    """Extract SwiftPM dependency names from a Package.swift."""
+    if not path.exists():
+        return set()
+    text = path.read_text()
+    packages: set[str] = set()
+    for m in _SWIFT_PKG_URL.finditer(text):
+        name = m.group(1).rstrip("/").rsplit("/", 1)[-1]
+        if name.endswith(".git"):
+            name = name[:-4]
+        packages.add(name.lower())
+    packages |= {m.group(1).lower() for m in _SWIFT_PKG_NAME.finditer(text)}
+    return packages
+
+
+def parse_swift_resolved(path: Path) -> set[str]:
+    """Extract resolved package identities from a Package.resolved (v1 or v2)."""
+    if not path.exists():
+        return set()
+    with open(path) as f:
+        data = json.load(f)
+    pins = data.get("pins", []) or data.get("object", {}).get("pins", [])
+    packages: set[str] = set()
+    for pin in pins:
+        ident = pin.get("identity") or pin.get("package")
+        if ident:
+            packages.add(ident.lower())
+    return packages
+
+
+def _is_native(project: Path) -> bool:
+    """Detect a native (C++/Swift) project by its build/package manifest."""
+    if (project / "CMakeLists.txt").exists():
+        return True
+    if any(project.glob("*.xcodeproj")):
+        return True
+    return (
+        (project / "Package.swift").exists()
+        or any(project.glob("*/Package.swift"))
+        or any(project.glob("*/*/Package.swift"))
+    )
+
+
 def detect_project_type(project: Path) -> str:
-    """Detect python, node, or fullstack."""
+    """Detect python, node, fullstack, or native."""
     has_backend = (
         (project / "backend" / "pyproject.toml").exists()
         or (project / "backend" / "requirements.txt").exists()
@@ -154,14 +214,38 @@ def detect_project_type(project: Path) -> str:
     has_frontend = (project / "frontend" / "package.json").exists()
     if has_backend and has_frontend:
         return "fullstack"
+    if _is_native(project):
+        return "native"
     if (project / "package.json").exists():
         return "node"
     return "python"
 
 
+def _collect_native_deps(project: Path) -> set[str]:
+    """Collect C++ (CMake) and Swift (SwiftPM) dependency names."""
+    packages: set[str] = parse_cmake(project / "CMakeLists.txt")
+    for cml in project.glob("*/CMakeLists.txt"):
+        packages |= parse_cmake(cml)
+    swift_manifests = [
+        project / "Package.swift",
+        *project.glob("*/Package.swift"),
+        *project.glob("*/*/Package.swift"),
+    ]
+    for manifest in swift_manifests:
+        packages |= parse_swift_package(manifest)
+    resolved = [
+        project / "Package.resolved",
+        *project.glob("*/Package.resolved"),
+        *project.glob("*/*/Package.resolved"),
+    ]
+    for lock in resolved:
+        packages |= parse_swift_resolved(lock)
+    return packages
+
+
 def collect_deps(project: Path, project_type: str) -> dict[str, set[str]]:
     """Collect all deps, keyed by language."""
-    result: dict[str, set[str]] = {"python": set(), "node": set()}
+    result: dict[str, set[str]] = {"python": set(), "node": set(), "native": set()}
     if project_type in ("python", "fullstack"):
         for subdir in (".", "backend"):
             base = project / subdir
@@ -170,6 +254,8 @@ def collect_deps(project: Path, project_type: str) -> dict[str, set[str]]:
     if project_type in ("node", "fullstack"):
         for subdir in (".", "frontend", "client", "server"):
             result["node"] |= parse_package_json(project / subdir / "package.json")
+    if project_type == "native":
+        result["native"] |= _collect_native_deps(project)
     return result
 
 
@@ -251,7 +337,9 @@ def check_drift(project: Path) -> list[str]:
 
     deps = collect_deps(project, detect_project_type(project))
     categories = _registered_categories(patterns)
-    all_deps = deps.get("python", set()) | deps.get("node", set())
+    all_deps = (
+        deps.get("python", set()) | deps.get("node", set()) | deps.get("native", set())
+    )
 
     issues = _find_unregistered(deps, lib_map, categories)
     issues += _find_stale(patterns, all_deps, lib_map)

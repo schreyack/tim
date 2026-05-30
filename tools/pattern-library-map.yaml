@@ -137,3 +137,28 @@ node:
   # Offline / PWA
   dexie: [frontend_offline]
   workbox-webpack-plugin: [frontend_offline]
+
+# Native (C++ / Swift) libraries. Names normalized lowercase as they appear in
+# CMake find_package/FetchContent declarations, Package.swift, or Package.resolved.
+# Starter set for native desktop/audio projects - extend as libraries recur.
+native:
+  # Audio frameworks / plugin hosting
+  juce: [audio_framework, juce]
+  # Audio device I/O
+  rtaudio: [audio_io]
+  portaudio: [audio_io]
+  # Audio file read/write
+  libsndfile: [audio_file_io]
+  sndfile: [audio_file_io]
+  # DSP / FFT
+  fftw3: [dsp_fft]
+  fftw: [dsp_fft]
+  # Plugin formats / SDKs
+  vst3sdk: [plugin_format]
+  # Logging
+  spdlog: [logging, structured-json]
+  # JSON / serialization
+  nlohmann_json: [serialization]
+  rapidjson: [serialization]
+  # Swift HTTP client
+  alamofire: [http_client]
