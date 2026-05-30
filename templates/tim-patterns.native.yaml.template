@@ -1,0 +1,122 @@
+# .tim-patterns.yaml - TIM Pattern Registry (NATIVE variant)
+# For native desktop projects: C++17/20 + Swift/SwiftUI, optional Python tooling.
+# No backend, no k3s, no remote-first deploy.
+#
+# Copy to your project root as .tim-patterns.yaml and customize.
+# The compliance checker validates all patterns are registered; check-pattern-drift
+# cross-checks these against your CMake / SwiftPM / Python dependencies.
+#
+# Pattern keys / standards must match the library map in
+# lib/tim/tools/pattern-library-map.yaml. Example: depending on fftw means you
+# should register a `dsp_fft` pattern; juce -> `audio_framework`; etc.
+
+# =============================================================================
+# PATTERN REGISTRY
+# =============================================================================
+# Register every significant design pattern used in this project.
+# If code uses an unregistered pattern, deployment is blocked.
+
+patterns:
+  # -------------------------------------------------------------------------
+  # AUDIO FRAMEWORK (the app's audio/plugin host layer)
+  # -------------------------------------------------------------------------
+  audio_framework:
+    standard: "juce"  # Options: juce, CUSTOM
+    reference: "standards/coding/native.md"  # Forward reference: define per project
+    implemented: true
+    notes: "JUCE for audio graph, plugin hosting, and UI bridging"
+
+  # -------------------------------------------------------------------------
+  # AUDIO DEVICE I/O (real-time input/output)
+  # -------------------------------------------------------------------------
+  audio_io:
+    standard: "rtaudio"  # Options: rtaudio, portaudio, CUSTOM
+    reference: "standards/coding/native.md"
+    implemented: true
+
+  # -------------------------------------------------------------------------
+  # AUDIO FILE I/O (read/write sound files)
+  # -------------------------------------------------------------------------
+  audio_file_io:
+    standard: "libsndfile"  # Options: libsndfile, CUSTOM
+    reference: "standards/coding/native.md"
+    implemented: true
+
+  # -------------------------------------------------------------------------
+  # DSP / FFT
+  # -------------------------------------------------------------------------
+  dsp_fft:
+    standard: "fftw"  # Options: fftw, CUSTOM
+    reference: "standards/coding/native.md"
+    implemented: true
+
+  # -------------------------------------------------------------------------
+  # PLUGIN FORMAT (how the app hosts/exports plugins)
+  # -------------------------------------------------------------------------
+  plugin_format:
+    standard: "vst3sdk"  # Options: vst3sdk, audio-unit, CUSTOM
+    reference: "standards/coding/native.md"
+    implemented: true
+    notes: "VST3 + Audio Unit; AU plugin-hosting tests gate local/manual, not CI"
+
+  # -------------------------------------------------------------------------
+  # LOGGING (Required)
+  # -------------------------------------------------------------------------
+  logging:
+    standard: "spdlog"  # Options: spdlog, structured-json (Python side)
+    reference: "standards/deployment/observability.md#logging"
+    implemented: true
+
+  # -------------------------------------------------------------------------
+  # SERIALIZATION (project/preset files, config)
+  # -------------------------------------------------------------------------
+  serialization:
+    standard: "nlohmann_json"  # Options: nlohmann_json, rapidjson, CUSTOM
+    reference: "standards/coding/native.md"
+    implemented: true
+
+  # -------------------------------------------------------------------------
+  # ERROR HANDLING (Required) - native idioms (no backend error hierarchy)
+  # -------------------------------------------------------------------------
+  error_handling:
+    standard: "CUSTOM"
+    justification: |
+      Native app uses language-native error handling (C++ std::expected /
+      exceptions, Swift Result / throwing functions). No TIM backend
+      app-error-hierarchy applies to a desktop binary.
+    approved_by: "your-email@example.com"
+    approved_date: "2026-01-01"
+    ticket: "STANDARDS-XXX"
+
+  # =========================================================================
+  # REAL-TIME AUDIO SAFETY (project-local gate, not a TIM-blessed standard)
+  # =========================================================================
+  # If the app runs RealtimeSanitizer (RTSan) / AddressSanitizer (ASan) to prove
+  # no alloc/lock/syscall on the audio thread, register it as CUSTOM. TIM does
+  # not yet bless an audio-realtime gate kind (revisit if a 2nd audio project
+  # appears); keep it project-local for now.
+  #
+  # realtime_audio_safety:
+  #   standard: "CUSTOM"
+  #   justification: |
+  #     RTSan proves the audio callback is alloc/lock/syscall-free; ASan covers
+  #     the lock-free handoff. Requires LLVM/clang >= 20. Project-local gate.
+  #   approved_by: "your-email@example.com"
+  #   approved_date: "2026-01-01"
+  #   ticket: "STANDARDS-XXX"
+
+  # =========================================================================
+  # CUSTOM PATTERNS
+  # =========================================================================
+  # Use for patterns where no TIM standard exists.
+  # CUSTOM patterns require human approval before deployment.
+
+# =============================================================================
+# METADATA
+# =============================================================================
+metadata:
+  project: "your-project-name"
+  created: "2026-01-01"
+  last_reviewed: "2026-01-01"
+  reviewed_by: "your-email@example.com"
+  profile: "native-app"  # No remote-first deploy; Gate 3 = build/code-sign/notarize
