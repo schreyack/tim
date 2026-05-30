@@ -13,6 +13,7 @@
 templates/node/.pre-commit-config.yaml
 templates/python/.pre-commit-config.yaml
 templates/fullstack/.pre-commit-config.yaml
+templates/native/.pre-commit-config.yaml
 
 # Secrets baseline
 .secrets.baseline

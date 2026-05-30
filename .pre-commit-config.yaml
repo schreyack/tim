@@ -26,7 +26,7 @@ repos:
             libs/python/pyproject\.toml|
             marketplace/plugins/tim-loop/scripts/block_bypass_flags\.py|
             standards/enforcement/(ai-behavioral-gates|gates|strict-compliance)\.md|
-            templates/(node|python)/\.pre-commit-config\.yaml|
+            templates/(node|python|native)/\.pre-commit-config\.yaml|
             templates/node/(eslint\.config\.js|tsconfig\.json)|
             templates/python/pyproject\.toml|
             tools/(check-code-quality\.py|tim-compliance-check\.sh)
@@ -194,7 +194,7 @@ repos:
             libs/python/pyproject\.toml|
             marketplace/plugins/tim-loop/scripts/block_bypass_flags\.py|
             standards/enforcement/(ai-behavioral-gates|gates|strict-compliance)\.md|
-            templates/(node|python)/\.pre-commit-config\.yaml|
+            templates/(node|python|native)/\.pre-commit-config\.yaml|
             templates/node/(eslint\.config\.js|tsconfig\.json)|
             templates/python/pyproject\.toml|
             tools/(check-code-quality\.py|tim-compliance-check\.sh)
@@ -212,7 +212,7 @@ repos:
             libs/python/pyproject\.toml|
             marketplace/plugins/tim-loop/scripts/block_bypass_flags\.py|
             standards/enforcement/(ai-behavioral-gates|gates|strict-compliance)\.md|
-            templates/(node|python)/\.pre-commit-config\.yaml|
+            templates/(node|python|native)/\.pre-commit-config\.yaml|
             templates/node/(eslint\.config\.js|tsconfig\.json)|
             templates/python/pyproject\.toml|
             tools/(check-code-quality\.py|tim-compliance-check\.sh)
