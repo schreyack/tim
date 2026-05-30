@@ -20,6 +20,14 @@ Ready-to-copy configuration files that implement the TIM standards. These templa
 | `node/tsconfig.json` | TypeScript strict mode config | Type safety |
 | `node/eslint.config.js` | ESLint with TIM rules | Code quality |
 
+### Native Stack (C++/Swift)
+
+| Template | Purpose | Standards Implemented |
+|----------|---------|----------------------|
+| `native/.pre-commit-config.yaml` | Pre-commit hooks (clang-tidy, swiftlint, Python gates) | [Gate 1](../standards/enforcement/gates.md#gate-1-local), [native.md](../standards/coding/native.md) |
+
+No CI template: TIM does not standardize a billable macOS runner lane — native CI gates local/manual. No deploy: the `native-app` profile has no remote-first deploy (Gate 3 = build/code-sign/notarize).
+
 ### CI/CD
 
 | Template | Purpose | Standards Implemented |
@@ -50,7 +58,8 @@ See [AI Behavioral Gates](../standards/enforcement/ai-behavioral-gates.md) for d
 |----------|---------|----------------------|
 | `plan.md.template` | Plan document | [Plan Management](../standards/operations/plan-management.md) |
 | `CLAUDE.md.template` | Project instructions | All standards |
-| `tim-patterns.yaml.template` | Pattern registry | [Pattern Compliance](../standards/enforcement/strict-compliance.md) |
+| `tim-patterns.yaml.template` | Pattern registry (backend-shaped) | [Pattern Compliance](../standards/enforcement/strict-compliance.md) |
+| `tim-patterns.native.yaml.template` | Pattern registry (native C++/Swift/audio) | [native.md](../standards/coding/native.md) |
 
 ## Usage
 
@@ -64,7 +73,7 @@ cd my-project
 # Add tim as submodule
 git submodule add /path/to/tim lib/tim
 
-# Generate pre-commit config (auto-detects python or node)
+# Generate pre-commit config (auto-detects python, node, fullstack, or native)
 lib/tim/bin/sync-pre-commit my-project
 
 # Optionally add project-specific overrides

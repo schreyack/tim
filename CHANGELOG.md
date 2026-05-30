@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `check-code-quality.py --language native`: file-size (500) for `.h/.hpp/.hh/.cc/.cpp/.cxx/.swift`, full file+function+complexity for Python.
   - `check-pattern-drift.py` parses CMake (`find_package`/`FetchContent`), `Package.swift`, and `Package.resolved` dependencies; new `native` section in `pattern-library-map.yaml` (starter set for desktop/audio libraries).
   - New `native-app` preset: excludes the vendored `lib/` submodule from the Python linters. No remote-first deploy — Gate 3 (ops.sh/k3s/canary) does not apply to a desktop app.
+  - New `standards/coding/native.md` coding standard (C++/Swift toolchain, strict builds, size/complexity enforcement split, real-time-audio safety, gate mapping) and `templates/tim-patterns.native.yaml.template`. README and templates/README updated with the native stack and standard.
+  - `templates/native/.pre-commit-config.yaml` added to the enforcement protection (protect-enforcement-files hook + `.tim-enforcement-files` lock list), for parity with the node/python/fullstack templates.
 
 ## [2.91.0] - 2026-04-08
 

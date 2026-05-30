@@ -537,6 +537,7 @@ tim/
 |----------|---------|
 | [python.md](standards/coding/python.md) | mypy strict, ruff, FastAPI patterns |
 | [typescript.md](standards/coding/typescript.md) | strict mode, ESLint, Prisma |
+| [native.md](standards/coding/native.md) | C++/Swift: clang-tidy, swiftlint, strict builds, native gates |
 | [code-organization.md](standards/coding/code-organization.md) | File size limits, complexity (AI-critical) |
 | [api-versioning.md](standards/coding/api-versioning.md) | URL path versioning, deprecation |
 
