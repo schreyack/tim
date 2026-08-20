@@ -17,6 +17,8 @@ from __future__ import annotations
 import json
 import re
 import sys
+import tomllib
+from collections.abc import Iterable
 from pathlib import Path
 
 import yaml
@@ -105,31 +107,58 @@ def parse_requirements_txt(path: Path) -> set[str]:
 
 
 def _extract_dep_name(raw: str) -> str:
-    """Extract bare package name from a dependency specifier."""
+    """Extract bare package name from a dependency specifier.
+
+    Extras and environment markers are stripped before the version operators:
+    in `uvicorn[standard]>=0.34` the `>` is reached first, so trimming there
+    would leave the extras attached and the name would match nothing.
+    """
     name = raw.split("=")[0].strip().strip('"').strip("'")
-    for sep in (">=", "<=", "==", "!=", "~=", ">", "<", "[", ";"):
+    for sep in ("[", ";", ">=", "<=", "==", "!=", "~=", ">", "<"):
         if sep in name:
             name = name[:name.index(sep)]
             break
     return name.strip().lower()
 
 
+def _dep_names(specs: Iterable[str]) -> set[str]:
+    """Package names from requirement specifiers or a table's keys."""
+    names = {_extract_dep_name(spec) for spec in specs}
+    return {name for name in names if name and name != "python"}
+
+
 def parse_pyproject_toml(path: Path) -> set[str]:
-    """Extract dependency names from pyproject.toml."""
+    """Extract dependency names from pyproject.toml.
+
+    Reads the file as TOML rather than scanning lines, because the two layouts
+    put dependencies in different shapes: PEP 621 uses an inline array under
+    `[project]`, Poetry uses a table whose keys are the package names. The old
+    line scanner only recognised a section header containing "dependencies",
+    so a PEP 621 project reported its optional extras and none of its real
+    dependencies — including the closing bracket as if it were a package.
+    """
     if not path.exists():
         return set()
+    with path.open("rb") as handle:
+        data = tomllib.load(handle)
+
     packages: set[str] = set()
-    in_deps = False
-    for line in path.read_text().splitlines():
-        stripped = line.strip()
-        if stripped.startswith("["):
-            in_deps = "dependencies" in stripped.lower()
-            continue
-        if not in_deps or not stripped or stripped.startswith("#"):
-            continue
-        name = _extract_dep_name(stripped)
-        if name and name != "python":
-            packages.add(name)
+
+    project = data["project"] if "project" in data else {}
+    if "dependencies" in project:
+        packages |= _dep_names(project["dependencies"])
+    for extra in project.get("optional-dependencies", {}).values():
+        packages |= _dep_names(extra)
+
+    # PEP 735 dependency groups, which sit at the top level.
+    for group in data.get("dependency-groups", {}).values():
+        packages |= _dep_names(item for item in group if isinstance(item, str))
+
+    poetry = data.get("tool", {}).get("poetry", {})
+    packages |= _dep_names(poetry.get("dependencies", {}))
+    for group in poetry.get("group", {}).values():
+        packages |= _dep_names(group.get("dependencies", {}))
+
     return packages
 
 
