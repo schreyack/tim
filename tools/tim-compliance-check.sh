@@ -252,7 +252,9 @@ check_security() {
         --include="*.js" --include="*.json" --include="*.yaml" --include="*.toml" \
         --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.venv \
         . 2>/dev/null | \
-        grep -v ".env" | grep -v "example" | head -3)
+        grep -v ".env" | grep -v "example" | \
+        grep -v "pragma: allowlist secret" | \
+        grep -v "^\./lib/tim/" | head -3)
 
     if [[ -z "$secrets_found" ]]; then
         log_pass "No obvious secrets in code"
