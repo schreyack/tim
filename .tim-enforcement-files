@@ -10,6 +10,10 @@
 
 # Pre-commit configs and templates
 .pre-commit-config.yaml
+# Project exemptions. The generated config is only as strong as this file:
+# editing it silently widens what the gate permits, so it is signed the same
+# way the config it generates is.
+.pre-commit-overrides.yaml
 templates/node/.pre-commit-config.yaml
 templates/python/.pre-commit-config.yaml
 templates/fullstack/.pre-commit-config.yaml

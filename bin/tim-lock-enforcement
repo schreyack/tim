@@ -45,6 +45,16 @@ project_files() {
         local ops="$project/ops.sh"
         [[ -f "$ops" ]] && echo "$ops"
 
+        # Enforcement files at the PROJECT root. The list is the source of
+        # truth here, not a second hardcoded trio: .secrets.baseline sat on
+        # the list from the start and was never locked in any project,
+        # because the list was only ever walked against the submodule.
+        while IFS= read -r line; do
+            line="${line%%#*}"
+            line="${line// /}"
+            [[ -n "$line" ]] && [[ -f "$project/$line" ]] && echo "$project/$line"
+        done < "$TIM_ROOT/.tim-enforcement-files"
+
         # Submodule enforcement files (lib/tim mirrors the tim repo)
         local sub="$project/lib/tim"
         if [[ -d "$sub" ]]; then

@@ -22,6 +22,7 @@ repos:
           (?x)^(
             \.gitignore|
             \.pre-commit-config\.yaml|
+            \.pre-commit-overrides\.yaml|
             \.secrets\.baseline|
             \.tim-settings-sot\.yaml|
             \.tim-no-fallback\.yaml|
