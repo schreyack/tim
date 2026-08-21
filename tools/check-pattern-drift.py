@@ -48,13 +48,44 @@ STDLIB_STANDARDS = {
 }
 
 
+def _is_category(val: dict[str, object]) -> bool:
+    """True when this dict groups patterns rather than being one.
+
+    A leaf pattern's fields are scalars ('standard', 'description',
+    'implemented'), so a dict whose every entry is itself a dict — and which
+    declares no 'standard' of its own — cannot be a leaf. That combination is
+    the whole test; it does not depend on the category being named anything
+    in particular, so a project may group under any headings it likes.
+    """
+    return (
+        "standard" not in val
+        and bool(val)
+        and all(isinstance(v, dict) for v in val.values())
+    )
+
+
 def _parse_dict_patterns(raw: dict[str, object]) -> dict[str, str]:
-    """Parse patterns in dict format: {key: {standard: value}}."""
-    return {
-        key: val.get("standard", "")
-        for key, val in raw.items()
-        if isinstance(val, dict)
-    }
+    """Parse patterns in dict format: {key: {standard: value}}.
+
+    Also reads the nested shape {category: {name: {...}}}, which projects use
+    to group patterns under headings. Without this, a nested registry's real
+    pattern names sit one level below where the checker looks and none of them
+    is ever seen — the project reads as having registered only its four
+    category headings. The category name is kept as well as its children, so a
+    project that deliberately registers at category level is not broken by
+    this.
+    """
+    parsed: dict[str, str] = {}
+    for key, val in raw.items():
+        if not isinstance(val, dict):
+            continue
+        parsed[key] = val.get("standard", "")
+        if not _is_category(val):
+            continue
+        for sub_key, sub_val in val.items():
+            if isinstance(sub_val, dict):
+                parsed[sub_key] = sub_val.get("standard", "")
+    return parsed
 
 
 def _parse_list_patterns(raw: list[object]) -> dict[str, str]:

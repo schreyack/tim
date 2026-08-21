@@ -13,25 +13,25 @@
 python:
   # Authentication
   pyjwt: [authentication, clerk-jwt, jwt-bearer, api-key]
-  python-jose: [authentication]
-  authlib: [authentication]
+  python-jose: [authentication, zitadel-oidc, magic-link-auth]
+  authlib: [authentication, oidc-auth]
 
   # Database / ORM
-  sqlalchemy: [database_orm, sqlalchemy-async]
-  alembic: [database_migrations, alembic]
-  asyncpg: [database_orm, sqlalchemy-async]
+  sqlalchemy: [database_orm, sqlalchemy-async, sqlalchemy-model]
+  alembic: [database_migrations, alembic, alembic-migration]
+  asyncpg: [database_orm, sqlalchemy-async, sqlalchemy-model]
   psycopg2-binary: [database_orm, sqlalchemy-async]
 
   # Validation
-  pydantic: [input_validation, pydantic-strict]
-  pydantic-settings: [input_validation, pydantic-strict]
+  pydantic: [input_validation, pydantic-strict, pydantic-schema, pydantic-settings]
+  pydantic-settings: [input_validation, pydantic-strict, pydantic-schema, pydantic-settings]
 
   # Web frameworks
-  fastapi: [web_framework, fastapi]
+  fastapi: [web_framework, fastapi, fastapi-router, fastapi-app]
   django: [web_framework, django]
 
   # Background jobs
-  celery: [background_jobs, celery-redis]
+  celery: [background_jobs, celery-redis, async-report-generation]
 
   # Storage
   boto3: [file_storage, s3]
