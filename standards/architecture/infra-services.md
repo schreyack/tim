@@ -54,6 +54,7 @@ Shared Redis for caching, pub/sub, and session storage. TLS-only, password-authe
 | truefol-compass | 0 |
 | jamphoria | 2 |
 | arcade | 3 |
+| flights | 4 |
 
 **tim-lib modules that use Redis**:
 - `EventBus` — cross-pod pub/sub for WebSocket broadcasting
