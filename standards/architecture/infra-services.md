@@ -62,6 +62,23 @@ Shared Redis for caching, pub/sub, and session storage. TLS-only, password-authe
 
 **To onboard**: Infra assigns a DB index, adds the app namespace to the Redis NetworkPolicy, creates an ExternalSecret syncing the password into `central-redis-credentials`, and updates the Vault project policy.
 
+Infra must also add the app namespace to `DEPENDENT_NAMESPACES` in the Redis connection watchdog — the NetworkPolicy and the watchdog are kept in step, and the watchdog can restart deployments in those namespaces when Redis client counts stay abnormally low.
+
+## Consuming a shared credential from a generated project
+
+This trips up every project onboarding to a shared service, because `ops-config.yaml` shows `env.secret:` as though it were a global constraint. It is not — it is only the *default*. Any individual env entry may name a different Secret:
+
+```yaml
+env:
+  - { name: FLIGHTS_REDIS_PASSWORD, secret: { name: central-redis-credentials, key: REDIS_PASSWORD } }
+```
+
+The env var's `name` and the Secret's `key` are independent, so a shared Secret's bare key can arrive in the container under an app-specific prefix. That matters for anything using `env_prefix` in pydantic-settings, and it removes the temptation to copy the shared credential into the project's own Secret — a second copy is a second thing to rotate and a second thing to forget.
+
+`secret.optional: true` is also supported. Prefer leaving it off: a required shared credential fails at startup, which is louder and safer than a silent "if configured" branch.
+
+`envFrom: secretRef` is NOT the route for a generated project — that is the shape used by hand-written manifests (arcade), and there is no ops-config field for it.
+
 ### Vault `v1.0.0`
 
 Centralized secrets management. Apps never store secrets in code or k8s manifests — all secrets live in Vault and are synced to k8s Secrets via External Secrets Operator.
