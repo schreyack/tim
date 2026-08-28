@@ -4,7 +4,13 @@
 # Reads .tim-projects, finds ops-config.yaml in each, creates a
 # shell function named after project.name that wraps ops.sh.
 
-TIM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Where this file lives. bash sets BASH_SOURCE; zsh does not, and zsh is the
+# shell this is sourced from — without the fallback TIM_ROOT resolved to the
+# parent of $PWD, PROJECTS_FILE was never found, and the guard below bailed
+# silently, so no project ever got an alias.
+_ops_aliases_self="${BASH_SOURCE[0]:-${(%):-%x}}"
+TIM_ROOT="$(cd "$(dirname "$_ops_aliases_self")/.." && pwd)"
+unset _ops_aliases_self
 PROJECTS_FILE="$TIM_ROOT/.tim-projects"
 
 _find_ops_sh() {
