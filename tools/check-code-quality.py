@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import ast
+import re
 import sys
 from pathlib import Path
 
@@ -29,6 +30,10 @@ NATIVE_SKIP_DIRS = {".git", "lib", "build", ".build", "DerivedData", "node_modul
 # are owned by clang-tidy / swiftlint (as ESLint owns TS complexity); here we
 # enforce only the language-agnostic file-size limit.
 NATIVE_SOURCE_EXTENSIONS = {".h", ".hpp", ".hh", ".cc", ".cpp", ".cxx", ".swift"}
+# Browser sources. `.js` gets file size AND function length; `.css` gets file
+# size only, there being no functions in it to measure.
+WEB_SOURCE_EXTENSIONS = {".js", ".css"}
+WEB_SKIP_DIRS = {"node_modules", "dist", ".git", "vendor"}
 
 
 class PythonAnalyzer(ast.NodeVisitor):
@@ -148,6 +153,63 @@ def check_typescript_file(filepath: Path) -> list[str]:
     return violations
 
 
+def js_functions(lines: list[str]) -> list[tuple[int, int]]:
+    """Every JavaScript function's (start line, length), by brace balance.
+
+    A MODULE IIFE IS A SCOPE, NOT A FUNCTION. `(function () { ... })();`
+    wraps a whole page module, and counting it reports the module as one
+    300-line function -- which is what an earlier ad-hoc version of this
+    reader did to a 407-line file. So an IIFE is stepped INTO and the
+    functions inside it are measured instead.
+    """
+    opens = re.compile(
+        r"(\bfunction\b[^(]*\([^)]*\)\s*\{)"
+        r"|(=>\s*\{)"
+        r"|(^\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{\s*$)"
+    )
+    out: list[tuple[int, int]] = []
+    i = 0
+    while i < len(lines):
+        if not opens.search(lines[i]):
+            i += 1
+            continue
+        depth, j, started = 0, i, False
+        while j < len(lines):
+            depth += lines[j].count("{") - lines[j].count("}")
+            started = started or "{" in lines[j]
+            if started and depth <= 0:
+                break
+            j += 1
+        close = lines[j] if j < len(lines) else ""
+        if lines[i].lstrip().startswith("(function") and ")(" in close:
+            i += 1  # step INTO the wrapper, do not skip its body
+            continue
+        out.append((i + 1, j - i + 1))
+        i = j + 1
+    return out
+
+
+def check_web_file(filepath: Path) -> list[str]:
+    """Check a browser source: file size for both, function length for .js."""
+    violations: list[str] = []
+    size_violation = check_file_size(filepath)
+    if size_violation:
+        violations.append(size_violation)
+    if filepath.suffix != ".js":
+        return violations
+    try:
+        lines = filepath.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return violations + [f"{filepath}: cannot read: {exc}"]
+    for start, length in js_functions(lines):
+        if length > MAX_FUNCTION_LINES:
+            violations.append(
+                f"{filepath}:{start}: Function is {length} lines "
+                f"(max: {MAX_FUNCTION_LINES})"
+            )
+    return violations
+
+
 def check_native_file(filepath: Path) -> list[str]:
     """Check a C++/Swift file for size issues.
 
@@ -201,6 +263,16 @@ def collect_native_violations(directory: Path) -> list[str]:
     return violations
 
 
+def collect_web_violations(directory: Path) -> list[str]:
+    """Collect violations from every browser source in a directory."""
+    violations: list[str] = []
+    for ext in WEB_SOURCE_EXTENSIONS:
+        for filepath in directory.rglob(f"*{ext}"):
+            if not should_skip_path(filepath, WEB_SKIP_DIRS):
+                violations.extend(check_web_file(filepath))
+    return violations
+
+
 def report_violations(violations: list[str]) -> int:
     """Report violations and return exit code."""
     if not violations:
@@ -217,7 +289,7 @@ def main() -> int:
     parser.add_argument("paths", nargs="+", help="Files or directories to check")
     parser.add_argument(
         "--language",
-        choices=["python", "typescript", "native", "both"],
+        choices=["python", "typescript", "native", "both", "web", "all"],
         default="both",
         help="Language to check",
     )
@@ -234,12 +306,14 @@ def main() -> int:
         if path.is_file():
             violations.extend(check_file(path, args.language))
         else:
-            if args.language in ("python", "both"):
+            if args.language in ("python", "both", "all"):
                 violations.extend(collect_python_violations(path))
-            if args.language in ("typescript", "both"):
+            if args.language in ("typescript", "both", "all"):
                 violations.extend(collect_typescript_violations(path))
-            if args.language == "native":
+            if args.language in ("native", "all"):
                 violations.extend(collect_native_violations(path))
+            if args.language in ("web", "all"):
+                violations.extend(collect_web_violations(path))
 
     return report_violations(violations)
 
@@ -250,8 +324,10 @@ def check_file(path: Path, language: str) -> list[str]:
         return check_python_file(path)
     if path.suffix in (".ts", ".tsx") and language in ("typescript", "both"):
         return check_typescript_file(path)
-    if path.suffix in NATIVE_SOURCE_EXTENSIONS and language == "native":
+    if path.suffix in NATIVE_SOURCE_EXTENSIONS and language in ("native", "all"):
         return check_native_file(path)
+    if path.suffix in WEB_SOURCE_EXTENSIONS and language in ("web", "all"):
+        return check_web_file(path)
     return []
 
 
